@@ -1,0 +1,59 @@
+# =========================
+# ENV / SECRETS
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# NEXT.JS
+# =========================
+.next/
+out/
+
+# =========================
+# NODE
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+venv/
+.venv/
+ENV/
+env/
+
+# =========================
+# TEMP / GENERATED
+# =========================
+temp/
+temp_videos/
+
+# =========================
+# LOCAL DATABASE
+# =========================
+files.db
+files.db.backup
+
+# =========================
+# GENERATED CERTIFICATES
+# =========================
+backend/certificates/*.pdf
+
+# =========================
+# IDE / OS
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
