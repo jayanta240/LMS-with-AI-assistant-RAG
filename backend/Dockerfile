@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System packages needed by FFmpeg, Pillow, PyTorch and video processing
+# System packages required by FFmpeg, Pillow, PyTorch and video processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libgomp1 \
@@ -20,12 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-# Install CPU-only PyTorch first.
+# CPU-only PyTorch
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
     torch==2.1.2
 
-# Install remaining Python dependencies.
+# Remaining dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .

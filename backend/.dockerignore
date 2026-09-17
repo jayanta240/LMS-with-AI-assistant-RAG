@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+.git/
+temp/
+temp_videos/
+certificates/
+*.db
+*.db.backup
