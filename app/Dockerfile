@@ -12,6 +12,7 @@ FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
+
 COPY . .
 
 ARG NEXT_PUBLIC_API_URL
