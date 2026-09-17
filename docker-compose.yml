@@ -1,0 +1,63 @@
+services:
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: lms-backend
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+
+      QDRANT_URL: ${QDRANT_URL}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL}
+
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+
+      FRONTEND_URL: ${FRONTEND_URL}
+
+    volumes:
+      - backend_hf_cache:/root/.cache/huggingface
+      - backend_temp:/app/temp
+      - backend_certificates:/app/certificates
+
+    restart: unless-stopped
+
+
+  frontend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+
+    container_name: lms-frontend
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+
+    depends_on:
+      - backend
+
+    restart: unless-stopped
+
+
+volumes:
+  backend_hf_cache:
+  backend_temp:
+  backend_certificates:
