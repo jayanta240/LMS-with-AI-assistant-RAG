@@ -2,7 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
+import { redirect } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -51,7 +51,10 @@ type Message = {
   sources?: any[];
   video?: string;
 };
-
+ 
+export default function Home() {
+  redirect("/login");
+}
 
 export default function Home() {
   const {
