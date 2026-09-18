@@ -1052,7 +1052,7 @@ export default function LearningDashboardPage() {
 
 
                   <Link
-                    href="/"
+                    href="/assistant"
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-500 px-6 py-3.5 font-bold text-slate-950 transition hover:bg-yellow-400"
                   >
                     Open AI Assistant

@@ -67,7 +67,7 @@ const superAdminMenu: MenuItem[] = [
   },
   {
     name: "AI Assistant",
-    href: "/",
+    href: "/assistant",
     icon: Bot,
   },
   {
@@ -116,7 +116,7 @@ const companyMenu: MenuItem[] = [
   },
   {
     name: "AI Assistant",
-    href: "/",
+    href: "/assistant",
     icon: Bot,
   },
   {
@@ -150,7 +150,7 @@ const departmentMenu: MenuItem[] = [
   },
   {
     name: "AI Assistant",
-    href: "/",
+    href: "/assistant",
     icon: Bot,
   },
   {
@@ -460,7 +460,7 @@ export default function Sidebar() {
 
 
             <Link
-              href="/"
+              href="/assistant"
               className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
             >
               <Bot size={17} />

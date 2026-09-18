@@ -90,7 +90,7 @@ export default function EmployeeLayout({
     },
     {
       name: "AI Assistant",
-      href: "/",
+      href: "/assistant",
       icon: Bot,
     },
     {
