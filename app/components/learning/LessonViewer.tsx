@@ -6,9 +6,11 @@ import { markLessonComplete } from "@/lib/course-api";
 
 interface Props {
   lesson: any;
+  courseId: number;
+  onCompleted: () => void;
 }
 
-export default function LessonViewer({ lesson }: Props) {
+export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
 
   const [completed, setCompleted] =
     useState(false);
@@ -51,13 +53,14 @@ export default function LessonViewer({ lesson }: Props) {
       const response =
         await markLessonComplete(
           userId,
-          lesson.course_id,
+          courseId,
           lesson.id
         );
 
       if (response.success) {
 
         setCompleted(true);
+        onCompleted();
 
         alert("Lesson marked as completed!");
 
