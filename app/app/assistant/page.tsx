@@ -9,8 +9,8 @@ import {
   useState,
 } from "react";
 
-import DashboardLayout from "../components/layout/DashboardLayout";
-import EmployeeLayout from "../components/layout/EmployeeLayout";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import EmployeeLayout from "../../components/layout/EmployeeLayout";
 
 import {
   sendMessage,
@@ -19,7 +19,7 @@ import {
   getMessages,
   createSession,
   diagnoseImage,
-} from "../lib/api";
+} from "../../lib/api";
 
 import {
   Sparkles,
