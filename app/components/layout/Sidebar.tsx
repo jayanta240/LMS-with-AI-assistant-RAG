@@ -404,16 +404,8 @@ export default function Sidebar() {
                   size={19}
                   className={
                     active
-                      ? ""
+                      ? "text-[var(--brand-primary-text)]"
                       : "text-slate-500 group-hover:text-slate-800"
-                  }
-                  style={
-                    active
-                      ? {
-                          color:
-                            "var(--brand-primary-text)",
-                        }
-                      : undefined
                   }
                 />
 
