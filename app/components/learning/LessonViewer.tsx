@@ -21,7 +21,7 @@ export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
   // Reset button state whenever user opens another lesson
   useEffect(() => {
     setCompleted(false);
-  }, [lesson]);
+  }, [lesson?.id]);
 
   if (!lesson) {
     return (

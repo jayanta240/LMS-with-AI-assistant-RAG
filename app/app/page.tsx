@@ -706,15 +706,7 @@ ${diagnosis.solution}
           `${uploaded.length} uploaded, ${failed.length} failed.`
         );
 
-      } else if (
-        response?.detail
-      ) {
-
-        setUploadMessage(
-          response.detail
-        );
-
-      } else {
+      }  else {
 
         setUploadMessage(
           "No files were uploaded."
