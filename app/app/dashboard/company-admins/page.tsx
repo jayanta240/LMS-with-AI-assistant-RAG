@@ -10,7 +10,7 @@ import {
 
 export default function CompanyAdminsPage(){
 
-    const [companies,setCompanies]=useState([]);
+    const [companies,setCompanies]=useState<any[]>([]);
 
     const [name,setName]=useState("");
     const [email,setEmail]=useState("");

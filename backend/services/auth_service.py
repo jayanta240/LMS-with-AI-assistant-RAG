@@ -3,15 +3,19 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
+from config import settings
+
+
 # --------------------------------
 # JWT CONFIG
 # --------------------------------
 
-SECRET_KEY = "CHANGE_THIS_TO_LONG_RANDOM_SECRET"
+SECRET_KEY = settings.JWT_SECRET_KEY
 
 ALGORITHM = "HS256"
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+
 
 # --------------------------------
 # PASSWORD HASHING

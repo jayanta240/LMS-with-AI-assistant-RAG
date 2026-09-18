@@ -1,6 +1,8 @@
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000";
+  (typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:8000");
 
 
 // ============================================================
