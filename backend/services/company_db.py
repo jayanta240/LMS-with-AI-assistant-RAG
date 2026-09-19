@@ -131,6 +131,25 @@ def get_companies():
 
 
 # ============================================================
+# GET COMPANY COUNT
+# ============================================================
+
+def get_company_count():
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM companies
+                """
+            )
+
+            return cursor.fetchone()[0] or 0
+
+
+# ============================================================
 # GET COMPANY
 # ============================================================
 
