@@ -27,6 +27,7 @@ import { getDashboardStats } from "@/lib/course-api";
 
 
 type DashboardStats = {
+  companies?: number;
   users?: number;
   courses?: number;
   lessons?: number;
@@ -229,6 +230,9 @@ export default function DashboardPage() {
      STATS
      ========================================================== */
 
+  const companies =
+    stats.companies ?? 0;
+
   const users =
     stats.users ?? 0;
 
@@ -307,14 +311,16 @@ export default function DashboardPage() {
             }
             value={
               role === "super_admin"
-                ? "—"
+                ? loading
+                  ? "..."
+                  : companies.toLocaleString()
                 : loading
                   ? "..."
                   : users.toLocaleString()
             }
             subtitle={
               role === "super_admin"
-                ? "Company analytics"
+                ? "Registered companies"
                 : "Current users"
             }
             icon={
@@ -989,105 +995,6 @@ export default function DashboardPage() {
 
           </SectionCard>
 
-
-          {/* Quick Actions */}
-
-          <SectionCard title="Quick Actions">
-
-            <div className="space-y-3">
-
-              {role === "super_admin" && (
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href =
-                      "/dashboard/companies";
-                  }}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50"
-                >
-
-                  <div className="flex items-center gap-3">
-
-                    <Building2
-                      size={18}
-                      className="text-amber-500"
-                    />
-
-                    <span className="text-sm font-medium text-slate-700">
-                      Manage Companies
-                    </span>
-
-                  </div>
-
-                  <ChevronRight size={16} />
-
-                </button>
-
-              )}
-
-
-              {(role === "super_admin" ||
-                role === "company_admin" ||
-                role === "department_head") && (
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href =
-                      "/dashboard/courses";
-                  }}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50"
-                >
-
-                  <div className="flex items-center gap-3">
-
-                    <GraduationCap
-                      size={18}
-                      className="text-amber-500"
-                    />
-
-                    <span className="text-sm font-medium text-slate-700">
-                      Manage Courses
-                    </span>
-
-                  </div>
-
-                  <ChevronRight size={16} />
-
-                </button>
-
-              )}
-
-
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = "/";
-                }}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50"
-              >
-
-                <div className="flex items-center gap-3">
-
-                  <Bot
-                    size={18}
-                    className="text-amber-500"
-                  />
-
-                  <span className="text-sm font-medium text-slate-700">
-                    Open AI Assistant
-                  </span>
-
-                </div>
-
-                <ChevronRight size={16} />
-
-              </button>
-
-            </div>
-
-          </SectionCard>
 
         </div>
 
