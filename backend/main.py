@@ -18,6 +18,7 @@ from services.enrollment_db import (
 from services.company_db import (
     create_company,
     get_companies,
+    get_company_count,
     get_company,
     update_company,
     delete_company,
@@ -2664,6 +2665,8 @@ async def dashboard_stats(
 
         users_count = get_user_count()
 
+        companies_count = get_company_count()
+
         stats = get_course_stats()
 
         files_count = get_file_count()
@@ -2743,6 +2746,7 @@ async def dashboard_stats(
     # ============================================================
 
     return {
+        "companies": companies_count if role == "super_admin" else 0,
         "users": users_count,
         "courses": stats["courses"],
         "lessons": stats["lessons"],
