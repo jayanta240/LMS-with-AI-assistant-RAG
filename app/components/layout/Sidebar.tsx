@@ -13,7 +13,6 @@ import {
   Building2,
   UserCog,
   Bot,
-  BarChart3,
   Settings,
   LogOut,
   FolderOpen,
@@ -71,11 +70,6 @@ const superAdminMenu: MenuItem[] = [
     icon: Bot,
   },
   {
-    name: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-  },
-  {
     name: "Settings",
     href: "/dashboard/settings/",
     icon: Settings,
@@ -120,11 +114,6 @@ const companyMenu: MenuItem[] = [
     icon: Bot,
   },
   {
-    name: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-  },
-  {
     name: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
@@ -152,11 +141,6 @@ const departmentMenu: MenuItem[] = [
     name: "AI Assistant",
     href: "/assistant",
     icon: Bot,
-  },
-  {
-    name: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
   },
   {
     name: "Settings",
