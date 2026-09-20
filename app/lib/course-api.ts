@@ -610,6 +610,15 @@ export async function getUsers() {
 }
 
 
+export async function getCompanyAdmins() {
+
+  return cachedGet<any[]>(
+    "company-admins",
+    `${BASE}/api/company-admins`
+  );
+}
+
+
 // ============================================================
 // USER COURSES
 // ============================================================
