@@ -226,6 +226,26 @@ def get_user_progress(user_id):
 
 
 # ============================================================
+# DELETE COMPANY ADMIN
+# ============================================================
+
+def delete_company_admin(user_id):
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                DELETE FROM users
+                WHERE id = %s
+                  AND role = 'company_admin'
+            """, (
+                user_id,
+            ))
+
+            return cursor.rowcount > 0
+
+
+# ============================================================
 # DELETE USER
 # ============================================================
 
