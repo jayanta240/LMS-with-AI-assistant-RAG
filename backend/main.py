@@ -2106,6 +2106,24 @@ async def register_user(
                 detail="Super Admin can only create Company Admins."
             )
 
+        if not data.company_id or data.company_id <= 0:
+
+            raise HTTPException(
+                status_code=400,
+                detail="A valid company must be selected."
+            )
+
+        selected_company = get_company(
+            data.company_id
+        )
+
+        if not selected_company:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Selected company was not found."
+            )
+
     # ---------------------------------
     # COMPANY ADMIN
     # Can create Department Heads
