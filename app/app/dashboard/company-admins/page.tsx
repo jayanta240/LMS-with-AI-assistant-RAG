@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
     getCompanies,
     getCompanyAdmins,
+    deleteCompanyAdmin,
     registerUser
 } from "@/lib/course-api";
 
@@ -67,6 +68,36 @@ export default function CompanyAdminsPage(){
         }
 
     }
+
+    async function handleDelete(admin: any){
+
+        const confirmed = window.confirm(
+            `Delete "${admin.name}" (${admin.email}) permanently?\\n\\nThis will remove the Company Admin account from the database and cannot be undone.`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+
+            await deleteCompanyAdmin(admin.id);
+
+            alert("Company Admin deleted.");
+
+            await loadData();
+
+        } catch (error: any) {
+
+            alert(
+                error?.message ||
+                "Failed to delete Company Admin."
+            );
+
+        }
+
+    }
+
 
     async function handleCreate(){
 
@@ -274,6 +305,10 @@ export default function CompanyAdminsPage(){
                                         Company ID
                                     </th>
 
+                                    <th className="px-4 py-3 text-right">
+                                        Action
+                                    </th>
+
                                 </tr>
                             </thead>
 
@@ -315,6 +350,18 @@ export default function CompanyAdminsPage(){
                                             <span className="text-sm text-slate-500">
                                                 {admin.company_id ?? "-"}
                                             </span>
+
+                                        </td>
+
+                                        <td className="px-4 py-4 text-right">
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(admin)}
+                                                className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                                            >
+                                                Delete
+                                            </button>
 
                                         </td>
 
