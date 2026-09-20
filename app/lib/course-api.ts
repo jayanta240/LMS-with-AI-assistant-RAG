@@ -619,6 +619,52 @@ export async function getCompanyAdmins() {
 }
 
 
+export async function deleteCompanyAdmin(
+  id: number
+) {
+
+  const res =
+    await fetch(
+      `${BASE}/api/company-admins/${id}`,
+      {
+        method: "DELETE",
+        headers:
+          authHeaders(),
+      }
+    );
+
+
+  const data =
+    await res.json();
+
+
+  if (!res.ok) {
+
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to delete Company Admin"
+    );
+  }
+
+
+  invalidateCache(
+    "company-admins"
+  );
+
+  invalidateCache(
+    "users"
+  );
+
+  invalidateCache(
+    "dashboard-stats"
+  );
+
+
+  return data;
+}
+
+
 // ============================================================
 // USER COURSES
 // ============================================================
