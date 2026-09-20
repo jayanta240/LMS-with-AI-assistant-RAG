@@ -3399,12 +3399,18 @@ async def create_company_api(
             detail="Only Super Admin can create companies."
         )
 
-    company_id = create_company(
-        company_name=data.company_name,
-        company_email=data.company_email,
-        company_phone=data.company_phone,
-        company_address=data.company_address
-    )
+    try:
+        company_id = create_company(
+            company_name=data.company_name,
+            company_email=data.company_email,
+            company_phone=data.company_phone,
+            company_address=data.company_address
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc)
+        )
 
     return {
         "success": True,
@@ -3434,7 +3440,8 @@ async def get_companies_api(
             "company_email": row[2],
             "company_phone": row[3],
             "company_address": row[4],
-            "status": row[5]
+            "status": row[5],
+            "employee_count": row[-1] or 0
 
         })
 
