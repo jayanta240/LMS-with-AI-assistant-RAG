@@ -5,12 +5,15 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 
 import {
     getCompanies,
+    getCompanyAdmins,
     registerUser
 } from "@/lib/course-api";
 
 export default function CompanyAdminsPage(){
 
     const [companies,setCompanies]=useState<any[]>([]);
+    const [admins,setAdmins]=useState<any[]>([]);
+    const [loadingAdmins,setLoadingAdmins]=useState(true);
 
     const [name,setName]=useState("");
     const [email,setEmail]=useState("");
@@ -20,15 +23,48 @@ export default function CompanyAdminsPage(){
 
     useEffect(()=>{
 
-        loadCompanies();
+        loadData();
 
     },[]);
 
-    async function loadCompanies(){
+    async function loadData(){
 
-        const data=await getCompanies();
+        try {
 
-        setCompanies(data);
+            setLoadingAdmins(true);
+
+            const [companiesData, adminsData] = await Promise.all([
+                getCompanies(),
+                getCompanyAdmins(),
+            ]);
+
+            setCompanies(
+                Array.isArray(companiesData)
+                    ? companiesData
+                    : []
+            );
+
+            setAdmins(
+                Array.isArray(adminsData)
+                    ? adminsData
+                    : []
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Failed to load Company Admins page:",
+                error
+            );
+
+            setCompanies([]);
+            setAdmins([]);
+
+        } finally {
+
+            setLoadingAdmins(false);
+
+        }
 
     }
 
@@ -167,6 +203,132 @@ export default function CompanyAdminsPage(){
                     Create Company Admin
 
                 </button>
+
+            </div>
+
+            <div className="mt-10 rounded-xl bg-white p-8 shadow">
+
+                <div className="flex flex-col gap-2 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900">
+                            Company Admins
+                        </h2>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                            Full list of all Company Admin accounts and their assigned companies.
+                        </p>
+                    </div>
+
+                    <p className="text-sm font-medium text-slate-500">
+                        Total:{" "}
+                        <span className="text-slate-900">
+                            {admins.length}
+                        </span>
+                    </p>
+
+                </div>
+
+                {loadingAdmins ? (
+
+                    <div className="py-12 text-center text-sm text-slate-500">
+                        Loading Company Admins...
+                    </div>
+
+                ) : admins.length === 0 ? (
+
+                    <div className="py-12 text-center">
+
+                        <p className="font-medium text-slate-700">
+                            No Company Admins found.
+                        </p>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                            Create the first Company Admin using the form above.
+                        </p>
+
+                    </div>
+
+                ) : (
+
+                    <div className="mt-6 overflow-x-auto">
+
+                        <table className="min-w-full text-left">
+
+                            <thead>
+                                <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
+
+                                    <th className="px-4 py-3">
+                                        Name
+                                    </th>
+
+                                    <th className="px-4 py-3">
+                                        Gmail / Email
+                                    </th>
+
+                                    <th className="px-4 py-3">
+                                        Company
+                                    </th>
+
+                                    <th className="px-4 py-3">
+                                        Company ID
+                                    </th>
+
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                {admins.map((admin) => (
+
+                                    <tr
+                                        key={admin.id}
+                                        className="border-b border-slate-100 last:border-0"
+                                    >
+
+                                        <td className="px-4 py-4">
+
+                                            <p className="font-semibold text-slate-900">
+                                                {admin.name || "Unnamed"}
+                                            </p>
+
+                                        </td>
+
+                                        <td className="px-4 py-4">
+
+                                            <p className="text-sm text-slate-600">
+                                                {admin.email || "No email"}
+                                            </p>
+
+                                        </td>
+
+                                        <td className="px-4 py-4">
+
+                                            <p className="font-medium text-slate-800">
+                                                {admin.company || "No company"}
+                                            </p>
+
+                                        </td>
+
+                                        <td className="px-4 py-4">
+
+                                            <span className="text-sm text-slate-500">
+                                                {admin.company_id ?? "-"}
+                                            </span>
+
+                                        </td>
+
+                                    </tr>
+
+                                ))}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                )}
 
             </div>
 
