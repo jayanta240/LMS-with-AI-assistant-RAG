@@ -31,6 +31,7 @@ type Company = {
   company_phone: string;
   company_address: string;
   status?: string;
+  employee_count?: number;
 };
 
 
@@ -958,6 +959,22 @@ export default function CompaniesPage() {
                           <p className="line-clamp-2 text-sm text-slate-600">
                             {company.company_address ||
                               "No address provided"}
+                          </p>
+
+                        </div>
+
+                        <div className="flex items-center gap-3">
+
+                          <Users
+                            size={16}
+                            className="shrink-0 text-slate-400"
+                          />
+
+                          <p className="text-sm text-slate-600">
+                            {company.employee_count ?? 0}{" "}
+                            {(company.employee_count ?? 0) === 1
+                              ? "employee"
+                              : "employees"}
                           </p>
 
                         </div>
