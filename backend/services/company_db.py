@@ -72,6 +72,24 @@ def create_company(
 
             cursor.execute(
                 """
+                SELECT id
+                FROM companies
+                WHERE LOWER(TRIM(company_name))
+                      = LOWER(TRIM(%s))
+                LIMIT 1
+                """,
+                (company_name,),
+            )
+
+            existing_company = cursor.fetchone()
+
+            if existing_company:
+                raise ValueError(
+                    f'Company "{company_name}" already exists.'
+                )
+
+            cursor.execute(
+                """
                 INSERT INTO companies
                 (
                     company_name,
@@ -121,9 +139,17 @@ def get_companies():
 
             cursor.execute(
                 """
-                SELECT *
-                FROM companies
-                ORDER BY id DESC
+                SELECT
+                    c.*,
+                    (
+                        SELECT COUNT(*)
+                        FROM users u
+                        WHERE u.company_id = c.id
+                          AND LOWER(COALESCE(u.role, ''))
+                              = 'employee'
+                    ) AS employee_count
+                FROM companies c
+                ORDER BY c.id DESC
                 """
             )
 
