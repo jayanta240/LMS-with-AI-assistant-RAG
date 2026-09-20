@@ -2310,6 +2310,41 @@ async def get_users_api(
 
     return users
 
+@app.get("/api/company-admins")
+async def get_company_admins_api(
+    current_user=Depends(get_current_user)
+):
+
+    if current_user["role"] != "super_admin":
+
+        raise HTTPException(
+            status_code=403,
+            detail="Only Super Admin can view Company Admins."
+        )
+
+    rows = get_all_users()
+
+    company_admins = []
+
+    for row in rows:
+
+        if row[3] != "company_admin":
+            continue
+
+        company_admins.append({
+
+            "id": row[0],
+            "name": row[1],
+            "email": row[2],
+            "company_id": row[4],
+            "company": row[5] or "No company",
+            "created_at": row[8],
+
+        })
+
+    return company_admins
+
+
 @app.post("/api/enrollments")
 async def assign_course_api(
     data: EnrollmentCreate,
