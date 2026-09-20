@@ -40,11 +40,6 @@ const superAdminMenu: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
-    name: "Employees",
-    href: "/dashboard/employees",
-    icon: UsersRound,
-  },
-  {
     name: "Companies",
     href: "/dashboard/companies",
     icon: Building2,
