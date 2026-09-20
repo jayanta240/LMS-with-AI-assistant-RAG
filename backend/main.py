@@ -39,6 +39,7 @@ from services.user_db import (
     get_all_users,
     get_user_count,
     delete_user,
+    delete_company_admin,
     get_user_progress
 )
 
@@ -2343,6 +2344,67 @@ async def get_company_admins_api(
         })
 
     return company_admins
+
+
+@app.delete("/api/company-admins/{user_id}")
+async def delete_company_admin_api(
+    user_id: int,
+    current_user=Depends(get_current_user)
+):
+
+    if current_user["role"] != "super_admin":
+
+        raise HTTPException(
+            status_code=403,
+            detail="Only Super Admin can delete Company Admins."
+        )
+
+    target_user = get_user_by_id(user_id)
+
+    if not target_user:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Company Admin not found."
+        )
+
+    if target_user[4] != "company_admin":
+
+        raise HTTPException(
+            status_code=400,
+            detail="Selected user is not a Company Admin."
+        )
+
+    try:
+
+        deleted = delete_company_admin(user_id)
+
+    except Exception as exc:
+
+        print(
+            "Company Admin deletion failed:",
+            exc
+        )
+
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Company Admin could not be deleted because "
+                "related database records depend on this account."
+            )
+        )
+
+    if not deleted:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Company Admin not found."
+        )
+
+    return {
+        "success": True,
+        "message": "Company Admin deleted permanently."
+    }
 
 
 @app.post("/api/enrollments")
