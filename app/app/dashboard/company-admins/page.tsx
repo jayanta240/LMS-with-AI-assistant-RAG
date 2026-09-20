@@ -34,25 +34,65 @@ export default function CompanyAdminsPage(){
 
     async function handleCreate(){
 
-        await registerUser({
+        if (!name.trim()) {
+            alert("Name is required.");
+            return;
+        }
 
-            name,
+        if (!email.trim()) {
+            alert("Email is required.");
+            return;
+        }
 
-            email,
+        if (!password.trim()) {
+            alert("Password is required.");
+            return;
+        }
 
-            password,
+        if (!company) {
+            alert("Please select a company.");
+            return;
+        }
 
-            role:"company_admin",
+        try {
 
-            company_id:Number(company)
+            const result = await registerUser({
 
-        });
+                name: name.trim(),
 
-        alert("Company Admin Created");
+                email: email.trim(),
 
-        setName("");
-        setEmail("");
-        setPassword("");
+                password,
+
+                role:"company_admin",
+
+                company_id:Number(company)
+
+            });
+
+            if (result?.success === false) {
+                alert(
+                    result?.message ||
+                    "Unable to create Company Admin."
+                );
+                return;
+            }
+
+            alert("Company Admin Created");
+
+            setName("");
+            setEmail("");
+            setPassword("");
+            setCompany("");
+
+        } catch (error: any) {
+
+            alert(
+                error?.message ||
+                "Failed to create Company Admin."
+            );
+
+        }
 
     }
 
@@ -98,7 +138,7 @@ export default function CompanyAdminsPage(){
                 onChange={(e)=>setCompany(e.target.value)}
                 >
 
-                    <option>
+                    <option value="">
 
                         Select Company
 
