@@ -465,17 +465,26 @@ export default function EmployeeLayout({
 
           {/* Search */}
 
-          <div className="flex items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
 
-            <div className="flex h-10 w-[390px] items-center rounded-xl border border-slate-200 bg-white px-3 text-slate-400">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open navigation"
+              className="rounded-xl p-2 text-slate-600 hover:bg-slate-50 md:hidden"
+            >
+              <Menu size={22} />
+            </button>
+
+            <div className="flex h-10 min-w-0 flex-1 items-center rounded-xl border border-slate-200 bg-white px-3 text-slate-400 sm:w-[390px] sm:flex-none">
 
               <Search size={18} />
 
-              <span className="ml-3 text-sm text-slate-400">
+              <span className="ml-3 truncate text-sm text-slate-400">
                 Search anything...
               </span>
 
-              <span className="ml-auto rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-500">
+              <span className="ml-auto hidden rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-500 sm:block">
                 Ctrl + K
               </span>
 
@@ -486,7 +495,7 @@ export default function EmployeeLayout({
 
           {/* Header actions */}
 
-          <div className="flex items-center gap-4">
+          <div className="ml-2 flex shrink-0 items-center gap-1 sm:gap-4">
 
             <button
               type="button"
@@ -523,7 +532,7 @@ export default function EmployeeLayout({
 
             {/* Header user */}
 
-            <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
+            <div className="flex items-center gap-2 border-l border-slate-200 pl-2 sm:gap-3 sm:pl-4">
 
               <div
                 className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
