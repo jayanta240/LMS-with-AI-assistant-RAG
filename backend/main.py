@@ -2287,6 +2287,12 @@ async def login_user(
         department_id=user[6]
     )
 
+    branding = (
+        get_company_branding(user[5])
+        if user[5] is not None
+        else None
+    )
+
     return {
         "success": True,
         "access_token": token,
@@ -2295,7 +2301,8 @@ async def login_user(
         "email": user[2],
         "user_id": user[0],
         "company_id": user[5],
-        "department_id": user[6]
+        "department_id": user[6],
+        "branding": branding
     }
 @app.get("/api/users")
 async def get_users_api(
