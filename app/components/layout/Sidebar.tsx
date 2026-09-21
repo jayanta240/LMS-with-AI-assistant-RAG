@@ -16,6 +16,7 @@ import {
   Settings,
   LogOut,
   FolderOpen,
+  X,
 } from "lucide-react";
 
 import {
@@ -145,7 +146,13 @@ const departmentMenu: MenuItem[] = [
 ];
 
 
-export default function Sidebar() {
+export default function Sidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
 
   const { branding } = useBranding();
@@ -242,13 +249,32 @@ export default function Sidebar() {
     companyName ||
     "Learning Platform";
   return (
-    <aside className="flex h-screen w-[236px] shrink-0 flex-col border-r border-slate-200 bg-white">
+    <>
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-slate-950/40 md:hidden"
+        />
+      )}
+
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50
+          flex h-screen w-[236px] shrink-0 flex-col
+          border-r border-slate-200 bg-white
+          shadow-xl transition-transform duration-200
+          md:static md:z-auto md:shadow-none
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}
+      >
 
       {/* =====================================================
           LOGO
          ===================================================== */}
 
-      <div className="flex h-[82px] items-center border-b border-slate-200 px-6">
+      <div className="flex h-[82px] items-center justify-between border-b border-slate-200 px-6">
 
         <Link
           href={
@@ -312,6 +338,15 @@ export default function Sidebar() {
 
         </Link>
 
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close navigation"
+          className="rounded-lg p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900 md:hidden"
+        >
+          <X size={20} />
+        </button>
+
       </div>
 
 
@@ -342,6 +377,7 @@ export default function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={onClose}
                 style={
                   active
                     ? {
@@ -454,7 +490,10 @@ export default function Sidebar() {
 
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => {
+              onClose?.();
+              handleLogout();
+            }}
             title="Logout"
             className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
           >
@@ -465,6 +504,7 @@ export default function Sidebar() {
 
       </div>
 
-    </aside>
+      </aside>
+    </>
   );
 }
