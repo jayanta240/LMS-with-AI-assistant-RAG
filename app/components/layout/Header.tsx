@@ -5,13 +5,18 @@ import {
   CalendarDays,
   Search,
   SlidersHorizontal,
+  Menu,
 } from "lucide-react";
 
 import { useEffect, useState } from "react";
 
 import { useBranding } from "@/components/providers/BrandThemeProvider";
 
-export default function Header() {
+export default function Header({
+  onMenuClick,
+}: {
+  onMenuClick?: () => void;
+}) {
   const { branding } = useBranding();
 
   const [role, setRole] =
@@ -73,15 +78,24 @@ export default function Header() {
 
 
   return (
-    <header className="flex h-[82px] items-center justify-between border-b border-slate-200 bg-white px-8">
+    <header className="flex h-[68px] items-center justify-between border-b border-slate-200 bg-white px-3 sm:h-[82px] sm:px-6 lg:px-8">
 
       {/* =====================================================
           LEFT
          ===================================================== */}
 
-      <div className="flex items-center gap-5">
+      <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
 
-        <div className="relative w-[360px]">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open navigation"
+          className="rounded-xl p-2 text-slate-600 hover:bg-slate-50 md:hidden"
+        >
+          <Menu size={22} />
+        </button>
+
+        <div className="relative min-w-0 flex-1 sm:w-[360px] sm:flex-none">
 
           <Search
             size={18}
@@ -99,7 +113,7 @@ export default function Header() {
               border-slate-200
               bg-white
               pl-11
-              pr-16
+              pr-10 sm:pr-16
               text-sm
               text-slate-800
               outline-none
@@ -128,7 +142,7 @@ export default function Header() {
               text-slate-500
             "
           >
-            Ctrl + K
+            <span className="hidden sm:inline">Ctrl + K</span>
           </span>
 
         </div>
@@ -140,13 +154,14 @@ export default function Header() {
           RIGHT
          ===================================================== */}
 
-      <div className="flex items-center gap-4">
+      <div className="ml-2 flex shrink-0 items-center gap-1 sm:gap-4">
 
         {/* Calendar */}
 
         <button
           type="button"
           className="
+            hidden
             rounded-xl
             p-2.5
             text-slate-500
@@ -237,7 +252,7 @@ export default function Header() {
 
         {/* User */}
 
-        <div className="ml-2 flex items-center gap-3">
+        <div className="ml-1 flex items-center gap-2 sm:ml-2 sm:gap-3">
 
           {/* Avatar */}
 
@@ -269,7 +284,7 @@ export default function Header() {
 
           {/* User information */}
 
-          <div className="hidden leading-tight sm:block">
+          <div className="hidden leading-tight lg:block">
 
             <p className="text-sm font-semibold text-slate-900">
               {userName}
