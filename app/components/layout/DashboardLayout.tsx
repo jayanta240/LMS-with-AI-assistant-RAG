@@ -13,7 +13,7 @@ export default function DashboardLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
+    <div className="flex h-dvh overflow-hidden bg-[#f8fafc]">
 
       <Sidebar
         mobileOpen={mobileOpen}
