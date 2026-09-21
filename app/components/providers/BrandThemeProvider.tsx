@@ -492,7 +492,7 @@ export default function BrandThemeProvider({
 
         const response =
           await fetch(
-            "http://localhost:8000/api/company/branding",
+            "/api/company/branding",
             {
               method: "GET",
 
