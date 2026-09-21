@@ -35,18 +35,16 @@ embed_model = None
 def init_qdrant():
     global client, embed_model
 
-    if client is not None:
-        return
-
     # --------------------------------------------------------
     # QDRANT CLIENT
     # --------------------------------------------------------
 
-    client = QdrantClient(
-        url=settings.QDRANT_URL,
-        api_key=settings.QDRANT_API_KEY,
-        timeout=30,
-    )
+    if client is None:
+        client = QdrantClient(
+            url=settings.QDRANT_URL,
+            api_key=settings.QDRANT_API_KEY,
+            timeout=30,
+        )
 
     # --------------------------------------------------------
     # GET EXISTING COLLECTIONS
@@ -201,9 +199,10 @@ def init_qdrant():
     # EMBEDDING MODEL
     # ========================================================
 
-    embed_model = HuggingFaceEmbedding(
-        model_name="BAAI/bge-base-en-v1.5"
-    )
+    if embed_model is None:
+        embed_model = HuggingFaceEmbedding(
+            model_name="BAAI/bge-base-en-v1.5"
+        )
 
     print("✅ Qdrant Ready")
 
