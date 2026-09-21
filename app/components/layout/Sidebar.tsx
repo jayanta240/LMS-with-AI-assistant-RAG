@@ -263,7 +263,7 @@ export default function Sidebar({
       <aside
         className={`
           fixed inset-y-0 z-[70]
-          flex h-screen w-[236px] shrink-0 flex-col
+          flex h-screen w-[236px] shrink-0 flex-col overflow-hidden
           border-r border-slate-200 bg-white
           shadow-xl transition-[left] duration-200
           md:static md:shadow-none
@@ -298,7 +298,10 @@ export default function Sidebar({
               <img
                 src={branding.logo_url}
                 alt={`${displayCompanyName} logo`}
-                className="h-full w-full object-contain p-1.5"
+                className="block h-full w-full object-contain p-1.5"
+                  loading="eager"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
               />
             ) : (
               <span
@@ -359,7 +362,7 @@ export default function Sidebar({
           NAVIGATION
          ===================================================== */}
 
-      <nav className="flex-1 overflow-y-auto px-3 py-5">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
 
         <div className="space-y-1">
 
@@ -448,7 +451,7 @@ export default function Sidebar({
           USER / COMPANY CARD
          ===================================================== */}
 
-      <div className="border-t border-slate-200 p-3">
+      <div className="shrink-0 border-t border-slate-200 p-3">
 
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
 
