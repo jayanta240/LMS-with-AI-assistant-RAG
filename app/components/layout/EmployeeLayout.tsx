@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   usePathname,
@@ -218,13 +217,10 @@ export default function EmployeeLayout({
 
               {branding.logo_url ? (
 
-                <Image
+                <img
                   src={branding.logo_url}
                   alt={`${displayCompanyName} logo`}
-                  width={44}
-                  height={44}
-                  priority
-                  className="block h-full w-full object-contain p-1.5"
+                  className="h-full w-full object-contain p-1.5"
                 />
 
               ) : (
