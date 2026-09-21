@@ -100,6 +100,39 @@ export default function LearningDashboardPage() {
       }
 
 
+      const cacheKey =
+        `employee_dashboard_${userId}`;
+
+      const cached =
+        sessionStorage.getItem(
+          cacheKey
+        );
+
+      if (cached) {
+        try {
+          const data =
+            JSON.parse(cached);
+
+          setCourses(
+            Array.isArray(data.courses)
+              ? data.courses
+              : []
+          );
+
+          setCertificates(
+            Array.isArray(data.certificates)
+              ? data.certificates
+              : []
+          );
+
+          return;
+        } catch {
+          sessionStorage.removeItem(
+            cacheKey
+          );
+        }
+      }
+
       // ------------------------------------------------------
       // LOAD COURSES
       // ------------------------------------------------------
@@ -109,27 +142,33 @@ export default function LearningDashboardPage() {
           Number(userId)
         );
 
-      setCourses(
+      const nextCourses =
         Array.isArray(courseData)
           ? courseData
-          : []
-      );
+          : [];
+
+      setCourses(nextCourses);
 
 
       // ------------------------------------------------------
       // LOAD CERTIFICATES
       // ------------------------------------------------------
 
+      let nextCertificates: Certificate[] = [];
+
       try {
         const certificateData =
           await getMyCertificates();
 
-        setCertificates(
+        nextCertificates =
           Array.isArray(
             certificateData?.certificates
           )
             ? certificateData.certificates
-            : []
+            : [];
+
+        setCertificates(
+          nextCertificates
         );
 
       } catch (certificateError) {
@@ -140,6 +179,14 @@ export default function LearningDashboardPage() {
 
         setCertificates([]);
       }
+
+      sessionStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          courses: nextCourses,
+          certificates: nextCertificates,
+        })
+      );
 
     } catch (error) {
       console.error(
