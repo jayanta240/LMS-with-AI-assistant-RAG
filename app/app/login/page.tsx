@@ -75,6 +75,14 @@ export default function LoginPage() {
         "department_id",
         String(data.department_id)
       );
+
+      if (data.company_id && data.branding) {
+        localStorage.setItem(
+          `company_branding_${data.company_id}`,
+          JSON.stringify(data.branding)
+        );
+      }
+
       window.dispatchEvent(
         new Event("company-changed")
       );
