@@ -45,7 +45,32 @@ export async function sendMessage(
     }
   );
 
-  const data = await res.json();
+  const contentType =
+    res.headers.get("content-type") || "";
+
+  let data: any = null;
+
+  if (contentType.includes("application/json")) {
+
+    try {
+
+      data = await res.json();
+
+    } catch {
+
+      data = null;
+
+    }
+
+  } else {
+
+    const text = await res.text();
+
+    data = {
+      detail: text,
+    };
+
+  }
 
   if (!res.ok) {
 
