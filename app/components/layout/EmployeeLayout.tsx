@@ -190,10 +190,17 @@ export default function EmployeeLayout({
           fixed inset-y-0 left-0 z-[70]
           flex h-screen w-[236px] shrink-0 flex-col
           border-r border-slate-200 bg-white
-          shadow-xl transition-[transform] duration-200
+          shadow-xl transition-transform duration-200
           md:static md:z-auto md:shadow-none
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          -translate-x-full md:translate-x-0
         `}
+        style={{
+          zIndex: 70,
+          pointerEvents: "auto",
+          ...(mobileOpen
+            ? { transform: "translateX(0)" }
+            : {}),
+        }}
       >
 
         {/* =================================================
