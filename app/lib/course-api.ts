@@ -597,6 +597,39 @@ export async function getFiles() {
 }
 
 
+export async function deleteFile(
+  id: number
+) {
+
+  const res =
+    await fetch(
+      `${BASE}/api/files/${id}`,
+      {
+        method: "DELETE",
+        headers:
+          authHeaders(),
+      }
+    );
+
+  const data =
+    await res.json();
+
+  if (!res.ok) {
+
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to delete file"
+    );
+  }
+
+  invalidateCache("files");
+  invalidateCache("dashboard-stats");
+
+  return data;
+}
+
+
 // ============================================================
 // USERS
 // ============================================================
