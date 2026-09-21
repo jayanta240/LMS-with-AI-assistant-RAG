@@ -212,10 +212,6 @@ body {
     grid-template-columns: 1fr;
   }
 
-  aside {
-    display: none;
-  }
-
   .hero h1 {
     font-size: 34px;
   }
