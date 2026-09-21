@@ -73,9 +73,18 @@ export default function EmployeeLayout({
 
 
   const logout = () => {
+    const userId =
+      localStorage.getItem("user_id");
+
+    if (userId) {
+      sessionStorage.removeItem(
+        `employee_dashboard_${userId}`
+      );
+    }
+
     localStorage.clear();
-     window.dispatchEvent(
-       new Event("company-changed")
+    window.dispatchEvent(
+      new Event("company-changed")
     );
 
     router.push("/login");
@@ -172,16 +181,16 @@ export default function EmployeeLayout({
           type="button"
           aria-label="Close navigation"
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/40 md:hidden"
+          className="fixed inset-0 z-[60] bg-slate-950/40 md:hidden"
         />
       )}
 
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50
+          fixed inset-y-0 left-0 z-[70]
           flex h-screen w-[236px] shrink-0 flex-col
           border-r border-slate-200 bg-white
-          shadow-xl transition-transform duration-200
+          shadow-xl transition-[transform] duration-200
           md:static md:z-auto md:shadow-none
           ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
