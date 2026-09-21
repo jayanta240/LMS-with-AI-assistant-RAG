@@ -1430,9 +1430,41 @@ async def upload(
 # FILE MANAGEMENT
 # -----------------------------
 @app.get("/api/files")
-def list_files():
+def list_files(
+    current_user=Depends(get_current_user)
+):
 
-    files = get_all_files()
+    role = current_user["role"]
+    company_id = current_user.get("company_id")
+
+    if role == "super_admin":
+
+        files = get_all_files()
+
+    elif role in [
+        "company_admin",
+        "department_head",
+    ]:
+
+        if company_id is None:
+
+            raise HTTPException(
+                status_code=403,
+                detail="Company information is missing."
+            )
+
+        files = [
+            f
+            for f in get_all_files()
+            if f[6] == company_id
+        ]
+
+    else:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied."
+        )
 
     formatted = []
 
@@ -1444,7 +1476,8 @@ def list_files():
             "filetype": f[2],
             "cloudinary_url": f[3],
             "size_mb": f[4],
-            "uploaded_at": f[5]
+            "uploaded_at": f[5],
+            "company_id": f[6],
         })
 
     return formatted
@@ -1453,7 +1486,20 @@ def list_files():
 # DELETE FILE
 # -----------------------------
 @app.delete("/api/files/{file_id}")
-def delete_uploaded_file(file_id: int):
+def delete_uploaded_file(
+    file_id: int,
+    current_user=Depends(get_current_user)
+):
+
+    if current_user["role"] not in [
+        "super_admin",
+        "company_admin",
+    ]:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Only Super Admin and Company Admin can delete files."
+        )
 
     files = get_all_files()
 
@@ -1470,6 +1516,18 @@ def delete_uploaded_file(file_id: int):
             "success": False,
             "message": "File not found"
         }
+
+    company_id = current_user.get("company_id")
+
+    if (
+        current_user["role"] != "super_admin"
+        and target[6] != company_id
+    ):
+
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot delete a file from another company."
+        )
 
     filename = target[1]
     cloudinary_url = target[3]
@@ -1525,14 +1583,14 @@ def delete_uploaded_file(file_id: int):
     try:
 
         # --------------------------------
-        # DELETE SQLITE ENTRY
+        # DELETE DATABASE ENTRY
         # --------------------------------
         delete_file(file_id)
 
-        print("✅ Deleted SQLite entry")
+        print("✅ Deleted database entry")
 
     except Exception as e:
-        print("❌ SQLite delete error:", e)
+        print("❌ Database delete error:", e)
 
     return {
         "success": True,
