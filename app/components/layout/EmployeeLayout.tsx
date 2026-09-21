@@ -17,6 +17,8 @@ import {
   Search,
   CalendarDays,
   Bell,
+  Menu,
+  X,
 } from "lucide-react";
 
 import {
@@ -40,6 +42,9 @@ export default function EmployeeLayout({
 
   const [companyName, setCompanyName] =
     React.useState("");
+
+  const [mobileOpen, setMobileOpen] =
+    React.useState(false);
 
 
   React.useEffect(() => {
@@ -162,7 +167,25 @@ export default function EmployeeLayout({
           SIDEBAR
          ===================================================== */}
 
-      <aside className="flex h-screen w-[236px] shrink-0 flex-col border-r border-slate-200 bg-white">
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/40 md:hidden"
+        />
+      )}
+
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50
+          flex h-screen w-[236px] shrink-0 flex-col
+          border-r border-slate-200 bg-white
+          shadow-xl transition-transform duration-200
+          md:static md:z-auto md:shadow-none
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        `}
+      >
 
         {/* =================================================
             BRAND
@@ -236,6 +259,15 @@ export default function EmployeeLayout({
 
           </Link>
 
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-50 md:hidden"
+          >
+            <X size={20} />
+          </button>
+
         </div>
 
 
@@ -287,6 +319,7 @@ export default function EmployeeLayout({
                 <Link
                   key={item.name}
                   href={item.href}
+                  onClick={() => setMobileOpen(false)}
                   style={
                     active
                       ? {
@@ -428,7 +461,7 @@ export default function EmployeeLayout({
             TOP HEADER
            ================================================= */}
 
-        <header className="flex h-[78px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 lg:px-8">
+        <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:h-[78px] sm:px-6 lg:px-8">
 
           {/* Search */}
 
@@ -457,7 +490,7 @@ export default function EmployeeLayout({
 
             <button
               type="button"
-              className="rounded-xl p-2.5 text-slate-500 transition hover:bg-slate-50"
+              className="hidden rounded-xl p-2.5 text-slate-500 transition hover:bg-slate-50"
               title="Calendar"
             >
               <CalendarDays size={19} />
@@ -506,7 +539,7 @@ export default function EmployeeLayout({
               </div>
 
 
-              <div className="hidden min-w-0 sm:block">
+              <div className="hidden min-w-0 lg:block">
 
                 <p className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
                   {userName}
@@ -532,7 +565,7 @@ export default function EmployeeLayout({
 
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
 
-          <div className="w-full px-6 py-6 lg:px-8 lg:py-7">
+          <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
 
             {children}
 
