@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -263,7 +264,7 @@ export default function Sidebar({
       <aside
         className={`
           fixed inset-y-0 z-[70]
-          flex h-screen w-[236px] shrink-0 flex-col overflow-hidden
+          flex h-dvh w-[236px] shrink-0 flex-col overflow-hidden
           border-r border-slate-200 bg-white
           shadow-xl transition-[left] duration-200
           md:static md:shadow-none
@@ -295,13 +296,13 @@ export default function Sidebar({
           <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
             {branding.logo_url ? (
-              <img
+              <Image
                 src={branding.logo_url}
                 alt={`${displayCompanyName} logo`}
+                width={44}
+                height={44}
+                priority
                 className="block h-full w-full object-contain p-1.5"
-                  loading="eager"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
               />
             ) : (
               <span
