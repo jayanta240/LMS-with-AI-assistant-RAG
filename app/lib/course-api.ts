@@ -731,6 +731,10 @@ export async function deleteCompanyAdmin(
   );
 
   invalidateCache(
+    "department-heads"
+  );
+
+  invalidateCache(
     "dashboard-stats"
   );
 
