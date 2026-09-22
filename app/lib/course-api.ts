@@ -652,6 +652,47 @@ export async function getCompanyAdmins() {
 }
 
 
+export async function getDepartmentHeads() {
+
+  return cachedGet<any[]>(
+    "department-heads",
+    `${BASE}/api/department-heads`
+  );
+}
+
+
+export async function deleteDepartmentHead(
+  id: number
+) {
+
+  const res =
+    await fetch(
+      `${BASE}/api/department-heads/${id}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      }
+    );
+
+  const data =
+    await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to delete Department Head"
+    );
+  }
+
+  invalidateCache("department-heads");
+  invalidateCache("users");
+  invalidateCache("dashboard-stats");
+
+  return data;
+}
+
+
 export async function deleteCompanyAdmin(
   id: number
 ) {
