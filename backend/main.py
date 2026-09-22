@@ -2316,6 +2316,10 @@ async def get_users_api(
 
     for row in rows:
 
+        # Employees page must contain employees only.
+        if row[3] != "employee":
+            continue
+
         # -------------------------
         # Super Admin
         # -------------------------
@@ -2586,6 +2590,12 @@ async def assign_course_api(
                 detail="User not found."
             )
 
+        if user[4] != "employee":
+            raise HTTPException(
+                status_code=400,
+                detail="Courses can only be assigned to employees."
+            )
+
         if user[5] != current_user["company_id"]:
 
             raise HTTPException(
@@ -2607,6 +2617,12 @@ async def assign_course_api(
             raise HTTPException(
                 status_code=404,
                 detail="User not found."
+            )
+
+        if user[4] != "employee":
+            raise HTTPException(
+                status_code=400,
+                detail="Courses can only be assigned to employees."
             )
 
         if user[6] != current_user["department_id"]:
