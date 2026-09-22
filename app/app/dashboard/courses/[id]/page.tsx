@@ -45,6 +45,7 @@ type Lesson = {
 type FileItem = {
   id: number;
   filename: string;
+  filetype: string;
   cloudinary_url?: string;
 };
 
@@ -755,11 +756,10 @@ export default function CourseDetails() {
 
                   <select
                     value={contentType}
-                    onChange={(e) =>
-                      setContentType(
-                        e.target.value
-                      )
-                    }
+                    onChange={(e) => {
+                      setContentType(e.target.value);
+                      setSelectedFile("");
+                    }}
                     className="
                       h-11
                       w-full
@@ -784,6 +784,10 @@ export default function CourseDetails() {
 
                     <option value="pdf">
                       PDF
+                    </option>
+
+                    <option value="document">
+                      Document
                     </option>
 
                     <option value="text">
@@ -832,21 +836,54 @@ export default function CourseDetails() {
                       Select uploaded file
                     </option>
 
-                    {files.map(
-                      (file) => (
+                    {
+                      files
+                        .filter((file) => {
 
-                        <option
-                          key={file.id}
-                          value={
-                            file.cloudinary_url ||
-                            ""
+                          const name =
+                            file.filename.toLowerCase();
+
+                          if (
+                            contentType === "video"
+                          ) {
+                            return (
+                              file.filetype === "video"
+                            );
                           }
-                        >
-                          {file.filename}
-                        </option>
 
-                      )
-                    )}
+                          if (
+                            contentType === "pdf"
+                          ) {
+                            return (
+                              name.endsWith(".pdf")
+                            );
+                          }
+
+                          if (
+                            contentType === "document"
+                          ) {
+                            return (
+                              name.endsWith(".docx")
+                            );
+                          }
+
+                          return false;
+
+                        })
+                        .map((file) => (
+
+                          <option
+                            key={file.id}
+                            value={
+                              file.cloudinary_url ||
+                              ""
+                            }
+                          >
+                            {file.filename}
+                          </option>
+
+                        ))
+                    }
 
                   </select>
 
