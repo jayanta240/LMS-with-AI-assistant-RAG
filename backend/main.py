@@ -1335,10 +1335,17 @@ async def upload(
                     visibility=visibility
                 )
 
+                # Store the original document so it can also be
+                # attached to LMS lessons and downloaded by employees.
+                cloud = cloudinary.uploader.upload(
+                    temp_path,
+                    resource_type="raw"
+                )
+
                 add_file(
                     filename=file.filename,
                     filetype="document",
-                    cloudinary_url="",
+                    cloudinary_url=cloud["secure_url"],
                     size_mb=size_mb,
                     company_id=company_id
                 )
@@ -1565,18 +1572,23 @@ def delete_uploaded_file(
         # --------------------------------
         # DELETE FROM CLOUDINARY
         # --------------------------------
-        public_id = (
-            cloudinary_url
-            .split("/")[-1]
-            .split(".")[0]
-        )
+        if cloudinary_url:
 
-        cloudinary.uploader.destroy(
-            public_id,
-            resource_type="video"
-        )
+            filename_part = cloudinary_url.split("/")[-1]
 
-        print("✅ Deleted Cloudinary video")
+            if target[2] == "document":
+                public_id = filename_part
+                resource_type = "raw"
+            else:
+                public_id = filename_part.split(".")[0]
+                resource_type = "video"
+
+            cloudinary.uploader.destroy(
+                public_id,
+                resource_type=resource_type
+            )
+
+            print("✅ Deleted Cloudinary file")
 
     except Exception as e:
         print("❌ Cloudinary delete error:", e)
@@ -3498,403 +3510,3 @@ def require_company_admin(current_user):
 @app.get("/api/company/branding")
 async def get_company_branding_api(
     current_user=Depends(get_current_user)
-):
-
-    company_id = current_user.get("company_id")
-
-    if company_id is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Your account is not associated with a company."
-        )
-
-    branding = get_company_branding(
-        company_id
-    )
-
-    if not branding:
-        raise HTTPException(
-            status_code=404,
-            detail="Company branding not found."
-        )
-
-    return {
-        "success": True,
-        "branding": branding
-    }
-
-# ============================================================
-# UPDATE COMPANY BRANDING
-# ============================================================
-
-@app.put("/api/company/branding")
-async def update_company_branding_api(
-    data: CompanyBrandingUpdate,
-    current_user=Depends(get_current_user)
-):
-
-    company_id = require_company_admin(
-        current_user
-    )
-
-    branding = update_company_branding(
-        company_id=company_id,
-        primary_color=data.primary_color,
-        secondary_color=data.secondary_color,
-        accent_color=data.accent_color
-    )
-
-    return {
-        "success": True,
-        "branding": branding
-    }
-# ============================================================
-# UPLOAD COMPANY LOGO
-# ============================================================
-
-@app.post("/api/company/branding/logo")
-async def upload_company_logo(
-    file: UploadFile = File(...),
-    current_user=Depends(get_current_user)
-):
-
-    company_id = require_company_admin(
-        current_user
-    )
-
-    # --------------------------------------------------------
-    # Validate file type
-    # --------------------------------------------------------
-
-    allowed_types = {
-        "image/png",
-        "image/jpeg",
-        "image/jpg",
-        "image/webp",
-        "image/svg+xml",
-    }
-
-    if file.content_type not in allowed_types:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Unsupported logo format. "
-                "Use PNG, JPG, WEBP or SVG."
-            )
-        )
-
-    # --------------------------------------------------------
-    # Read file
-    # --------------------------------------------------------
-
-    contents = await file.read()
-
-    if not contents:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Empty logo file."
-        )
-
-    # 5 MB maximum
-
-    if len(contents) > 5 * 1024 * 1024:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Logo must be smaller than 5 MB."
-        )
-
-    try:
-
-        # ----------------------------------------------------
-        # Upload to Cloudinary
-        # ----------------------------------------------------
-
-        result = cloudinary.uploader.upload(
-            contents,
-            folder="lms/company_logos",
-            resource_type="image",
-            overwrite=True,
-        )
-
-        logo_url = result.get(
-            "secure_url",
-            ""
-        )
-
-        public_id = result.get(
-            "public_id",
-            ""
-        )
-
-        if not logo_url:
-
-            raise HTTPException(
-                status_code=500,
-                detail="Cloudinary did not return a logo URL."
-            )
-
-        # ----------------------------------------------------
-        # Save URL in company record
-        # ----------------------------------------------------
-
-        branding = update_company_branding(
-            company_id=company_id,
-            logo_url=logo_url,
-            logo_public_id=public_id
-        )
-
-        return {
-            "success": True,
-            "branding": branding
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as exc:
-
-        print(
-            "Company logo upload failed:",
-            exc
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to upload company logo."
-        )
-@app.post("/api/companies")
-async def create_company_api(
-    data: CompanyCreate,
-    current_user=Depends(get_current_user)
-):
-
-    if current_user["role"] != "super_admin":
-
-        raise HTTPException(
-            status_code=403,
-            detail="Only Super Admin can create companies."
-        )
-
-    try:
-        company_id = create_company(
-            company_name=data.company_name,
-            company_email=data.company_email,
-            company_phone=data.company_phone,
-            company_address=data.company_address
-        )
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=409,
-            detail=str(exc)
-        )
-
-    return {
-        "success": True,
-        "company_id": company_id
-    }
-
-@app.get("/api/companies")
-async def get_companies_api(
-    current_user=Depends(get_current_user)
-):
-
-    rows = get_companies()
-
-    companies = []
-
-    for row in rows:
-
-        if current_user["role"] == "company_admin":
-
-            if row[0] != current_user["company_id"]:
-                continue
-
-        companies.append({
-
-            "id": row[0],
-            "company_name": row[1],
-            "company_email": row[2],
-            "company_phone": row[3],
-            "company_address": row[4],
-            "status": row[5],
-            "employee_count": row[-1] or 0
-
-        })
-
-    return companies
-
-
-@app.get("/api/companies/{company_id}")
-async def get_company_api(company_id: int):
-
-    row = get_company(company_id)
-
-    if not row:
-
-        return {
-            "success": False,
-            "message": "Company not found"
-        }
-
-    return {
-
-        "id": row[0],
-
-        "company_name": row[1],
-
-        "company_email": row[2],
-
-        "company_phone": row[3],
-
-        "company_address": row[4],
-
-        "status": row[5],
-
-        "created_at": row[6]
-
-    }
-
-
-@app.put("/api/companies/{company_id}")
-async def update_company_api(
-    company_id: int,
-    data: CompanyUpdate,
-    current_user=Depends(get_current_user)
-):
-
-    if current_user["role"] != "super_admin":
-
-        raise HTTPException(
-            status_code=403,
-            detail="Only Super Admin can update companies."
-        )
-
-    update_company(
-        company_id,
-        data.company_name,
-        data.company_email,
-        data.company_phone,
-        data.company_address,
-        data.status
-    )
-
-    return {
-        "success": True
-    }
-@app.delete("/api/companies/{company_id}")
-async def delete_company_api(
-    company_id: int,
-    current_user=Depends(get_current_user)
-):
-
-    if current_user["role"] != "super_admin":
-
-        raise HTTPException(
-            status_code=403,
-            detail="Only Super Admin can delete companies."
-        )
-
-    delete_company(company_id)
-
-    return {
-        "success": True
-    }
-
-@app.post("/api/departments")
-async def create_department_api(
-    data: DepartmentCreate,
-    current_user = Depends(get_current_user)
-):
-
-    # ---------------------------------
-    # SUPER ADMIN
-    # Can create department for any company
-    # ---------------------------------
-
-    if current_user["role"] == "super_admin":
-
-        company_id = data.company_id
-
-    # ---------------------------------
-    # COMPANY ADMIN
-    # Only for own company
-    # ---------------------------------
-
-    elif current_user["role"] == "company_admin":
-
-        company_id = current_user["company_id"]
-
-    # ---------------------------------
-    # Others cannot create departments
-    # ---------------------------------
-
-    else:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied."
-        )
-
-    department_id = create_department(
-        company_id,
-        data.department_name
-    )
-
-    return {
-        "success": True,
-        "department_id": department_id
-    }
-@app.get("/api/companies/{company_id}/departments")
-async def get_departments_api(
-    company_id: int,
-    current_user=Depends(get_current_user)
-):
-
-    if current_user["role"] == "company_admin":
-
-        company_id = current_user["company_id"]
-
-    elif current_user["role"] == "department_head":
-
-        company_id = current_user["company_id"]
-
-    rows = get_departments(company_id)
-
-    departments = []
-
-    for row in rows:
-
-        departments.append({
-
-            "id": row[0],
-            "company_id": row[1],
-            "department_name": row[2]
-
-        })
-
-    return departments
-
-@app.delete("/api/departments/{department_id}")
-async def delete_department_api(
-    department_id: int,
-    current_user=Depends(get_current_user)
-):
-
-    if current_user["role"] not in [
-        "super_admin",
-        "company_admin"
-    ]:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied."
-        )
-
-    delete_department(department_id)
-
-    return {
-        "success": True
-    }
