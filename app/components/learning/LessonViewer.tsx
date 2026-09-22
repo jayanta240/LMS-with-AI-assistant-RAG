@@ -135,6 +135,31 @@ export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
 
       )}
 
+      {lesson.content_type === "document" && (
+
+        <div className="rounded-xl border bg-gray-50 p-8 text-center">
+
+          <h3 className="text-xl font-semibold text-gray-800">
+            Document Resource
+          </h3>
+
+          <p className="mt-2 text-gray-500">
+            Open or download the document to view its contents.
+          </p>
+
+          <a
+            href={lesson.content_url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+          >
+            Open Document
+          </a>
+
+        </div>
+
+      )}
+
       {lesson.content_type === "text" && (
 
         <div className="rounded-xl border bg-gray-50 p-6 leading-8">
