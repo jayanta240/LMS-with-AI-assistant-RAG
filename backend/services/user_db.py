@@ -246,6 +246,26 @@ def delete_company_admin(user_id):
 
 
 # ============================================================
+# DELETE DEPARTMENT HEAD
+# ============================================================
+
+def delete_department_head(user_id):
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                DELETE FROM users
+                WHERE id = %s
+                  AND role = 'department_head'
+            """, (
+                user_id,
+            ))
+
+            return cursor.rowcount > 0
+
+
+# ============================================================
 # DELETE USER
 # ============================================================
 
