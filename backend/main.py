@@ -40,6 +40,7 @@ from services.user_db import (
     get_user_count,
     delete_user,
     delete_company_admin,
+    delete_department_head,
     get_user_progress
 )
 
@@ -2469,6 +2470,88 @@ async def delete_company_admin_api(
     return {
         "success": True,
         "message": "Company Admin deleted permanently."
+    }
+
+
+@app.get("/api/department-heads")
+async def get_department_heads_api(
+    current_user=Depends(get_current_user)
+):
+
+    if current_user["role"] != "company_admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only Company Admin can view Department Heads."
+        )
+
+    rows = get_all_users(
+        current_user["company_id"]
+    )
+
+    return [
+        {
+            "id": row[0],
+            "name": row[1],
+            "email": row[2],
+            "department_id": row[6],
+            "department": row[7] or "No department",
+            "created_at": row[8],
+        }
+        for row in rows
+        if row[3] == "department_head"
+    ]
+
+
+@app.delete("/api/department-heads/{user_id}")
+async def delete_department_head_api(
+    user_id: int,
+    current_user=Depends(get_current_user)
+):
+
+    if current_user["role"] != "company_admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only Company Admin can delete Department Heads."
+        )
+
+    target_user = get_user_by_id(user_id)
+
+    if not target_user:
+        raise HTTPException(
+            status_code=404,
+            detail="Department Head not found."
+        )
+
+    if target_user[4] != "department_head":
+        raise HTTPException(
+            status_code=400,
+            detail="Selected user is not a Department Head."
+        )
+
+    if target_user[5] != current_user["company_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot delete a Department Head from another company."
+        )
+
+    try:
+        deleted = delete_department_head(user_id)
+    except Exception as exc:
+        print("Department Head deletion failed:", exc)
+        raise HTTPException(
+            status_code=409,
+            detail="Department Head could not be deleted because related database records depend on this account."
+        )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="Department Head not found."
+        )
+
+    return {
+        "success": True,
+        "message": "Department Head deleted permanently."
     }
 
 
