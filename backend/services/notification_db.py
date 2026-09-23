@@ -8,7 +8,7 @@ def init_notification_db():
         with conn.cursor() as cursor:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS company_notification_settings (
-                    company_id INTEGER PRIMARY KEY,
+                    company_id INTEGER PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
                     course_assignment_email BOOLEAN NOT NULL DEFAULT TRUE,
                     certificate_email BOOLEAN NOT NULL DEFAULT TRUE,
                     updated_at TIMESTAMP NOT NULL
