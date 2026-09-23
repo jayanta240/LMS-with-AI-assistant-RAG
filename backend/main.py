@@ -2584,8 +2584,8 @@ async def delete_department_head_api(
 @app.post("/api/enrollments")
 async def assign_course_api(
     data: EnrollmentCreate,
-    current_user=Depends(get_current_user),
     background_tasks: BackgroundTasks,
+    current_user=Depends(get_current_user),
 ):
 
     # ---------------------------------
