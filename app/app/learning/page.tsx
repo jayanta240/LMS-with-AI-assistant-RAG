@@ -79,11 +79,6 @@ export default function LearningPage() {
                   Welcome, {userName}
                 </h1>
 
-                <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 lg:text-lg">
-                  Continue your learning journey, build practical skills,
-                  and complete your assigned programs.
-                </p>
-
               </div>
 
               <div className="hidden rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 lg:block">
