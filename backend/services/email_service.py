@@ -1,7 +1,7 @@
-import os
 import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
+from html import escape
 
 import requests
 
@@ -108,6 +108,10 @@ def send_course_assignment_email(
     safe_name = user_name or "Learner"
     safe_title = course_title or "your new course"
 
+    html_name = escape(safe_name)
+    html_title = escape(safe_title)
+    html_course_url = escape(course_url, quote=True)
+
     subject = f"New course assigned: {safe_title}"
 
     text_body = f"""Hello {safe_name},
@@ -127,12 +131,12 @@ LMS
     <html>
       <body style="font-family: Arial, sans-serif; color: #0f172a;">
         <h2>New Course Assigned</h2>
-        <p>Hello {safe_name},</p>
+        <p>Hello {html_name},</p>
         <p>You have been assigned a new course:</p>
-        <p><strong>{safe_title}</strong></p>
+        <p><strong>{html_title}</strong></p>
         <p>
           <a
-            href="{course_url}"
+            href="{html_course_url}"
             style="display:inline-block;padding:10px 18px;background:#0f172a;color:#fff;text-decoration:none;border-radius:8px;"
           >
             Open Course
@@ -168,6 +172,10 @@ def send_certificate_email(
     safe_title = course_title or "Course Completion"
     safe_number = certificate_number or "Certificate"
 
+    html_name = escape(safe_name)
+    html_title = escape(safe_title)
+    html_number = escape(safe_number)
+
     try:
         response = requests.get(
             certificate_url,
@@ -200,14 +208,14 @@ LMS
     <html>
       <body style="font-family: Arial, sans-serif; color: #0f172a;">
         <h2>Certificate of Completion</h2>
-        <p>Hello {safe_name},</p>
+        <p>Hello {html_name},</p>
         <p>
           Congratulations! You have successfully completed:
         </p>
-        <p><strong>{safe_title}</strong></p>
+        <p><strong>{html_title}</strong></p>
         <p>
           Your certificate
-          <strong>{safe_number}</strong>
+          <strong>{html_number}</strong>
           is attached to this email.
         </p>
         <p>Regards,<br>LMS</p>
