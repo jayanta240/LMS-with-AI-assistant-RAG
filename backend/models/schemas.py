@@ -129,6 +129,12 @@ class DepartmentCreate(BaseModel):
 
     department_name: str    
 
+
+class NotificationSettingsUpdate(BaseModel):
+
+    course_assignment_email: bool = True
+    certificate_email: bool = True
+
 # ===================================
 # COMPANY BRANDING
 # ===================================
