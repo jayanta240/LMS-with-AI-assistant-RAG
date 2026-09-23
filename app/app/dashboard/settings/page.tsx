@@ -10,6 +10,7 @@ import {
   Bot,
   UsersRound,
   Settings2,
+  Bell,
 } from "lucide-react";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -117,6 +118,56 @@ export default function SettingsPage() {
                   }}
                 >
                   Manage Branding →
+                </span>
+              </div>
+
+            </Link>
+
+
+            {/* Email Notifications */}
+
+            <Link
+              href="/dashboard/settings/notifications"
+              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+
+              <div className="flex items-start justify-between">
+
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-xl"
+                  style={{
+                    backgroundColor:
+                      "color-mix(in srgb, var(--brand-primary) 10%, white)",
+                    color:
+                      "var(--brand-primary)",
+                  }}
+                >
+                  <Bell size={22} />
+                </div>
+
+                <ChevronRight
+                  size={19}
+                  className="text-slate-300 transition group-hover:text-slate-500"
+                />
+
+              </div>
+
+              <h2 className="mt-5 text-lg font-semibold text-slate-900">
+                Email Notifications
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Control course assignment and certificate emails sent to employees.
+              </p>
+
+              <div className="mt-5 text-sm font-semibold">
+                <span
+                  style={{
+                    color:
+                      "var(--brand-primary)",
+                  }}
+                >
+                  Manage Notifications →
                 </span>
               </div>
 
