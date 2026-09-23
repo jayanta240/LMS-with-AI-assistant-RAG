@@ -5,6 +5,10 @@ import {
   useState,
 } from "react";
 
+import type {
+  ReactNode,
+} from "react";
+
 import {
   Bell,
   Check,
@@ -301,7 +305,7 @@ function NotificationRow({
   enabled,
   onChange,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
   enabled: boolean;
