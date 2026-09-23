@@ -355,13 +355,6 @@ export default function LearningDashboardPage() {
                   Welcome, {userName}
                 </h1>
 
-
-                <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                  Track your learning progress,
-                  review achievements, and continue
-                  building your skills.
-                </p>
-
               </div>
 
 
