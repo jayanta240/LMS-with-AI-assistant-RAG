@@ -3105,8 +3105,8 @@ async def dashboard_stats(
 @app.post("/api/lesson-progress")
 async def complete_lesson(
     data: LessonProgressRequest,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user),
-    background_tasks: BackgroundTasks = None,
 ):
 
     user_id = current_user["user_id"]
