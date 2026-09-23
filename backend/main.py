@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List,Optional
 from services.auth_dependency import get_current_user
@@ -57,7 +57,8 @@ from models.schemas import (
     CompanyCreate,
     CompanyUpdate,
     CompanyBrandingUpdate,
-    DepartmentCreate
+    DepartmentCreate,
+    NotificationSettingsUpdate
 )
 
 from services.department_db import (
@@ -65,6 +66,13 @@ from services.department_db import (
     get_departments,
     delete_department
 )
+
+from services.notification_db import (
+    init_notification_db,
+    get_notification_settings,
+    update_notification_settings,
+)
+
 from services.certificate_service import (
     generate_certificate_pdf
 )
@@ -127,6 +135,7 @@ from services.file_db import (
 app = FastAPI()
 init_db()
 init_course_db()
+init_notification_db()
 app.mount("/temp_videos", StaticFiles(directory="temp_videos"), name="temp_videos")
 os.makedirs(
     "certificates",
@@ -2574,8 +2583,21 @@ async def delete_department_head_api(
 @app.post("/api/enrollments")
 async def assign_course_api(
     data: EnrollmentCreate,
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
+
+    # ---------------------------------
+    # LOAD TARGET USER
+    # ---------------------------------
+
+    user = get_user_by_id(data.user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found."
+        )
 
     # ---------------------------------
     # SUPER ADMIN
@@ -2592,15 +2614,6 @@ async def assign_course_api(
     # ---------------------------------
 
     elif current_user["role"] == "company_admin":
-
-        user = get_user_by_id(data.user_id)
-
-        if user is None:
-
-            raise HTTPException(
-                status_code=404,
-                detail="User not found."
-            )
 
         if user[4] != "employee":
             raise HTTPException(
@@ -2621,15 +2634,6 @@ async def assign_course_api(
     # ---------------------------------
 
     elif current_user["role"] == "department_head":
-
-        user = get_user_by_id(data.user_id)
-
-        if user is None:
-
-            raise HTTPException(
-                status_code=404,
-                detail="User not found."
-            )
 
         if user[4] != "employee":
             raise HTTPException(
@@ -2655,10 +2659,10 @@ async def assign_course_api(
             detail="Permission denied."
         )
 
-    assign_course(
-        user_id=data.user_id,
-        course_id=data.course_id
-    )
+    # ---------------------------------
+    # VERIFY COURSE
+    # ---------------------------------
+
     if current_user["role"] == "super_admin":
 
         course = get_course(data.course_id)
@@ -2690,8 +2694,58 @@ async def assign_course_api(
                 detail="This course does not belong to your company."
             )
 
+    # ---------------------------------
+    # ASSIGN COURSE
+    # ---------------------------------
+
+    assign_course(
+        user_id=data.user_id,
+        course_id=data.course_id
+    )
+
+    # ---------------------------------
+    # COURSE ASSIGNMENT EMAIL
+    # ---------------------------------
+
+    target_company_id = course[5]
+
+    notification_settings = get_notification_settings(
+        target_company_id
+    )
+
+    if notification_settings["course_assignment_email"]:
+
+        from services.email_service import (
+            send_course_assignment_email
+        )
+
+        course_url = (
+            f"{FRONTEND_URL.rstrip('/')}"
+            f"/learning/{data.course_id}"
+        )
+
+        email_args = (
+            user[2],
+            user[1] or "Learner",
+            course[1] or "your new course",
+            course_url,
+        )
+
+        if background_tasks is not None:
+            background_tasks.add_task(
+                send_course_assignment_email,
+                *email_args,
+            )
+        else:
+            send_course_assignment_email(
+                *email_args
+            )
+
     return {
-        "success": True
+        "success": True,
+        "email_notification": bool(
+            notification_settings["course_assignment_email"]
+        )
     }
 
 
@@ -3050,7 +3104,8 @@ async def dashboard_stats(
 @app.post("/api/lesson-progress")
 async def complete_lesson(
     data: LessonProgressRequest,
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
 
     user_id = current_user["user_id"]
@@ -3336,6 +3391,38 @@ async def complete_lesson(
                 pdf_url
             )
 
+            # ------------------------------------------------
+            # EMAIL CERTIFICATE TO EMPLOYEE
+            # ------------------------------------------------
+
+            notification_settings = get_notification_settings(
+                company_id
+            )
+
+            if notification_settings["certificate_email"]:
+
+                from services.email_service import (
+                    send_certificate_email
+                )
+
+                email_args = (
+                    user[2],
+                    user_name,
+                    course_title,
+                    pdf_url,
+                    certificate.get("certificate_number", ""),
+                )
+
+                if background_tasks is not None:
+                    background_tasks.add_task(
+                        send_certificate_email,
+                        *email_args,
+                    )
+                else:
+                    send_certificate_email(
+                        *email_args
+                    )
+
 
         except Exception as exc:
 
@@ -3502,6 +3589,74 @@ def require_company_admin(current_user):
         )
 
     return company_id
+
+# ============================================================
+# COMPANY NOTIFICATION SETTINGS
+# ============================================================
+
+@app.get("/api/company/notification-settings")
+async def get_company_notification_settings_api(
+    current_user=Depends(get_current_user)
+):
+
+    company_id = current_user.get("company_id")
+
+    if current_user["role"] != "company_admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only Company Admin can manage notification settings."
+        )
+
+    if company_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is not associated with a company."
+        )
+
+    settings_data = get_notification_settings(company_id)
+
+    return {
+        "success": True,
+        "settings": settings_data,
+        "email_delivery_configured": bool(
+            os.getenv("SMTP_HOST")
+            and os.getenv("SMTP_USERNAME")
+            and os.getenv("SMTP_PASSWORD")
+        ),
+    }
+
+
+@app.put("/api/company/notification-settings")
+async def update_company_notification_settings_api(
+    data: NotificationSettingsUpdate,
+    current_user=Depends(get_current_user)
+):
+
+    company_id = current_user.get("company_id")
+
+    if current_user["role"] != "company_admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only Company Admin can manage notification settings."
+        )
+
+    if company_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is not associated with a company."
+        )
+
+    settings_data = update_notification_settings(
+        company_id=company_id,
+        course_assignment_email=data.course_assignment_email,
+        certificate_email=data.certificate_email,
+    )
+
+    return {
+        "success": True,
+        "settings": settings_data,
+    }
+
 
 # ============================================================
 # GET COMPANY BRANDING
