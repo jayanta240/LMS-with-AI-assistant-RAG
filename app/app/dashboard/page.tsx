@@ -390,7 +390,6 @@ export default function DashboardPage() {
                   ? "Department Overview"
                   : "My Learning"
             }
-            action="View All"
           >
 
             <div className="space-y-3">
@@ -402,10 +401,6 @@ export default function DashboardPage() {
 
                     <p className="text-sm font-semibold text-slate-800">
                       Company management
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Manage organizations and company administrators.
                     </p>
 
                   </div>
@@ -435,20 +430,12 @@ export default function DashboardPage() {
                       Departments
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-500">
-                      Manage your company's departments and department heads.
-                    </p>
-
                   </div>
 
                   <div className="rounded-xl border border-slate-100 p-4">
 
                     <p className="text-sm font-semibold text-slate-800">
                       Employees
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      View employee progress and course assignments.
                     </p>
 
                   </div>
@@ -466,20 +453,12 @@ export default function DashboardPage() {
                       Department Employees
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-500">
-                      Manage your department's employees.
-                    </p>
-
                   </div>
 
                   <div className="rounded-xl border border-slate-100 p-4">
 
                     <p className="text-sm font-semibold text-slate-800">
                       Course Progress
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Track employee learning progress.
                     </p>
 
                   </div>
@@ -495,10 +474,6 @@ export default function DashboardPage() {
 
                     <p className="text-sm font-semibold text-slate-800">
                       My Courses
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      View your assigned courses and lessons.
                     </p>
 
                   </div>
@@ -525,7 +500,6 @@ export default function DashboardPage() {
 
           <SectionCard
             title="Learning Analytics"
-            action="View Report"
           >
 
             <div className="grid grid-cols-2 gap-3">
@@ -616,7 +590,6 @@ export default function DashboardPage() {
 
           <SectionCard
             title="AI Analytics"
-            action="View Report"
           >
 
             <div className="space-y-3">
@@ -704,7 +677,6 @@ export default function DashboardPage() {
 
           <SectionCard
             title="User Growth"
-            action="View Report"
           >
 
             <div className="flex h-64 items-end gap-6 rounded-xl bg-slate-50 px-6 pb-6 pt-10">
@@ -747,7 +719,6 @@ export default function DashboardPage() {
 
           <SectionCard
             title="Course Completion Trend"
-            action="View Report"
           >
 
             <div className="flex h-64 items-center justify-center rounded-xl bg-slate-50">
