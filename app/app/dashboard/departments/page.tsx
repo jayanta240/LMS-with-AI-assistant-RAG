@@ -278,10 +278,6 @@ export default function DepartmentsPage() {
               Departments
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Create and manage departments for your organization.
-            </p>
-
           </div>
 
 
