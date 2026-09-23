@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Backgroun
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List,Optional
 from services.auth_dependency import get_current_user
+from config import settings
 import os
 import uuid
 from qdrant_client.models import (
@@ -2584,7 +2585,7 @@ async def delete_department_head_api(
 async def assign_course_api(
     data: EnrollmentCreate,
     current_user=Depends(get_current_user),
-    background_tasks: BackgroundTasks = None,
+    background_tasks: BackgroundTasks,
 ):
 
     # ---------------------------------
@@ -3619,9 +3620,9 @@ async def get_company_notification_settings_api(
         "success": True,
         "settings": settings_data,
         "email_delivery_configured": bool(
-            os.getenv("SMTP_HOST")
-            and os.getenv("SMTP_USERNAME")
-            and os.getenv("SMTP_PASSWORD")
+            settings.SMTP_HOST
+            and settings.SMTP_USERNAME
+            and settings.SMTP_PASSWORD
         ),
     }
 
