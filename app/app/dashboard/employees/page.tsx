@@ -530,11 +530,6 @@ export default function EmployeesPage() {
               Employees
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Create employees, manage department assignments,
-              track learning progress, and assign courses.
-            </p>
-
           </div>
 
 
@@ -674,10 +669,6 @@ export default function EmployeesPage() {
                 <h2 className="text-base font-semibold text-slate-900">
                   Add New Employee
                 </h2>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Create an employee account and assign a department.
-                </p>
 
               </div>
 
@@ -1148,10 +1139,6 @@ export default function EmployeesPage() {
                   Employee Directory
                 </h2>
 
-                <p className="mt-1 text-xs text-slate-500">
-                  View employees, departments, progress, and course assignments.
-                </p>
-
               </div>
 
               <div className="hidden items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:flex">
@@ -1484,20 +1471,6 @@ export default function EmployeesPage() {
             size={18}
             className="mt-0.5 shrink-0 text-emerald-500"
           />
-
-          <div>
-
-            <p className="text-sm font-medium text-slate-700">
-              Company-scoped employee management
-            </p>
-
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Employee records returned by the backend are restricted
-              according to the logged-in administrator&apos;s permissions.
-              Course assignment also follows the backend authorization rules.
-            </p>
-
-          </div>
 
         </div>
 
