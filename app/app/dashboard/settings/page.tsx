@@ -58,10 +58,6 @@ export default function SettingsPage() {
             Settings
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
-            Manage settings available to your role and organization.
-          </p>
-
         </div>
 
 
