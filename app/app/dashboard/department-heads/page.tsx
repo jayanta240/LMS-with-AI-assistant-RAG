@@ -377,11 +377,6 @@ export default function DepartmentHeadsPage() {
               Department Heads
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Create department heads and assign them to departments
-              in your organization.
-            </p>
-
           </div>
 
 
