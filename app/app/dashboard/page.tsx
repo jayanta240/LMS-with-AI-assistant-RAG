@@ -201,31 +201,6 @@ export default function DashboardPage() {
 
   }, []);
 
-
-  /* ==========================================================
-     ROLE-SPECIFIC DASHBOARD TEXT
-     ========================================================== */
-
-  const dashboardTitle =
-    role === "company_admin"
-      ? "Company Admin Dashboard"
-      : role === "department_head"
-        ? "Department Head Dashboard"
-        : role === "employee"
-          ? "Learning Dashboard"
-          : "Super Admin Dashboard";
-
-
-  const dashboardDescription =
-    role === "company_admin"
-      ? "Manage your organization's users, departments, courses, and learning."
-      : role === "department_head"
-        ? "Manage your department's employees, courses, and learning progress."
-        : role === "employee"
-          ? "Track your learning, courses, and progress."
-          : "Manage your AI Learning Platform from one place.";
-
-
   /* ==========================================================
      STATS
      ========================================================== */
@@ -260,40 +235,11 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
 
           <div>
-
-            <p className="text-sm font-medium text-amber-600">
-              Overview
-            </p>
-
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
               {dashboardTitle}
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
-              {dashboardDescription}
-            </p>
-
           </div>
-
-
-          <div className="flex flex-wrap items-center gap-3">
-
-            <button
-              type="button"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-            >
-              Date Range
-            </button>
-
-            <button
-              type="button"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-            >
-              Filters
-            </button>
-
-          </div>
-
         </div>
 
 
@@ -562,11 +508,6 @@ export default function DashboardPage() {
                     <p className="text-sm font-semibold text-slate-800">
                       My Progress
                     </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Track your learning progress.
-                    </p>
-
                   </div>
 
                 </>
