@@ -151,6 +151,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
 
+  const dashboardTitle =
+    role === "company_admin"
+      ? "Company Admin Dashboard"
+      : role === "department_head"
+        ? "Department Head Dashboard"
+        : role === "employee"
+          ? "Learning Dashboard"
+          : "Super Admin Dashboard";
+
+
   /* ==========================================================
      READ LOGGED-IN ROLE
      ========================================================== */
