@@ -160,6 +160,29 @@ def add_file(
 
             return cursor.fetchone()[0]
 
+def get_file_url_by_company_and_filename(
+    company_id,
+    filename
+):
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT cloudinary_url
+                FROM uploaded_files
+                WHERE company_id = %s
+                  AND filename = %s
+                ORDER BY id DESC
+                LIMIT 1
+            """, (
+                company_id,
+                filename
+            ))
+
+            row = cursor.fetchone()
+
+    return row[0] if row and row[0] else None
+
+
 def get_all_files():
 
     with get_db_connection() as conn:
