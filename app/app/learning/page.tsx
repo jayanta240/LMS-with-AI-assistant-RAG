@@ -382,16 +382,6 @@ export default function LearningPage() {
 
               <div>
 
-                <div
-                  className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold"
-                  style={{
-                    color: "var(--brand-accent)",
-                  }}
-                >
-                  <Sparkles size={14} />
-                  DADB Learning Assistant
-                </div>
-
                 <h2 className="mt-4 text-3xl font-bold tracking-tight text-white">
                   Learn beyond the lesson.
                 </h2>
