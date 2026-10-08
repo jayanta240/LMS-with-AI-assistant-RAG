@@ -23,8 +23,6 @@ import {
 import {
   useBranding,
 } from "@/components/providers/BrandThemeProvider";
-import GlobalSearch from "@/components/layout/GlobalSearch";
-
 
 export default function EmployeeLayout({
   children,
@@ -488,10 +486,7 @@ export default function EmployeeLayout({
             >
               <Menu size={22} />
             </button>
-
-            <GlobalSearch />
-
-          </div>
+</div>
 
 
           {/* Header actions */}
