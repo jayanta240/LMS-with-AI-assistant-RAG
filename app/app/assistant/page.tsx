@@ -95,6 +95,9 @@ export default function Home() {
   const [expandedSources, setExpandedSources] =
     useState<Record<number, boolean>>({});
 
+  const [selectedSource, setSelectedSource] =
+    useState<any | null>(null);
+
 
   // =========================================================
   // UPLOAD VISIBILITY
@@ -1798,37 +1801,64 @@ ${diagnosis.solution}
                                     (
                                       source,
                                       sourceIndex
-                                    ) => (
+                                    ) => {
+                                      const sourceUrl =
+                                        source?.source_url ||
+                                        source?.video_url;
 
-                                      <div
-                                        key={
-                                          sourceIndex
-                                        }
-                                        className="inline-flex max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
-                                      >
+                                      const sourceLabel =
+                                        source?.source ||
+                                        source?.video ||
+                                        "Uploaded content";
 
-                                        {getSourceIcon(
-                                          source
-                                        )}
+                                      const clickable =
+                                        Boolean(sourceUrl);
 
-                                        <span className="max-w-[220px] truncate">
-                                          {source?.source ||
-                                            source?.video ||
-                                            "Uploaded content"}
-                                        </span>
-
-                                        {source?.page && (
-                                          <span className="text-slate-400">
-                                            Page{" "}
-                                            {
-                                              source.page
+                                      return (
+                                        <button
+                                          key={
+                                            sourceIndex
+                                          }
+                                          type="button"
+                                          disabled={!clickable}
+                                          onClick={() => {
+                                            if (clickable) {
+                                              setSelectedSource(
+                                                source
+                                              );
                                             }
+                                          }}
+                                          className={
+                                            "inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs transition " +
+                                            (clickable
+                                              ? "cursor-pointer border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white hover:shadow-sm"
+                                              : "cursor-default border-slate-200 bg-slate-50 text-slate-600")
+                                          }
+                                          title={
+                                            clickable
+                                              ? "Open source"
+                                              : "Source preview unavailable"
+                                          }
+                                        >
+                                          {getSourceIcon(
+                                            source
+                                          )}
+
+                                          <span className="max-w-[220px] truncate">
+                                            {sourceLabel}
                                           </span>
-                                        )}
 
-                                      </div>
-
-                                    )
+                                          {source?.page && (
+                                            <span className="text-slate-400">
+                                              Page{" "}
+                                              {
+                                                source.page
+                                              }
+                                            </span>
+                                          )}
+                                        </button>
+                                      );
+                                    }
                                   )}
 
                               </div>
@@ -2258,6 +2288,99 @@ ${diagnosis.solution}
         </div>
 
       </div>
+
+      {selectedSource && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4"
+          onClick={() => setSelectedSource(null)}
+        >
+          <div
+            className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-900">
+                  {selectedSource.source ||
+                    selectedSource.video ||
+                    "Source"}
+                </p>
+
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {selectedSource.page
+                    ? `Page ${selectedSource.page}`
+                    : selectedSource.start !=
+                        null &&
+                      selectedSource.end !=
+                        null
+                    ? `${Number(
+                        selectedSource.start
+                      ).toFixed(1)}s – ${Number(
+                        selectedSource.end
+                      ).toFixed(1)}s`
+                    : "Reference"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedSource(null)
+                }
+                className="cursor-pointer rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close source preview"
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 bg-slate-100">
+              {selectedSource?.video_url ? (
+                <video
+                  key={
+                    selectedSource.video_url +
+                    String(
+                      selectedSource.start || 0
+                    )
+                  }
+                  src={selectedSource.video_url}
+                  controls
+                  autoPlay
+                  preload="metadata"
+                  onLoadedMetadata={(event) => {
+                    const start =
+                      Number(
+                        selectedSource.start || 0
+                      );
+
+                    if (start > 0) {
+                      event.currentTarget.currentTime =
+                        start;
+                    }
+                  }}
+                  className="h-full w-full bg-black object-contain"
+                />
+              ) : selectedSource?.source_url ? (
+                <iframe
+                  title="Source preview"
+                  src={
+                    selectedSource.page
+                      ? `${selectedSource.source_url}#page=${selectedSource.page}`
+                      : selectedSource.source_url
+                  }
+                  className="h-full w-full bg-white"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
+                  This source does not have a preview URL available.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </Layout>
   );
