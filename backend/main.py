@@ -110,6 +110,7 @@ from services.rag_engine import (
 from services.issue_search_service import (
     search_issue_image
 )
+from services.search_service import search_platform
 from uuid import uuid4
 from qdrant_client.models import PointStruct
 from services.image_embedding_service import (
@@ -187,6 +188,19 @@ sessions = {}
 # -----------------------------
 # ROOT
 # -----------------------------
+@app.get("/api/search")
+def global_search(
+    q: str,
+    current_user=Depends(get_current_user)
+):
+    return {
+        "results": search_platform(
+            q,
+            current_user
+        )
+    }
+
+
 @app.get("/")
 def root():
     return {"status": "Backend Running"}
