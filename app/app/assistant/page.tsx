@@ -22,6 +22,11 @@ import {
 } from "../../lib/api";
 
 import {
+  getDepartments,
+  getCourses,
+} from "@/lib/course-api";
+
+import {
   Sparkles,
   Plus,
   Upload,
@@ -388,82 +393,31 @@ ${diagnosis.solution}
   async function loadUploadOptions() {
     try {
       setOptionsLoading(true);
-
       setUploadMessage("");
 
-      const token =
-        localStorage.getItem("token");
+      const companyId = Number(
+        localStorage.getItem("company_id")
+      );
 
-      const companyId =
-        localStorage.getItem("company_id");
-
-      if (!token || !companyId) {
+      if (!companyId) {
         throw new Error(
           "Company information is missing."
         );
       }
 
-      const base =
-        process.env.NEXT_PUBLIC_API_URL ||
-        "http://localhost:8000";
-
-
-      // =====================================================
-      // DEPARTMENTS
-      // =====================================================
-
-      const departmentResponse =
-        await fetch(
-          `${base}/api/companies/${companyId}/departments`,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
-      const departmentData =
-        await departmentResponse.json();
-
-      if (!departmentResponse.ok) {
-        throw new Error(
-          departmentData?.detail ||
-          "Failed to load departments."
-        );
-      }
+      const [
+        departmentData,
+        courseData,
+      ] = await Promise.all([
+        getDepartments(companyId),
+        getCourses(),
+      ]);
 
       setDepartments(
         Array.isArray(departmentData)
           ? departmentData
           : []
       );
-
-
-      // =====================================================
-      // COURSES
-      // =====================================================
-
-      const courseResponse =
-        await fetch(
-          `${base}/api/courses`,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
-      const courseData =
-        await courseResponse.json();
-
-      if (!courseResponse.ok) {
-        throw new Error(
-          courseData?.detail ||
-          "Failed to load courses."
-        );
-      }
 
       setCourses(
         Array.isArray(courseData)
