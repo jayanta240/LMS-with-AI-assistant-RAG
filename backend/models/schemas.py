@@ -25,6 +25,7 @@ class SourceItem(BaseModel):
 
     # document
     source: Optional[str] = None
+    source_url: Optional[str] = None
     page: Optional[int] = None
 
 
