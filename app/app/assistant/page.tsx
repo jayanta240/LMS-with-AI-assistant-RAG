@@ -850,7 +850,9 @@ ${diagnosis.solution}
       return (
         <Video
           size={15}
-          className="text-blue-500"
+          style={{
+            color: "var(--brand-primary)",
+          }}
         />
       );
     }
@@ -866,7 +868,9 @@ ${diagnosis.solution}
       return (
         <FileSpreadsheet
           size={15}
-          className="text-emerald-500"
+          style={{
+            color: "var(--brand-accent)",
+          }}
         />
       );
     }
@@ -875,7 +879,9 @@ ${diagnosis.solution}
     return (
       <FileText
         size={15}
-        className="text-red-500"
+        style={{
+          color: "var(--brand-accent)",
+        }}
       />
     );
   }
@@ -1937,7 +1943,13 @@ ${diagnosis.solution}
                               className="w-full rounded-xl border border-slate-200"
                             />
 
-                            <p className="mt-2 text-xs font-medium text-emerald-600">
+                            <p
+                              className="mt-2 text-xs font-medium"
+                              style={{
+                                color:
+                                  "var(--brand-accent)",
+                              }}
+                            >
                               ✓ Video ready
                             </p>
 
@@ -2007,7 +2019,11 @@ ${diagnosis.solution}
                                   disabled={
                                     videoLoading
                                   }
-                                  className="rounded-lg px-3 py-2 text-xs font-semibold text-purple-600 transition hover:bg-purple-50 disabled:opacity-50"
+                                  className="rounded-lg px-3 py-2 text-xs font-semibold transition disabled:opacity-50"
+                                  style={{
+                                    color:
+                                      "var(--brand-accent)",
+                                  }}
                                 >
 
                                   {videoLoading
@@ -2101,14 +2117,31 @@ ${diagnosis.solution}
 
         {imageFile && (
 
-          <div className="mx-auto mb-3 flex w-full max-w-4xl items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div
+            className="mx-auto mb-3 flex w-full max-w-4xl items-center gap-3 rounded-xl border px-4 py-3"
+            style={{
+              borderColor:
+                "color-mix(in srgb, var(--brand-accent) 25%, #e2e8f0)",
+              backgroundColor:
+                "color-mix(in srgb, var(--brand-accent) 10%, white)",
+            }}
+          >
 
             <ImageIcon
               size={17}
-              className="text-emerald-500"
+              style={{
+                color:
+                  "var(--brand-accent)",
+              }}
             />
 
-            <span className="flex-1 truncate text-sm text-emerald-700">
+            <span
+              className="flex-1 truncate text-sm"
+              style={{
+                color:
+                  "var(--brand-accent)",
+              }}
+            >
               {imageFile.name}
             </span>
 
@@ -2117,7 +2150,11 @@ ${diagnosis.solution}
               onClick={() =>
                 setImageFile(null)
               }
-              className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100"
+              className="rounded-lg p-1.5 transition"
+              style={{
+                color:
+                  "var(--brand-accent)",
+              }}
             >
               <X
                 size={16}
