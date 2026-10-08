@@ -10,8 +10,6 @@ import {
 import { useEffect, useState } from "react";
 
 import { useBranding } from "@/components/providers/BrandThemeProvider";
-import GlobalSearch from "./GlobalSearch";
-
 export default function Header({
   onMenuClick,
 }: {
@@ -94,10 +92,7 @@ export default function Header({
         >
           <Menu size={22} />
         </button>
-
-        <GlobalSearch />
-
-      </div>
+</div>
 
 
       {/* =====================================================
