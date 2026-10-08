@@ -3,7 +3,6 @@
 import {
   Bell,
   CalendarDays,
-  Search,
   SlidersHorizontal,
   Menu,
 } from "lucide-react";
@@ -11,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { useBranding } from "@/components/providers/BrandThemeProvider";
+import GlobalSearch from "./GlobalSearch";
 
 export default function Header({
   onMenuClick,
@@ -95,55 +95,7 @@ export default function Header({
           <Menu size={22} />
         </button>
 
-        <div className="relative min-w-0 flex-1 sm:w-[360px] sm:flex-none">
-
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-
-          <input
-            type="text"
-            placeholder="Search anything..."
-            className="
-              h-11
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-white
-              pl-11
-              pr-10 sm:pr-16
-              text-sm
-              text-slate-800
-              outline-none
-              transition
-              placeholder:text-slate-400
-              focus:ring-2
-            "
-            style={{
-              borderColor:
-                "var(--brand-primary)",
-            }}
-          />
-
-          <span
-            className="
-              absolute
-              right-3
-              top-1/2
-              -translate-y-1/2
-              rounded-md
-              bg-slate-100
-              px-2
-              py-1
-              text-[10px]
-              font-medium
-              text-slate-500
-            "
-          >
-            <span className="hidden sm:inline">Ctrl + K</span>
-          </span>
+        <GlobalSearch />
 
         </div>
 
