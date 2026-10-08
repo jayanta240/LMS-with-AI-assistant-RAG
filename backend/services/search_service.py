@@ -44,6 +44,68 @@ def search_platform(query: str, current_user: dict):
 
                 cursor.execute(
                     """
+                    SELECT id, department_name
+                    FROM departments
+                    WHERE department_name ILIKE %s
+                    ORDER BY department_name
+                    LIMIT 8
+                    """,
+                    (pattern,),
+                )
+
+                for row in cursor.fetchall():
+                    results.append({
+                        "type": "department",
+                        "id": row[0],
+                        "title": row[1],
+                        "subtitle": "Department",
+                        "href": "/dashboard/departments",
+                    })
+
+                cursor.execute(
+                    """
+                    SELECT id, title, description
+                    FROM courses
+                    WHERE
+                        title ILIKE %s
+                        OR COALESCE(description, '') ILIKE %s
+                    ORDER BY id DESC
+                    LIMIT 8
+                    """,
+                    (pattern, pattern),
+                )
+
+                for row in cursor.fetchall():
+                    results.append({
+                        "type": "course",
+                        "id": row[0],
+                        "title": row[1],
+                        "subtitle": "Course",
+                        "href": "/dashboard/courses/" + str(row[0]),
+                    })
+
+                cursor.execute(
+                    """
+                    SELECT id, filename, filetype
+                    FROM uploaded_files
+                    WHERE filename ILIKE %s
+                    ORDER BY id DESC
+                    LIMIT 8
+                    """,
+                    (pattern,),
+                )
+
+                for row in cursor.fetchall():
+                    results.append({
+                        "type": "file",
+                        "id": row[0],
+                        "title": row[1],
+                        "subtitle": "Document • " + (row[2] or "file"),
+                        "href": "/dashboard/files",
+                    })
+
+                cursor.execute(
+                    """
                     SELECT
                         u.id,
                         u.name,
