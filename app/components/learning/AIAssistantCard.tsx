@@ -8,13 +8,25 @@ export default function AIAssistantCard({
   lessonTitle,
 }: Props) {
   return (
-    <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
+    <div
+      className="rounded-2xl p-8 text-white"
+      style={{
+        background:
+          "linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))",
+      }}
+    >
 
       <h2 className="text-3xl font-bold">
         🤖 AI Learning Assistant
       </h2>
 
-      <p className="mt-3 text-blue-100">
+      <p
+        className="mt-3"
+        style={{
+          color:
+            "color-mix(in srgb, var(--brand-primary-text) 88%, white)",
+        }}
+      >
         {lessonTitle
           ? `Need help with "${lessonTitle}"? Ask the AI for explanations, summaries, or examples.`
           : "Ask questions about this course anytime."}
@@ -22,7 +34,10 @@ export default function AIAssistantCard({
 
       <Link
         href="/assistant"
-        className="mt-6 inline-block rounded-xl bg-white px-6 py-3 font-semibold text-blue-700 hover:bg-gray-100"
+        className="mt-6 inline-block rounded-xl bg-white px-6 py-3 font-semibold transition hover:bg-slate-50"
+        style={{
+          color: "var(--brand-primary)",
+        }}
       >
         Open AI Assistant
       </Link>
