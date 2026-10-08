@@ -456,6 +456,61 @@ def create_lesson(
             return cursor.fetchone()[0]
 
 
+def delete_lessons_by_content_url(
+    company_id,
+    content_url
+):
+    """
+    Remove every lesson in a company that references
+    the deleted uploaded file URL.
+    """
+    if not company_id or not content_url:
+        return 0
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                SELECT l.id
+                FROM lessons l
+                JOIN courses c
+                    ON c.id = l.course_id
+                WHERE c.company_id = %s
+                  AND l.content_url = %s
+            """, (
+                company_id,
+                content_url,
+            ))
+
+            lesson_rows = cursor.fetchall()
+
+            if lesson_rows:
+                lesson_ids = [
+                    row[0]
+                    for row in lesson_rows
+                ]
+
+                cursor.execute("""
+                    DELETE FROM lesson_progress
+                    WHERE lesson_id = ANY(%s)
+                """, (
+                    lesson_ids,
+                ))
+
+                cursor.execute("""
+                    DELETE FROM lessons l
+                    USING courses c
+                    WHERE l.course_id = c.id
+                      AND c.company_id = %s
+                      AND l.content_url = %s
+                """, (
+                    company_id,
+                    content_url,
+                ))
+
+            return len(lesson_rows)
+
+
 def get_lessons(
     course_id,
     company_id=None
