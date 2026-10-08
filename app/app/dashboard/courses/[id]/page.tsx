@@ -121,6 +121,9 @@ export default function CourseDetails() {
   const [saving, setSaving] =
     useState(false);
 
+  const [previewLesson, setPreviewLesson] =
+    useState<Lesson | null>(null);
+
 
   // ==========================================================
   // LOAD DATA
@@ -1155,19 +1158,33 @@ export default function CourseDetails() {
 
 
                         {lesson.content_url && (
-
-                          <span className="inline-flex max-w-[280px] items-center gap-1.5 truncate rounded-lg bg-slate-50 px-2.5 py-1 text-xs text-slate-400">
-
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewLesson(
+                                lesson
+                              )
+                            }
+                            className="inline-flex max-w-[320px] cursor-pointer items-center gap-1.5 truncate rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:border-amber-300 hover:bg-white hover:text-slate-900"
+                            title="View lesson content"
+                          >
                             <LinkIcon
                               size={12}
                             />
 
                             <span className="truncate">
-                              {lesson.content_url}
+                              {lesson.content_type ===
+                              "video"
+                                ? "View Video"
+                                : lesson.content_type ===
+                                    "pdf"
+                                  ? "View PDF"
+                                  : lesson.content_type ===
+                                      "document"
+                                    ? "Open Document"
+                                    : "View Content"}
                             </span>
-
-                          </span>
-
+                          </button>
                         )}
 
                       </div>
@@ -1203,6 +1220,94 @@ export default function CourseDetails() {
         )}
 
       </div>
+
+      {previewLesson && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4"
+          onClick={() => setPreviewLesson(null)}
+        >
+          <div
+            className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-slate-900">
+                  {previewLesson.title}
+                </p>
+
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {previewLesson.content_type}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPreviewLesson(null)
+                }
+                className="cursor-pointer rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close preview"
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 bg-slate-100">
+              {previewLesson.content_type ===
+                "video" ? (
+                <video
+                  src={previewLesson.content_url}
+                  controls
+                  autoPlay
+                  preload="metadata"
+                  className="h-full w-full bg-black object-contain"
+                />
+              ) : previewLesson.content_type ===
+                "pdf" ? (
+                <iframe
+                  title={previewLesson.title}
+                  src={previewLesson.content_url}
+                  className="h-full w-full bg-white"
+                />
+              ) : previewLesson.content_type ===
+                "document" ? (
+                <div className="flex h-full items-center justify-center p-6 text-center">
+                  <div>
+                    <FileText
+                      size={42}
+                      className="mx-auto text-slate-400"
+                    />
+
+                    <h3 className="mt-4 text-lg font-semibold text-slate-900">
+                      Document resource
+                    </h3>
+
+                    <p className="mt-2 text-sm text-slate-500">
+                      This document cannot be previewed directly in the browser.
+                    </p>
+
+                    <a
+                      href={previewLesson.content_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-5 inline-flex cursor-pointer items-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Open Document
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">
+                  No preview is available for this lesson type.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </DashboardLayout>
 
