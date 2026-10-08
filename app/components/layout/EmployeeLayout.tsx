@@ -14,7 +14,6 @@ import {
   UserCircle,
   LogOut,
   GraduationCap,
-  Search,
   CalendarDays,
   Bell,
   Menu,
@@ -24,6 +23,7 @@ import {
 import {
   useBranding,
 } from "@/components/providers/BrandThemeProvider";
+import GlobalSearch from "@/components/layout/GlobalSearch";
 
 
 export default function EmployeeLayout({
@@ -489,19 +489,7 @@ export default function EmployeeLayout({
               <Menu size={22} />
             </button>
 
-            <div className="flex h-10 min-w-0 flex-1 items-center rounded-xl border border-slate-200 bg-white px-3 text-slate-400 sm:w-[390px] sm:flex-none">
-
-              <Search size={18} />
-
-              <span className="ml-3 truncate text-sm text-slate-400">
-                Search anything...
-              </span>
-
-              <span className="ml-auto hidden rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-500 sm:block">
-                Ctrl + K
-              </span>
-
-            </div>
+            <GlobalSearch />
 
           </div>
 
