@@ -95,6 +95,7 @@ from services.course_db import (
     create_certificate,
     update_certificate_pdf_url,
     get_admin_analytics,
+    delete_lessons_by_content_url,
 )
 
 from services.video_generator import generate_video
@@ -1593,6 +1594,16 @@ def delete_uploaded_file(
                 filter=Filter(
                     must=[
                         FieldCondition(
+                            key="company_id",
+                            match=MatchValue(value=target[6])
+                        )
+                    ],
+                    should=[
+                        FieldCondition(
+                            key="source",
+                            match=MatchValue(value=filename)
+                        ),
+                        FieldCondition(
                             key="video",
                             match=MatchValue(value=filename)
                         )
@@ -1632,6 +1643,32 @@ def delete_uploaded_file(
     except Exception as e:
         print("❌ Cloudinary delete error:", e)
 
+    lessons_removed = 0
+
+    # --------------------------------
+    # REMOVE LESSON REFERENCES
+    # --------------------------------
+    if target[6] is not None and cloudinary_url:
+        try:
+            lessons_removed = (
+                delete_lessons_by_content_url(
+                    target[6],
+                    cloudinary_url
+                )
+            )
+
+            if lessons_removed:
+                print(
+                    f"✅ Removed {lessons_removed} lesson(s) "
+                    f"referencing {filename}"
+                )
+
+        except Exception as e:
+            print(
+                "❌ Lesson cleanup error:",
+                e
+            )
+
     try:
 
         # --------------------------------
@@ -1646,7 +1683,8 @@ def delete_uploaded_file(
 
     return {
         "success": True,
-        "message": "File deleted successfully"
+        "message": "File deleted successfully",
+        "lessons_removed": lessons_removed
     }
 
 @app.post("/api/upload-image")
