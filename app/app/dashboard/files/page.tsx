@@ -7,6 +7,7 @@ import {
   Film,
   Trash2,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 
 import {
@@ -184,6 +185,9 @@ This removes the file record from the database and its associated stored knowled
               const isVideo =
                 file.filetype === "video";
 
+              const isPdf =
+                file.filename?.toLowerCase().endsWith(".pdf");
+
               return (
 
                 <div
@@ -238,6 +242,20 @@ This removes the file record from the database and its associated stored knowled
                       ? new Date(file.uploaded_at).toLocaleString()
                       : "-"}
                   </p>
+
+                  {isPdf && file.cloudinary_url ? (
+
+                    <a
+                      href={file.cloudinary_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+                    >
+                      <ExternalLink size={16} />
+                      Open PDF
+                    </a>
+
+                  ) : null}
 
                   {isVideo && file.cloudinary_url ? (
 
