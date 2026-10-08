@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { createCourse } from "@/lib/course-api";
 
 type Props = {
@@ -14,27 +15,60 @@ export default function CreateCourseDialog({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleCreate() {
-    if (!title.trim()) return;
+    if (creating || !title.trim()) {
+      return;
+    }
 
-    await createCourse(title, description);
+    try {
+      setCreating(true);
+      setError("");
 
-    setTitle("");
-    setDescription("");
+      await createCourse(
+        title.trim(),
+        description.trim()
+      );
 
-    setOpen(false);
+      setTitle("");
+      setDescription("");
+      setOpen(false);
 
-    onCreated();
+      onCreated();
+    } catch (error: any) {
+      console.error(
+        "Create course error:",
+        error
+      );
+
+      setError(
+        error?.message ||
+          "Failed to create course."
+      );
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
-        className="rounded-xl bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
+        type="button"
+        onClick={() => {
+          setError("");
+          setOpen(true);
+        }}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition hover:opacity-90"
+        style={{
+          backgroundColor:
+            "var(--brand-primary)",
+          color:
+            "var(--brand-primary-text)",
+        }}
       >
-        + Create Course
+        <span>+ Create Course</span>
       </button>
 
       {open && (
@@ -42,39 +76,95 @@ export default function CreateCourseDialog({
 
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
 
-            <h2 className="mb-6 text-2xl font-bold text-black">
-              Create Course
-            </h2>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <h2 className="text-2xl font-bold text-slate-900">
+                Create Course
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!creating) {
+                    setOpen(false);
+                    setError("");
+                  }
+                }}
+                className="cursor-pointer rounded-lg px-2 py-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed"
+                disabled={creating}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
 
             <input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) =>
+                setTitle(e.target.value)
+              }
               placeholder="Course Title"
-              className="mb-4 w-full rounded-lg border p-3"
+              disabled={creating}
+              className="mb-4 w-full rounded-lg border border-slate-200 p-3 outline-none transition focus:border-slate-400 disabled:bg-slate-50"
             />
 
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) =>
+                setDescription(e.target.value)
+              }
               placeholder="Description"
               rows={5}
-              className="mb-6 w-full rounded-lg border p-3"
+              disabled={creating}
+              className="mb-6 w-full rounded-lg border border-slate-200 p-3 outline-none transition focus:border-slate-400 disabled:bg-slate-50"
             />
+
+            {error && (
+              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {error}
+              </div>
+            )}
 
             <div className="flex justify-end gap-3">
 
               <button
-                onClick={() => setOpen(false)}
-                className="rounded-lg border px-5 py-2"
+                type="button"
+                onClick={() => {
+                  if (!creating) {
+                    setOpen(false);
+                    setError("");
+                  }
+                }}
+                disabled={creating}
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
 
               <button
+                type="button"
                 onClick={handleCreate}
-                className="rounded-lg bg-blue-600 px-5 py-2 text-white"
+                disabled={
+                  creating ||
+                  !title.trim()
+                }
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{
+                  backgroundColor:
+                    "var(--brand-primary)",
+                  color:
+                    "var(--brand-primary-text)",
+                }}
               >
-                Create
+                {creating && (
+                  <Loader2
+                    size={16}
+                    className="animate-spin"
+                  />
+                )}
+
+                {creating
+                  ? "Creating..."
+                  : "Create Course"}
               </button>
 
             </div>
