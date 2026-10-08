@@ -70,8 +70,21 @@ export default function LearningPage() {
 
               <div className="max-w-3xl">
 
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                  <Sparkles size={14} className="text-yellow-600" />
+                <div
+                  className="mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold text-slate-700"
+                  style={{
+                    borderColor:
+                      "color-mix(in srgb, var(--brand-accent) 28%, #e2e8f0)",
+                    backgroundColor:
+                      "color-mix(in srgb, var(--brand-accent) 10%, white)",
+                  }}
+                >
+                  <Sparkles
+                    size={14}
+                    style={{
+                      color: "var(--brand-accent)",
+                    }}
+                  />
                   Future-ready learning
                 </div>
 
@@ -355,13 +368,26 @@ export default function LearningPage() {
               AI ASSISTANT
              =================================================== */}
 
-          <section className="mt-12 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950">
+          <section
+            className="mt-12 overflow-hidden rounded-3xl border p-8 text-white"
+            style={{
+              borderColor:
+                "color-mix(in srgb, var(--brand-secondary) 28%, #e2e8f0)",
+              background:
+                "linear-gradient(135deg, var(--brand-secondary), var(--brand-primary))",
+            }}
+          >
 
             <div className="grid gap-8 px-7 py-8 lg:grid-cols-[1fr_auto] lg:items-center lg:px-10 lg:py-10">
 
               <div>
 
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-yellow-300">
+                <div
+                  className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold"
+                  style={{
+                    color: "var(--brand-accent)",
+                  }}
+                >
                   <Sparkles size={14} />
                   DADB Learning Assistant
                 </div>
@@ -379,7 +405,11 @@ export default function LearningPage() {
 
               <Link
                 href="/assistant"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-500 px-6 py-3.5 font-bold text-slate-950 transition hover:bg-yellow-400"
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-bold transition hover:opacity-90"
+                style={{
+                  backgroundColor: "var(--brand-primary)",
+                  color: "var(--brand-primary-text)",
+                }}
               >
                 Open AI Assistant
                 <ArrowRight size={18} />
