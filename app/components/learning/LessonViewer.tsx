@@ -91,7 +91,14 @@ export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
 
       <div className="mb-6">
 
-        <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
+        <span
+          className="rounded-full px-3 py-1 text-sm font-medium"
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--brand-primary) 12%, white)",
+            color: "var(--brand-primary)",
+          }}
+        >
 
           Lesson {lesson.lesson_order}
 
@@ -151,7 +158,11 @@ export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
             href={lesson.content_url}
             target="_blank"
             rel="noreferrer"
-            className="mt-5 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+            className="mt-5 inline-flex rounded-xl px-6 py-3 font-medium transition hover:opacity-90"
+            style={{
+              backgroundColor: "var(--brand-primary)",
+              color: "var(--brand-primary-text)",
+            }}
           >
             Open Document
           </a>
@@ -183,9 +194,17 @@ export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
           className={`rounded-xl px-6 py-3 font-medium text-white transition ${
             completed
               ? "bg-gray-500 cursor-not-allowed"
-              : "bg-green-600 hover:bg-green-700"
+              : "hover:opacity-90"
           }`}
 
+          style={
+            completed
+              ? undefined
+              : {
+                  backgroundColor: "var(--brand-primary)",
+                  color: "var(--brand-primary-text)",
+                }
+          }
         >
 
           {loading
@@ -202,7 +221,11 @@ export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
 
           download
 
-          className="rounded-xl border border-blue-600 px-6 py-3 font-medium text-blue-600 transition hover:bg-blue-50"
+          className="rounded-xl px-6 py-3 font-medium transition hover:bg-slate-50"
+          style={{
+            border: "1px solid var(--brand-primary)",
+            color: "var(--brand-primary)",
+          }}
 
         >
 
