@@ -97,8 +97,6 @@ export default function Header({
 
         <GlobalSearch />
 
-        </div>
-
       </div>
 
 
