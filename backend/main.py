@@ -845,6 +845,11 @@ IMPORTANT RULES:
 - Keep the answer concise and focused.
 - Ignore unrelated context.
 - Never hallucinate extra technical explanations.
+- Write the answer in a natural conversational format, like ChatGPT or Gemini.
+- Prefer a short direct answer first, followed by a brief explanation when useful.
+- Use normal paragraphs, bullet points, or numbered lists for structure.
+- Do NOT use Markdown tables unless the user explicitly asks for a table.
+- For simple factual questions, answer in a sentence or short paragraph instead of a table.
 
 
 
@@ -865,7 +870,8 @@ GUIDELINES:
 - Use ONLY uploaded content available to this company.
 - Keep answer precise.
 - Avoid unnecessary explanation.
-- Format structured data clearly.
+- Format the response naturally with headings, paragraphs, bullets, or numbered lists when useful.
+- Do not use Markdown tables unless the user explicitly asks for a table.
 - Do not add information not present in context.
 """
 
