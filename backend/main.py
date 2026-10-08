@@ -132,7 +132,8 @@ from services.file_db import (
     add_issue,
     get_all_issues,
     update_course,
-    delete_course
+    delete_course,
+    get_file_url_by_company_and_filename
 )
 app = FastAPI()
 init_db()
@@ -961,6 +962,18 @@ QUESTION:
                 or "Uploaded content"
             )
 
+            source_url = metadata.get("video_url")
+
+            if (
+                not source_url
+                and metadata.get("type") == "document"
+                and metadata.get("source")
+            ):
+                source_url = get_file_url_by_company_and_filename(
+                    user_company_id,
+                    metadata.get("source")
+                )
+
             source_key = (
                 source_name,
                 metadata.get("page"),
@@ -1003,6 +1016,8 @@ QUESTION:
                     source=metadata.get(
                         "source"
                     ),
+
+                    source_url=source_url,
 
                     page=metadata.get(
                         "page"
