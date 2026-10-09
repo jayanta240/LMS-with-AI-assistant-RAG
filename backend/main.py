@@ -376,6 +376,7 @@ def get_owned_session(
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(
     req: ChatRequest,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
     session_data = get_owned_session(
@@ -394,14 +395,6 @@ def chat(
             status_code=404,
             detail="Chat session not found."
         )
-
-    try:
-        record_ai_message(
-            req.session_id,
-            current_user.get("user_id"),
-        )
-    except Exception as ai_tracking_error:
-        print("⚠️ Failed to record AI activity:", ai_tracking_error)
 
     from services.llm_service import ask_llm
 
@@ -1144,6 +1137,12 @@ QUESTION:
     # ============================================================
     # RESPONSE
     # ============================================================
+
+    background_tasks.add_task(
+        record_ai_message,
+        req.session_id,
+        current_user.get("user_id"),
+    )
 
     return ChatResponse(
 
