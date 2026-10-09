@@ -199,7 +199,7 @@ sessions = {}
 # ============================================================
 
 @app.get("/api/notifications")
-async def get_user_notifications(
+def get_user_notifications(
     current_user=Depends(get_current_user)
 ):
     return get_notifications(
@@ -2048,7 +2048,7 @@ def get_messages(
 
 
 @app.get("/api/courses")
-async def get_courses_api(
+def get_courses_api(
     current_user=Depends(get_current_user)
 ):
     role = current_user["role"]
@@ -2509,7 +2509,7 @@ async def login_user(
         "branding": branding
     }
 @app.get("/api/users")
-async def get_users_api(
+def get_users_api(
     current_user=Depends(get_current_user)
 ):
 
@@ -2567,7 +2567,7 @@ async def get_users_api(
     return users
 
 @app.get("/api/company-admins")
-async def get_company_admins_api(
+def get_company_admins_api(
     current_user=Depends(get_current_user)
 ):
 
@@ -2671,7 +2671,7 @@ async def delete_company_admin_api(
 
 
 @app.get("/api/department-heads")
-async def get_department_heads_api(
+def get_department_heads_api(
     current_user=Depends(get_current_user)
 ):
 
@@ -2946,7 +2946,7 @@ async def assign_course_api(
 
 
 @app.get("/api/users/{user_id}/courses")
-async def get_user_courses_api(
+def get_user_courses_api(
     user_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -3224,7 +3224,7 @@ async def company_certificates(
         "certificates": certificates,
     }
 @app.get("/api/dashboard/stats")
-async def dashboard_stats(
+def dashboard_stats(
     current_user=Depends(get_current_user)
 ):
 
@@ -3838,7 +3838,7 @@ def require_company_admin(current_user):
 # ============================================================
 
 @app.get("/api/company/notification-settings")
-async def get_company_notification_settings_api(
+def get_company_notification_settings_api(
     current_user=Depends(get_current_user)
 ):
 
@@ -4304,7 +4304,7 @@ async def create_department_api(
         "department_id": department_id
     }
 @app.get("/api/companies/{company_id}/departments")
-async def get_departments_api(
+def get_departments_api(
     company_id: int,
     current_user=Depends(get_current_user)
 ):
