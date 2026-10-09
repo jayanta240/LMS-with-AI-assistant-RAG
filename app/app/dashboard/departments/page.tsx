@@ -681,9 +681,6 @@ export default function DepartmentsPage() {
 
                   <div className="mt-5 space-y-3">
 
-                    </div>
-
-
                     <div className="flex items-center gap-3 text-sm text-slate-600">
 
                       <Users
