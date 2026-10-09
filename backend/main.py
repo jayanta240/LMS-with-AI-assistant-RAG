@@ -1998,67 +1998,27 @@ Topic:
 def get_sessions(
     current_user=Depends(get_current_user)
 ):
-    user_id = current_user.get("user_id")
-    company_id = current_user.get("company_id")
-
-    user_sessions = []
-
-    for session_id, session_data in sessions.items():
-
-        if not isinstance(session_data, dict):
-            continue
-
-        if (
-            session_data.get("user_id") == user_id
-            and session_data.get("company_id") == company_id
-        ):
-            user_sessions.append({
-                "id": session_id,
-                "name": session_data.get(
-                    "name",
-                    "New Chat"
-                ),
-            })
-
-    return user_sessions
+    return list_chat_sessions(
+        current_user.get("user_id"),
+        current_user.get("company_id"),
+    )
 
 
 @app.post("/api/sessions")
 def create_session(
     current_user=Depends(get_current_user)
 ):
-
-    user_id = current_user.get("user_id")
-    company_id = current_user.get("company_id")
-
-    if user_id is None:
-        raise HTTPException(
-            status_code=403,
-            detail="User identity not found."
-        )
-
-    session_id = str(uuid.uuid4())
-
-    sessions[session_id] = {
-        "user_id": user_id,
-        "company_id": company_id,
-        "name": "New Chat",
-        "messages": [],
-    }
-
     try:
-        register_ai_session(
-            session_id,
-            user_id,
-            company_id,
+        return create_chat_session(
+            current_user.get("user_id"),
+            current_user.get("company_id"),
         )
-    except Exception as session_error:
-        print("⚠️ Failed to persist AI session:", session_error)
-
-    return {
-        "id": session_id,
-        "name": "New Chat",
-    }
+    except Exception as exc:
+        print("⚠️ Failed to create chat session:", exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create chat session."
+        )
 
 
 @app.get("/api/sessions/{session_id}/messages")
@@ -2066,33 +2026,70 @@ def get_messages(
     session_id: str,
     current_user=Depends(get_current_user)
 ):
-
-    session_data = sessions.get(
-        session_id
+    messages = get_chat_messages(
+        session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
     )
 
-    if not session_data:
+    if messages is None:
         raise HTTPException(
             status_code=404,
             detail="Chat session not found."
         )
 
-    user_id = current_user.get("user_id")
-    company_id = current_user.get("company_id")
+    return messages
 
-    if (
-        session_data.get("user_id") != user_id
-        or session_data.get("company_id") != company_id
-    ):
+
+@app.patch("/api/sessions/{session_id}")
+def rename_session(
+    session_id: str,
+    data: dict,
+    current_user=Depends(get_current_user)
+):
+    name = data.get("name")
+
+    success = rename_chat_session(
+        session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
+        name,
+    )
+
+    if not success:
         raise HTTPException(
-            status_code=403,
-            detail="You do not have access to this chat."
+            status_code=404,
+            detail="Chat session not found."
         )
 
-    return session_data.get(
-        "messages",
-        []
+    return {
+        "success": True,
+        "id": session_id,
+        "name": (name or "New Chat").strip()[:120] or "New Chat",
+    }
+
+
+@app.delete("/api/sessions/{session_id}")
+def delete_session(
+    session_id: str,
+    current_user=Depends(get_current_user)
+):
+    success = delete_chat_session(
+        session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
     )
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Chat session not found."
+        )
+
+    return {
+        "success": True,
+        "id": session_id,
+    }
 
 
 @app.get("/api/courses")
