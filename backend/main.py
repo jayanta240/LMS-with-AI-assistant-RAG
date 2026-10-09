@@ -2873,6 +2873,57 @@ async def delete_department_head_api(
     }
 
 
+def _process_course_assignment_side_effects(
+    user_id,
+    company_id,
+    course_id,
+    course_title,
+    employee_name,
+    employee_email,
+    course_url,
+):
+    """
+    Run non-critical notifications and email after the assignment
+    response has already been sent to the browser.
+    """
+    try:
+        create_notification(
+            user_id=user_id,
+            company_id=company_id,
+            title="New course assigned",
+            message=f"You have been assigned “{course_title}”.",
+            notification_type="course",
+            link=f"/learning/{course_id}",
+        )
+    except Exception as exc:
+        print("⚠️ Course assignment notification failed:", exc)
+
+    try:
+        notify_company_admins(
+            company_id,
+            title="Course assigned",
+            message=f"{course_title} was assigned to {employee_name or employee_email}.",
+            notification_type="course",
+            link=f"/dashboard/courses/{course_id}",
+        )
+    except Exception as exc:
+        print("⚠️ Company admin notification failed:", exc)
+
+    try:
+        notification_settings = get_notification_settings(company_id)
+
+        if notification_settings["course_assignment_email"]:
+            from services.email_service import send_course_assignment_email
+
+            send_course_assignment_email(
+                employee_email,
+                employee_name or "Learner",
+                course_title,
+                course_url,
+            )
+    except Exception as exc:
+        print("⚠️ Course assignment email failed:", exc)
+
 @app.post("/api/enrollments")
 async def assign_course_api(
     data: EnrollmentCreate,
@@ -2996,66 +3047,29 @@ async def assign_course_api(
         course_id=data.course_id
     )
 
-    create_notification(
-        user_id=data.user_id,
-        company_id=course[5],
-        title="New course assigned",
-        message=f"You have been assigned “{course[1] or 'a new course'}”.",
-        notification_type="course",
-        link=f"/learning/{data.course_id}",
-    )
-
-    notify_company_admins(
-        course[5],
-        title="Course assigned",
-        message=f"{course[1] or 'A course'} was assigned to {user[1] or user[2]}.",
-        notification_type="course",
-        link=f"/dashboard/courses/{data.course_id}",
-    )
-
-    # ---------------------------------
-    # COURSE ASSIGNMENT EMAIL
-    # ---------------------------------
-
     target_company_id = course[5]
 
-    notification_settings = get_notification_settings(
-        target_company_id
+    course_title = course[1] or "your new course"
+
+    course_url = (
+        f"{FRONTEND_URL.rstrip('/')}"
+        f"/learning/{data.course_id}"
     )
 
-    if notification_settings["course_assignment_email"]:
-
-        from services.email_service import (
-            send_course_assignment_email
-        )
-
-        course_url = (
-            f"{FRONTEND_URL.rstrip('/')}"
-            f"/learning/{data.course_id}"
-        )
-
-        email_args = (
-            user[2],
-            user[1] or "Learner",
-            course[1] or "your new course",
-            course_url,
-        )
-
-        if background_tasks is not None:
-            background_tasks.add_task(
-                send_course_assignment_email,
-                *email_args,
-            )
-        else:
-            send_course_assignment_email(
-                *email_args
-            )
+    background_tasks.add_task(
+        _process_course_assignment_side_effects,
+        data.user_id,
+        target_company_id,
+        data.course_id,
+        course_title,
+        user[1] or "Learner",
+        user[2],
+        course_url,
+    )
 
     return {
         "success": True,
-        "email_notification": bool(
-            notification_settings["course_assignment_email"]
-        )
+        "notifications_queued": True,
     }
 
 
