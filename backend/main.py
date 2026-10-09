@@ -135,6 +135,7 @@ from services.file_db import (
     init_db,
     add_file,
     get_all_files,
+    get_files_by_company,
     get_file_count,
     delete_file,
     add_issue,
@@ -1565,11 +1566,9 @@ def list_files(
                 detail="Company information is missing."
             )
 
-        files = [
-            f
-            for f in get_all_files()
-            if f[6] == company_id
-        ]
+        files = get_files_by_company(
+            company_id
+        )
 
     else:
 
