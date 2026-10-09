@@ -317,7 +317,7 @@ export default function DepartmentsPage() {
             SUMMARY
            ================================================== */}
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
 
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -660,10 +660,6 @@ export default function DepartmentsPage() {
                         <h2 className="truncate text-base font-bold text-slate-900">
                           {department.department_name}
                         </h2>
-
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          Department #{department.id}
-                        </p>
 
                       </div>
 
