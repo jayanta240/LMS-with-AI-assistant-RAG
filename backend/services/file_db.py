@@ -218,6 +218,25 @@ def get_file_url_by_company_and_filename(
     return row[0] if row and row[0] else None
 
 
+def get_files_by_company(
+    company_id
+):
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                SELECT *
+                FROM uploaded_files
+                WHERE company_id = %s
+                ORDER BY id DESC
+            """, (
+                company_id,
+            ))
+
+            return cursor.fetchall()
+
+
 def get_all_files():
 
     with get_db_connection() as conn:
