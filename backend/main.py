@@ -3264,7 +3264,7 @@ def dashboard_stats(
         stats = get_dashboard_summary()
 
         return {
-            "companies": get_company_count(),
+            "companies": stats["companies"],
             "users": stats["users"],
             "courses": stats["courses"],
             "lessons": stats["lessons"],
