@@ -72,6 +72,12 @@ from services.notification_db import (
     init_notification_db,
     get_notification_settings,
     update_notification_settings,
+    create_notification,
+    notify_company_admins,
+    notify_super_admins,
+    get_notifications,
+    mark_notification_read,
+    mark_all_notifications_read,
 )
 
 from services.certificate_service import (
@@ -185,6 +191,44 @@ def startup():
 # -----------------------------
 os.makedirs("temp", exist_ok=True)
 sessions = {}
+
+
+# ============================================================
+# IN-APP NOTIFICATIONS
+# ============================================================
+
+@app.get("/api/notifications")
+async def get_user_notifications(
+    current_user=Depends(get_current_user)
+):
+    return get_notifications(
+        current_user["user_id"]
+    )
+
+
+@app.patch("/api/notifications/{notification_id}/read")
+async def mark_user_notification_read(
+    notification_id: int,
+    current_user=Depends(get_current_user)
+):
+    return {
+        "success": mark_notification_read(
+            notification_id,
+            current_user["user_id"]
+        )
+    }
+
+
+@app.post("/api/notifications/read-all")
+async def mark_user_notifications_read(
+    current_user=Depends(get_current_user)
+):
+    return {
+        "success": True,
+        "updated": mark_all_notifications_read(
+            current_user["user_id"]
+        ),
+    }
 
 
 # -----------------------------
@@ -1454,6 +1498,19 @@ async def upload(
                     )
 
     # =================================================
+    # IN-APP NOTIFICATION
+    # =================================================
+
+    if uploaded:
+        notify_company_admins(
+            company_id,
+            title="Knowledge files uploaded",
+            message=f"{len(uploaded)} file{'s' if len(uploaded) != 1 else ''} were added to the knowledge base.",
+            notification_type="file",
+            link="/dashboard/files",
+        )
+
+    # =================================================
     # RESPONSE
     # =================================================
 
@@ -1686,6 +1743,14 @@ def delete_uploaded_file(
 
     except Exception as e:
         print("❌ Database delete error:", e)
+
+    notify_company_admins(
+        target[6],
+        title="Knowledge file deleted",
+        message=f"{filename} was removed from the knowledge base.",
+        notification_type="file",
+        link="/dashboard/files",
+    )
 
     return {
         "success": True,
@@ -2062,6 +2127,14 @@ async def create_course_api(
         thumbnail_url=data.thumbnail_url or ""
     )
 
+    notify_company_admins(
+        company_id,
+        title="Course created",
+        message=f"Course “{data.title}” was created.",
+        notification_type="course",
+        link=f"/dashboard/courses/{course_id}",
+    )
+
     return {
         "success": True,
         "course_id": course_id,
@@ -2165,6 +2238,19 @@ async def create_lesson_api(
             status_code=404,
             detail=str(exc)
         )
+
+    course = get_course(
+        data.course_id,
+        company_id=company_id
+    )
+
+    notify_company_admins(
+        company_id,
+        title="Lesson added",
+        message=f"“{data.title}” was added to {course[1] if course else 'a course'}.",
+        notification_type="lesson",
+        link=f"/dashboard/courses/{data.course_id}",
+    )
 
     return {
         "success": True,
@@ -2342,6 +2428,28 @@ async def register_user(
         company_id=data.company_id,
         department_id=data.department_id
     )
+
+    if data.company_id:
+        if data.role == "company_admin":
+            notify_super_admins(
+                title="Company Admin created",
+                message=f"{data.name} was created as a Company Admin.",
+                notification_type="user",
+                link="/dashboard/company-admins",
+                exclude_user_id=current_user.get("user_id"),
+            )
+        else:
+            notify_company_admins(
+                data.company_id,
+                title=(
+                    "Department Head created"
+                    if data.role == "department_head"
+                    else "Employee created"
+                ),
+                message=f"{data.name} was added to your organization.",
+                notification_type="user",
+                link="/dashboard/employees",
+            )
 
     return {
         "success": True,
@@ -2777,6 +2885,23 @@ async def assign_course_api(
         course_id=data.course_id
     )
 
+    create_notification(
+        user_id=data.user_id,
+        company_id=course[5],
+        title="New course assigned",
+        message=f"You have been assigned “{course[1] or 'a new course'}”.",
+        notification_type="course",
+        link=f"/learning/{data.course_id}",
+    )
+
+    notify_company_admins(
+        course[5],
+        title="Course assigned",
+        message=f"{course[1] or 'A course'} was assigned to {user[1] or user[2]}.",
+        notification_type="course",
+        link=f"/dashboard/courses/{data.course_id}",
+    )
+
     # ---------------------------------
     # COURSE ASSIGNMENT EMAIL
     # ---------------------------------
@@ -2900,6 +3025,15 @@ async def update_course_api(
         thumbnail_url=data.thumbnail_url
     )
 
+    if current_user.get("company_id"):
+        notify_company_admins(
+            current_user["company_id"],
+            title="Course updated",
+            message=f"{data.title} was updated.",
+            notification_type="course",
+            link=f"/dashboard/courses/{course_id}",
+        )
+
     return {
         "success": True
     }
@@ -2920,7 +3054,36 @@ async def delete_course_api(
             detail="Permission denied."
         )
 
-    delete_course(course_id)
+    course = get_course(
+        course_id,
+        company_id=current_user.get("company_id")
+        if current_user["role"] == "company_admin"
+        else None
+    )
+
+    delete_course(
+        course_id,
+        company_id=current_user.get("company_id")
+        if current_user["role"] == "company_admin"
+        else None
+    )
+
+    if current_user.get("company_id"):
+        notify_company_admins(
+            current_user["company_id"],
+            title="Course deleted",
+            message=f"{course[1] if course else 'A course'} was deleted.",
+            notification_type="course",
+            link="/dashboard/courses",
+        )
+    else:
+        notify_super_admins(
+            title="Course deleted",
+            message=f"{course[1] if course else 'A course'} was deleted.",
+            notification_type="course",
+            link="/dashboard/courses",
+            exclude_user_id=current_user.get("user_id"),
+        )
 
     return {
         "success": True
@@ -3519,6 +3682,16 @@ async def complete_lesson(
             )
 
 
+    if certificate:
+        create_notification(
+            user_id=user_id,
+            company_id=company_id,
+            title="Certificate issued",
+            message=f"Your certificate for “{course_title}” is ready.",
+            notification_type="certificate",
+            link="/dashboard/certificates",
+        )
+
     # ========================================================
     # RESPONSE
     # ========================================================
@@ -3932,6 +4105,14 @@ async def create_company_api(
             detail=str(exc)
         )
 
+    notify_super_admins(
+        title="New company created",
+        message=f"{data.company_name} was added to the platform.",
+        notification_type="company",
+        link="/dashboard/companies",
+        exclude_user_id=current_user.get("user_id"),
+    )
+
     return {
         "success": True,
         "company_id": company_id
@@ -4084,6 +4265,23 @@ async def create_department_api(
         data.department_name
     )
 
+    if current_user["role"] == "company_admin":
+        notify_company_admins(
+            company_id,
+            title="Department created",
+            message=f"{data.department_name} was added.",
+            notification_type="department",
+            link="/dashboard/departments",
+        )
+    else:
+        notify_super_admins(
+            title="Department created",
+            message=f"{data.department_name} was added to a company.",
+            notification_type="department",
+            link="/dashboard/departments",
+            exclude_user_id=current_user.get("user_id"),
+        )
+
     return {
         "success": True,
         "department_id": department_id
@@ -4135,6 +4333,23 @@ async def delete_department_api(
         )
 
     delete_department(department_id)
+
+    if current_user["role"] == "company_admin":
+        notify_company_admins(
+            current_user["company_id"],
+            title="Department deleted",
+            message="A department was removed from your organization.",
+            notification_type="department",
+            link="/dashboard/departments",
+        )
+    else:
+        notify_super_admins(
+            title="Department deleted",
+            message="A department was removed from the platform.",
+            notification_type="department",
+            link="/dashboard/departments",
+            exclude_user_id=current_user.get("user_id"),
+        )
 
     return {
         "success": True
