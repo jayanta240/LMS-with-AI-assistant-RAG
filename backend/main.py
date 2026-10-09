@@ -2883,7 +2883,10 @@ async def assign_course_api(
         course_id=data.course_id
     )
 
-    create_notification(
+    # Keep the assignment response focused on the actual database
+    # operation. Notifications and email run after the response.
+    background_tasks.add_task(
+        create_notification,
         user_id=data.user_id,
         company_id=course[5],
         title="New course assigned",
@@ -2892,7 +2895,8 @@ async def assign_course_api(
         link=f"/learning/{data.course_id}",
     )
 
-    notify_company_admins(
+    background_tasks.add_task(
+        notify_company_admins,
         course[5],
         title="Course assigned",
         message=f"{course[1] or 'A course'} was assigned to {user[1] or user[2]}.",
@@ -2928,15 +2932,10 @@ async def assign_course_api(
             course_url,
         )
 
-        if background_tasks is not None:
-            background_tasks.add_task(
-                send_course_assignment_email,
-                *email_args,
-            )
-        else:
-            send_course_assignment_email(
-                *email_args
-            )
+        background_tasks.add_task(
+            send_course_assignment_email,
+            *email_args,
+        )
 
     return {
         "success": True,
