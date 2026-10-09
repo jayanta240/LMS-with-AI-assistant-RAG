@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from services.postgres_db import get_db_connection
+from services.enrollment_db import get_user_course_ids
 
 
 # ============================================================
@@ -219,8 +220,9 @@ def get_chat_context(
     max_history=6,
 ):
     """
-    Load the owned session, recent conversation, and assigned course IDs
-    using a single PostgreSQL connection.
+    Load the owned session and recent conversation with one database
+    connection. Assigned course IDs use a short-lived cache because
+    chat access rules do not change on every message.
     """
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
@@ -270,17 +272,7 @@ def get_chat_context(
                 for role, content in message_rows
             ]
 
-            cursor.execute("""
-                SELECT course_id
-                FROM enrollments
-                WHERE user_id = %s
-                ORDER BY course_id
-            """, (user_id,))
-
-            course_ids = [
-                row[0]
-                for row in cursor.fetchall()
-            ]
+    course_ids = get_user_course_ids(user_id)
 
     return {
         "session": _session_row_to_dict(session_row),
