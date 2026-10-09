@@ -149,7 +149,7 @@ def get_chat_session(session_id, user_id, company_id):
             return _session_row_to_dict(cursor.fetchone())
 
 
-def get_chat_messages(session_id, user_id, company_id):
+def get_chat_messages(session_id, user_id, company_id, limit=None):
     session = get_chat_session(
         session_id,
         user_id,
@@ -161,16 +161,41 @@ def get_chat_messages(session_id, user_id, company_id):
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    role,
-                    content,
-                    sources,
-                    video
-                FROM ai_messages
-                WHERE session_id = %s
-                ORDER BY id ASC
-            """, (session_id,))
+            if limit is not None:
+                cursor.execute("""
+                    SELECT
+                        role,
+                        content,
+                        sources,
+                        video
+                    FROM (
+                        SELECT
+                            id,
+                            role,
+                            content,
+                            sources,
+                            video
+                        FROM ai_messages
+                        WHERE session_id = %s
+                        ORDER BY id DESC
+                        LIMIT %s
+                    ) recent_messages
+                    ORDER BY id ASC
+                """, (
+                    session_id,
+                    max(1, int(limit)),
+                ))
+            else:
+                cursor.execute("""
+                    SELECT
+                        role,
+                        content,
+                        sources,
+                        video
+                    FROM ai_messages
+                    WHERE session_id = %s
+                    ORDER BY id ASC
+                """, (session_id,))
 
             rows = cursor.fetchall()
 
