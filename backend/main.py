@@ -89,6 +89,17 @@ from services.dashboard_db import (
     get_dashboard_metrics,
 )
 
+from services.chat_db import (
+    init_chat_db,
+    create_chat_session,
+    list_chat_sessions,
+    get_chat_session,
+    get_chat_messages,
+    append_chat_message,
+    rename_chat_session,
+    delete_chat_session,
+)
+
 from services.certificate_service import (
     generate_certificate_pdf
 )
@@ -156,6 +167,7 @@ init_db()
 init_course_db()
 init_notification_db()
 init_dashboard_db()
+init_chat_db()
 app.mount("/temp_videos", StaticFiles(directory="temp_videos"), name="temp_videos")
 os.makedirs(
     "certificates",
@@ -343,24 +355,19 @@ def get_owned_session(
     session_id: str,
     current_user
 ):
-    session_data = sessions.get(session_id)
+    user_id = current_user.get("user_id")
+    company_id = current_user.get("company_id")
+
+    session_data = get_chat_session(
+        session_id,
+        user_id,
+        company_id,
+    )
 
     if not session_data:
         raise HTTPException(
             status_code=404,
             detail="Chat session not found."
-        )
-
-    user_id = current_user.get("user_id")
-    company_id = current_user.get("company_id")
-
-    if (
-        session_data.get("user_id") != user_id
-        or session_data.get("company_id") != company_id
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have access to this chat."
         )
 
     return session_data
@@ -375,6 +382,18 @@ def chat(
         req.session_id,
         current_user
     )
+
+    chat_history = get_chat_messages(
+        req.session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
+    )
+
+    if chat_history is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Chat session not found."
+        )
 
     try:
         record_ai_message(
@@ -497,18 +516,20 @@ def chat(
 
         
 
-        session_data["messages"].append(
-            {
-                "role": "user",
-                "content": req.message
-            }
+        append_chat_message(
+            req.session_id,
+            current_user.get("user_id"),
+            current_user.get("company_id"),
+            "user",
+            req.message,
         )
 
-        session_data["messages"].append(
-            {
-                "role": "assistant",
-                "content": answer
-            }
+        append_chat_message(
+            req.session_id,
+            current_user.get("user_id"),
+            current_user.get("company_id"),
+            "assistant",
+            answer,
         )
 
         return ChatResponse(
@@ -584,18 +605,20 @@ def chat(
 
         
 
-        session_data["messages"].append(
-            {
-                "role": "user",
-                "content": req.message
-            }
+        append_chat_message(
+            req.session_id,
+            current_user.get("user_id"),
+            current_user.get("company_id"),
+            "user",
+            req.message,
         )
 
-        session_data["messages"].append(
-            {
-                "role": "assistant",
-                "content": answer
-            }
+        append_chat_message(
+            req.session_id,
+            current_user.get("user_id"),
+            current_user.get("company_id"),
+            "assistant",
+            answer,
         )
 
         return ChatResponse(
@@ -857,11 +880,6 @@ def chat(
     # CONVERSATION MEMORY
     # ============================================================
 
-    chat_history = session_data.get(
-        "messages",
-        []
-    )
-
     history_text = ""
 
     for msg in chat_history[-6:]:
@@ -1106,19 +1124,22 @@ QUESTION:
 
     
 
-    session_data["messages"].append(
-    {
-        "role": "user",
-        "content": req.message
-    }
-)
+    append_chat_message(
+        req.session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
+        "user",
+        req.message,
+    )
 
-    session_data["messages"].append(
-    {
-        "role": "assistant",
-        "content": answer
-    }
-)
+    append_chat_message(
+        req.session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
+        "assistant",
+        answer,
+        sources=sources,
+    )
 
     # ============================================================
     # RESPONSE
