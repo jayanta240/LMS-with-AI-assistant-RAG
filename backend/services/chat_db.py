@@ -41,6 +41,11 @@ def init_chat_db():
                 ON ai_messages(session_id, id)
             """)
 
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ai_sessions_user_company_recent
+                ON ai_sessions(user_id, company_id, last_message_at DESC)
+            """)
+
 
 def _session_row_to_dict(row):
     if not row:
