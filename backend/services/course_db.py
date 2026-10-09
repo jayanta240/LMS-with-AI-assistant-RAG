@@ -594,6 +594,7 @@ def get_dashboard_summary(company_id=None):
 
                 cursor.execute("""
                     SELECT
+                        (SELECT COUNT(*) FROM companies),
                         (SELECT COUNT(*) FROM users),
                         (SELECT COUNT(*) FROM courses),
                         (SELECT COUNT(*) FROM lessons),
@@ -632,7 +633,17 @@ def get_dashboard_summary(company_id=None):
 
                 row = cursor.fetchone()
 
+    if company_id is None:
+        return {
+            "companies": row[0] or 0,
+            "users": row[1] or 0,
+            "courses": row[2] or 0,
+            "lessons": row[3] or 0,
+            "files": row[4] or 0,
+        }
+
     return {
+        "companies": 0,
         "users": row[0] or 0,
         "courses": row[1] or 0,
         "lessons": row[2] or 0,
