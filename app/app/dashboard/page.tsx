@@ -26,13 +26,7 @@ import {
 import { getDashboardStats } from "@/lib/course-api";
 
 
-type DashboardStats = {
-  companies?: number;
-  users?: number;
-  courses?: number;
-  lessons?: number;
-  files?: number;
-};
+type DashboardStats = {,  companies?: number;,  users?: number;,  active_users?: number;,  courses?: number;,  lessons?: number;,  files?: number;,  learning_hours?: number;,  completion_rate?: number;,  certificates_issued?: number;,  ai_conversations?: number;,  ai_messages?: number;,};
 
 
 function MetricCard({
@@ -227,8 +221,7 @@ export default function DashboardPage() {
   const lessons =
     stats.lessons ?? 0;
 
-  const files =
-    stats.files ?? 0;
+  const files =,    stats.files ?? 0;,,  const activeUsers =,    stats.active_users ?? 0;,,  const learningHours =,    stats.learning_hours ?? 0;,,  const completionRate =,    stats.completion_rate ?? 0;,,  const certificatesIssued =,    stats.certificates_issued ?? 0;,,  const aiConversations =,    stats.ai_conversations ?? 0;,,  const aiMessages =,    stats.ai_messages ?? 0;
 
 
   return (
@@ -301,11 +294,7 @@ export default function DashboardPage() {
           />
 
 
-          <MetricCard
-            title="Active Users"
-            value="—"
-            subtitle="Active-user analytics"
-            icon={<UserCheck size={22} />}
+          <MetricCard,            title="Active Users",            value={,              loading,                ? "...",                : activeUsers.toLocaleString(),            },            subtitle="Active in the last 30 days",            icon={<UserCheck size={22} />},            iconClassName="bg-emerald-50 text-emerald-500",          />
             iconClassName="bg-emerald-50 text-emerald-500"
           />
 
@@ -344,37 +333,7 @@ export default function DashboardPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-          <MetricCard
-            title="Total Learning Hours"
-            value="—"
-            subtitle="Learning analytics"
-            icon={<Clock3 size={22} />}
-          />
-
-
-          <MetricCard
-            title="Course Completion Rate"
-            value="—"
-            subtitle="Completion analytics"
-            icon={<TrendingUp size={22} />}
-            iconClassName="bg-emerald-50 text-emerald-500"
-          />
-
-
-          <MetricCard
-            title="Certificates Issued"
-            value="—"
-            subtitle="Certificate analytics"
-            icon={<Award size={22} />}
-            iconClassName="bg-orange-50 text-orange-500"
-          />
-
-
-          <MetricCard
-            title="AI Conversations"
-            value="—"
-            subtitle="Assistant analytics"
-            icon={<Bot size={22} />}
+          <MetricCard,            title="Total Learning Hours",            value={,              loading,                ? "...",                : `${learningHours.toLocaleString(undefined, {,                    minimumFractionDigits: 1,,                    maximumFractionDigits: 1,,                  })} h`,            },            subtitle="Tracked active learning time",            icon={<Clock3 size={22} />},          />,,,          <MetricCard,            title="Course Completion Rate",            value={,              loading,                ? "...",                : `${completionRate.toLocaleString(undefined, {,                    maximumFractionDigits: 1,,                  })}%`,            },            subtitle="Fully completed enrollments",            icon={<TrendingUp size={22} />},            iconClassName="bg-emerald-50 text-emerald-500",          />,,,          <MetricCard,            title="Certificates Issued",            value={,              loading,                ? "...",                : certificatesIssued.toLocaleString(),            },            subtitle="Issued certificates",            icon={<Award size={22} />},            iconClassName="bg-orange-50 text-orange-500",          />,,,          <MetricCard,            title="AI Conversations",            value={,              loading,                ? "...",                : aiConversations.toLocaleString(),            },            subtitle="Recorded AI chat sessions",            icon={<Bot size={22} />},            iconClassName="bg-indigo-50 text-indigo-500",          />
             iconClassName="bg-indigo-50 text-indigo-500"
           />
 
@@ -584,7 +543,9 @@ export default function DashboardPage() {
                 </p>
 
                 <p className="mt-1 text-lg font-bold text-slate-900">
-                  —
+                  {completionRate.toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  })}%
                 </p>
 
               </div>
@@ -621,7 +582,7 @@ export default function DashboardPage() {
                 </div>
 
                 <span className="text-sm font-bold text-slate-900">
-                  —
+                  {aiMessages.toLocaleString()}
                 </span>
 
               </div>
