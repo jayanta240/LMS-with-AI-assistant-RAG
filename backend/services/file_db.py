@@ -52,6 +52,11 @@ def init_db():
                 )
             """)
 
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_departments_company_id
+                ON departments(company_id)
+            """)
+
             # ========================================================
             # USERS
             # ========================================================
