@@ -2041,6 +2041,50 @@ def get_messages(
     return messages
 
 
+@app.post("/api/sessions/{session_id}/messages")
+def save_session_message(
+    session_id: str,
+    data: dict,
+    current_user=Depends(get_current_user)
+):
+    role = data.get("role")
+    content = data.get("content")
+    sources = data.get("sources") or []
+    video = data.get("video")
+
+    if role not in {"user", "assistant"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid message role."
+        )
+
+    if not isinstance(content, str) or not content.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Message content is required."
+        )
+
+    success = append_chat_message(
+        session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
+        role,
+        content,
+        sources=sources,
+        video=video,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Chat session not found."
+        )
+
+    return {
+        "success": True
+    }
+
+
 @app.patch("/api/sessions/{session_id}")
 def rename_session(
     session_id: str,
