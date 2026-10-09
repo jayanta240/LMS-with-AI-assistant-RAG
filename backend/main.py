@@ -2674,6 +2674,14 @@ async def delete_company_admin_api(
             detail="Company Admin not found."
         )
 
+    notify_super_admins(
+        title="Company Admin deleted",
+        message=f"{target_user[1] or target_user[2]} was removed from the platform.",
+        notification_type="user",
+        link="/dashboard/company-admins",
+        exclude_user_id=current_user.get("user_id"),
+    )
+
     return {
         "success": True,
         "message": "Company Admin deleted permanently."
@@ -2755,6 +2763,14 @@ async def delete_department_head_api(
             status_code=404,
             detail="Department Head not found."
         )
+
+    notify_company_admins(
+        current_user["company_id"],
+        title="Department Head deleted",
+        message=f"{target_user[1] or target_user[2]} was removed from your organization.",
+        notification_type="user",
+        link="/dashboard/department-heads",
+    )
 
     return {
         "success": True,
@@ -4203,6 +4219,14 @@ async def update_company_api(
         data.status
     )
 
+    notify_super_admins(
+        title="Company updated",
+        message=f"{data.company_name} was updated.",
+        notification_type="company",
+        link="/dashboard/companies",
+        exclude_user_id=current_user.get("user_id"),
+    )
+
     return {
         "success": True
     }
@@ -4219,7 +4243,22 @@ async def delete_company_api(
             detail="Only Super Admin can delete companies."
         )
 
+    company = get_company(company_id)
+    company_name = (
+        company[1]
+        if company and len(company) > 1
+        else "A company"
+    )
+
     delete_company(company_id)
+
+    notify_super_admins(
+        title="Company deleted",
+        message=f"{company_name} was removed from the platform.",
+        notification_type="company",
+        link="/dashboard/companies",
+        exclude_user_id=current_user.get("user_id"),
+    )
 
     return {
         "success": True
