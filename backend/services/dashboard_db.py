@@ -276,14 +276,17 @@ def get_dashboard_metrics(
             if role == "company_admin" and company_id is not None:
                 user_filters.append("u.company_id = %s")
                 user_params.append(company_id)
+                user_filters.append("u.role = 'employee'")
 
             elif role == "department_head":
                 if department_id is not None:
                     user_filters.append("u.department_id = %s")
                     user_params.append(department_id)
+                    user_filters.append("u.role = 'employee'")
                 elif company_id is not None:
                     user_filters.append("u.company_id = %s")
                     user_params.append(company_id)
+                    user_filters.append("u.role = 'employee'")
 
             elif role == "employee" and user_id is not None:
                 user_filters.append("u.id = %s")
