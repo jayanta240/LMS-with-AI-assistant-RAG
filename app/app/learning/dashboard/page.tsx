@@ -134,51 +134,40 @@ export default function LearningDashboardPage() {
       }
 
       // ------------------------------------------------------
-      // LOAD COURSES
+      // LOAD COURSES + CERTIFICATES IN PARALLEL
       // ------------------------------------------------------
 
-      const courseData =
-        await getUserCourses(
-          Number(userId)
-        );
+      const [courseData, certificateResult] =
+        await Promise.all([
+          getUserCourses(
+            Number(userId)
+          ),
+          getMyCertificates().catch(
+            (certificateError) => {
+              console.error(
+                "Failed to load certificates:",
+                certificateError
+              );
+
+              return null;
+            }
+          ),
+        ]);
 
       const nextCourses =
         Array.isArray(courseData)
           ? courseData
           : [];
 
+      const nextCertificates: Certificate[] =
+        Array.isArray(
+          certificateResult?.certificates
+        )
+          ? certificateResult.certificates
+          : [];
+
       setCourses(nextCourses);
-
-
-      // ------------------------------------------------------
-      // LOAD CERTIFICATES
-      // ------------------------------------------------------
-
-      let nextCertificates: Certificate[] = [];
-
-      try {
-        const certificateData =
-          await getMyCertificates();
-
-        nextCertificates =
-          Array.isArray(
-            certificateData?.certificates
-          )
-            ? certificateData.certificates
-            : [];
-
-        setCertificates(
-          nextCertificates
-        );
-
-      } catch (certificateError) {
-        console.error(
-          "Failed to load certificates:",
-          certificateError
-        );
-
-        setCertificates([]);
-      }
+      setCertificates(nextCertificates);
 
       sessionStorage.setItem(
         cacheKey,
