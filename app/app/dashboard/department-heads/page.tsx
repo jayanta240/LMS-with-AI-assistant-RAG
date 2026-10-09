@@ -733,32 +733,6 @@ export default function DepartmentHeadsPage() {
 
               {/* Company Information */}
 
-              <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
-
-                <div className="flex items-start gap-3">
-
-                  <Building2
-                    size={18}
-                    className="mt-0.5 text-blue-500"
-                  />
-
-                  <div>
-
-                    <p className="text-sm font-semibold text-blue-900">
-                      Organization Assignment
-                    </p>
-
-                    <p className="mt-1 text-xs text-blue-700">
-                      This account will belong to company #{companyId}
-                      and will manage the selected department.
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
-
 
               {/* Actions */}
 
@@ -907,7 +881,7 @@ export default function DepartmentHeadsPage() {
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Gmail / Email</th>
                   <th className="px-4 py-3">Department</th>
-                  <th className="px-4 py-3">Department ID</th>
+             <th className="px-4 py-3">Department ID</th>
                   <th className="px-4 py-3 text-right">Action</th>
 
                 </tr>
