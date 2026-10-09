@@ -914,12 +914,6 @@ export default function DepartmentHeadsPage() {
                       </p>
                     </td>
 
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-slate-500">
-                        {head.department_id ?? "-"}
-                      </span>
-                    </td>
-
                     <td className="px-4 py-4 text-right">
 
                       <button
