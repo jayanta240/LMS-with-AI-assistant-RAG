@@ -936,32 +936,6 @@ export default function EmployeesPage() {
               </div>
 
 
-              <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
-
-                <div className="flex items-start gap-3">
-
-                  <BriefcaseBusiness
-                    size={18}
-                    className="mt-0.5 text-blue-500"
-                  />
-
-                  <div>
-
-                    <p className="text-sm font-semibold text-blue-900">
-                      Company Assignment
-                    </p>
-
-                    <p className="mt-1 text-xs text-blue-700">
-                      The employee will be created under
-                      company #{companyId}.
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
-
 
               <div className="mt-6 flex justify-end gap-3">
 
@@ -1138,14 +1112,6 @@ export default function EmployeesPage() {
                 <h2 className="text-base font-semibold text-slate-900">
                   Employee Directory
                 </h2>
-
-              </div>
-
-              <div className="hidden items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:flex">
-
-                <UserRound size={14} />
-
-                Company #{companyId}
 
               </div>
 
