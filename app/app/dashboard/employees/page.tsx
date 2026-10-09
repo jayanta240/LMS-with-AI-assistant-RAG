@@ -329,7 +329,8 @@ export default function EmployeesPage() {
 
       setShowCreateForm(false);
 
-      await loadUsers();
+      // Refresh the table without blocking the completed action.
+      void loadUsers();
 
     } catch (error: any) {
 
@@ -410,8 +411,8 @@ export default function EmployeesPage() {
         })
       );
 
-
-      await loadUsers();
+      // Refresh progress in the background.
+      void loadUsers();
 
     } catch (error: any) {
 
