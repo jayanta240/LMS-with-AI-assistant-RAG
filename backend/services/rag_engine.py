@@ -26,6 +26,7 @@ ISSUE_COLLECTION = "issue_images"
 
 client = None
 embed_model = None
+qdrant_initialized = False
 
 
 # ============================================================
@@ -33,7 +34,13 @@ embed_model = None
 # ============================================================
 
 def init_qdrant():
-    global client, embed_model
+    global client, embed_model, qdrant_initialized
+
+    # Initialize Qdrant once per backend process. Re-checking
+    # collections and payload indexes on every chat request adds
+    # several network round trips and noticeably increases latency.
+    if qdrant_initialized:
+        return
 
     # --------------------------------------------------------
     # QDRANT CLIENT
@@ -116,82 +123,23 @@ def init_qdrant():
             e,
         )
 
-    # --------------------------------------------------------
-    # SOURCE
-    # --------------------------------------------------------
+    required_indexes = {
+        "source": "keyword",
+        "video": "keyword",
+        "company_id": "integer",
+        "department_id": "integer",
+        "course_id": "integer",
+        "uploaded_by": "integer",
+        "visibility": "keyword",
+    }
 
-    if "source" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="source",
-            field_schema="keyword",
-        )
-
-    # --------------------------------------------------------
-    # VIDEO
-    # --------------------------------------------------------
-
-    if "video" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="video",
-            field_schema="keyword",
-        )
-
-    # --------------------------------------------------------
-    # COMPANY ID
-    # --------------------------------------------------------
-
-    if "company_id" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="company_id",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # DEPARTMENT ID
-    # --------------------------------------------------------
-
-    if "department_id" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="department_id",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # COURSE ID
-    # --------------------------------------------------------
-
-    if "course_id" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="course_id",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # UPLOADED BY
-    # --------------------------------------------------------
-
-    if "uploaded_by" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="uploaded_by",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # VISIBILITY
-    # --------------------------------------------------------
-
-    if "visibility" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="visibility",
-            field_schema="keyword",
-        )
+    for field_name, field_schema in required_indexes.items():
+        if field_name not in existing_indexes:
+            client.create_payload_index(
+                collection_name=COLLECTION_NAME,
+                field_name=field_name,
+                field_schema=field_schema,
+            )
 
     print("✅ Qdrant payload indexes ready")
 
@@ -204,8 +152,9 @@ def init_qdrant():
             model_name="BAAI/bge-base-en-v1.5"
         )
 
-    print("✅ Qdrant Ready")
+    qdrant_initialized = True
 
+    print("✅ Qdrant Ready")
 
 # ============================================================
 # GET CLIENT
