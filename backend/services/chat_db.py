@@ -11,7 +11,6 @@ from services.postgres_db import get_db_connection
 def init_chat_db():
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            # Reuse ai_sessions created by dashboard analytics.
             cursor.execute("""
                 ALTER TABLE ai_sessions
                 ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT 'New Chat'
@@ -149,34 +148,21 @@ def get_chat_session(session_id, user_id, company_id):
             return _session_row_to_dict(cursor.fetchone())
 
 
-def get_chat_messages(session_id, user_id, company_id):
-    session = get_chat_session(
-        session_id,
-        user_id,
-        company_id,
-    )
-
-    if not session:
-        return None
-
-    with get_db_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    role,
-                    content,
-                    sources,
-                    video
-                FROM ai_messages
-                WHERE session_id = %s
-                ORDER BY id ASC
-            """, (session_id,))
-
-            rows = cursor.fetchall()
+def _read_messages(cursor, session_id):
+    cursor.execute("""
+        SELECT
+            role,
+            content,
+            sources,
+            video
+        FROM ai_messages
+        WHERE session_id = %s
+        ORDER BY id ASC
+    """, (session_id,))
 
     messages = []
 
-    for role, content, sources, video in rows:
+    for role, content, sources, video in cursor.fetchall():
         parsed_sources = sources or []
 
         if isinstance(parsed_sources, str):
@@ -199,32 +185,130 @@ def get_chat_messages(session_id, user_id, company_id):
     return messages
 
 
-def append_chat_message(
+def get_chat_messages(session_id, user_id, company_id):
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    session_id,
+                    user_id,
+                    company_id,
+                    name,
+                    started_at,
+                    last_message_at
+                FROM ai_sessions
+                WHERE session_id = %s
+                  AND user_id = %s
+                  AND company_id IS NOT DISTINCT FROM %s
+            """, (
+                session_id,
+                user_id,
+                company_id,
+            ))
+
+            if not cursor.fetchone():
+                return None
+
+            return _read_messages(cursor, session_id)
+
+
+def get_chat_context(
     session_id,
     user_id,
     company_id,
-    role,
-    content,
-    sources=None,
-    video=None,
+    max_history=6,
 ):
-    session = get_chat_session(
-        session_id,
-        user_id,
-        company_id,
-    )
+    """
+    Load the owned session, recent conversation, and assigned course IDs
+    using a single PostgreSQL connection.
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    session_id,
+                    user_id,
+                    company_id,
+                    name,
+                    started_at,
+                    last_message_at
+                FROM ai_sessions
+                WHERE session_id = %s
+                  AND user_id = %s
+                  AND company_id IS NOT DISTINCT FROM %s
+            """, (
+                session_id,
+                user_id,
+                company_id,
+            ))
 
-    if not session:
-        return False
+            session_row = cursor.fetchone()
 
-    if role not in {"user", "assistant"}:
-        raise ValueError("Invalid chat message role")
+            if not session_row:
+                return None
 
-    sources = sources or []
+            cursor.execute("""
+                SELECT
+                    role,
+                    content,
+                    sources,
+                    video
+                FROM ai_messages
+                WHERE session_id = %s
+                ORDER BY id DESC
+                LIMIT %s
+            """, (
+                session_id,
+                max_history,
+            ))
 
+            message_rows = list(reversed(cursor.fetchall()))
+
+            messages = []
+
+            for role, content, sources, video in message_rows:
+                parsed_sources = sources or []
+
+                if isinstance(parsed_sources, str):
+                    try:
+                        parsed_sources = json.loads(parsed_sources)
+                    except Exception:
+                        parsed_sources = []
+
+                item = {
+                    "role": role,
+                    "content": content,
+                    "sources": parsed_sources,
+                }
+
+                if video:
+                    item["video"] = video
+
+                messages.append(item)
+
+            cursor.execute("""
+                SELECT course_id
+                FROM enrollments
+                WHERE user_id = %s
+                ORDER BY course_id
+            """, (user_id,))
+
+            course_ids = [
+                row[0]
+                for row in cursor.fetchall()
+            ]
+
+    return {
+        "session": _session_row_to_dict(session_row),
+        "messages": messages,
+        "course_ids": course_ids,
+    }
+
+
+def _normalize_sources(sources):
     normalized_sources = []
 
-    for source in sources:
+    for source in sources or []:
         if hasattr(source, "model_dump"):
             normalized_sources.append(source.model_dump())
         elif isinstance(source, dict):
@@ -235,10 +319,146 @@ def append_chat_message(
             except Exception:
                 continue
 
+    return normalized_sources
+
+
+def append_chat_exchange(
+    session_id,
+    user_id,
+    company_id,
+    user_content,
+    assistant_content,
+    sources=None,
+    video=None,
+):
+    """
+    Persist one complete chat exchange in a single transaction.
+    This replaces multiple sequential DB round trips.
+    """
+    if not isinstance(user_content, str) or not user_content.strip():
+        raise ValueError("User message content is required")
+
+    if not isinstance(assistant_content, str) or not assistant_content.strip():
+        raise ValueError("Assistant message content is required")
+
+    normalized_sources = _normalize_sources(sources)
     now = datetime.now()
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT name
+                FROM ai_sessions
+                WHERE session_id = %s
+                  AND user_id = %s
+                  AND company_id IS NOT DISTINCT FROM %s
+                FOR UPDATE
+            """, (
+                session_id,
+                user_id,
+                company_id,
+            ))
+
+            session_row = cursor.fetchone()
+
+            if not session_row:
+                return False
+
+            cursor.execute("""
+                INSERT INTO ai_messages (
+                    session_id,
+                    role,
+                    content,
+                    sources,
+                    video,
+                    created_at
+                )
+                VALUES (%s, 'user', %s, '[]'::jsonb, NULL, %s)
+            """, (
+                session_id,
+                user_content,
+                now,
+            ))
+
+            cursor.execute("""
+                INSERT INTO ai_messages (
+                    session_id,
+                    role,
+                    content,
+                    sources,
+                    video,
+                    created_at
+                )
+                VALUES (%s, 'assistant', %s, %s::jsonb, %s, %s)
+            """, (
+                session_id,
+                assistant_content,
+                json.dumps(normalized_sources),
+                video,
+                now,
+            ))
+
+            cursor.execute("""
+                UPDATE ai_sessions
+                SET
+                    last_message_at = %s,
+                    message_count = message_count + 1,
+                    name = CASE
+                        WHEN name = 'New Chat'
+                        THEN %s
+                        ELSE name
+                    END
+                WHERE session_id = %s
+                  AND user_id = %s
+                  AND company_id IS NOT DISTINCT FROM %s
+            """, (
+                now,
+                " ".join(user_content.split())[:60] or "New Chat",
+                session_id,
+                user_id,
+                company_id,
+            ))
+
+    return True
+
+
+def append_chat_message(
+    session_id,
+    user_id,
+    company_id,
+    role,
+    content,
+    sources=None,
+    video=None,
+):
+    """
+    Backward-compatible single-message persistence helper.
+    """
+    if role not in {"user", "assistant"}:
+        raise ValueError("Invalid message role")
+
+    normalized_sources = _normalize_sources(sources)
+    now = datetime.now()
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT name
+                FROM ai_sessions
+                WHERE session_id = %s
+                  AND user_id = %s
+                  AND company_id IS NOT DISTINCT FROM %s
+            """, (
+                session_id,
+                user_id,
+                company_id,
+            ))
+
+            session_row = cursor.fetchone()
+
+            if not session_row:
+                return False
+
             cursor.execute("""
                 INSERT INTO ai_messages (
                     session_id,
@@ -261,35 +481,29 @@ def append_chat_message(
             cursor.execute("""
                 UPDATE ai_sessions
                 SET
-                    last_message_at = %s
+                    last_message_at = %s,
+                    message_count = CASE
+                        WHEN %s = 'assistant'
+                        THEN message_count
+                        ELSE message_count + 1
+                    END,
+                    name = CASE
+                        WHEN name = 'New Chat' AND %s = 'user'
+                        THEN %s
+                        ELSE name
+                    END
                 WHERE session_id = %s
                   AND user_id = %s
                   AND company_id IS NOT DISTINCT FROM %s
             """, (
                 now,
+                role,
+                role,
+                " ".join((content or "").split())[:60] or "New Chat",
                 session_id,
                 user_id,
                 company_id,
             ))
-
-            if role == "user" and session.get("name") == "New Chat":
-                title = " ".join((content or "").split()).strip()
-                if len(title) > 60:
-                    title = title[:57].rstrip() + "..."
-
-                if title:
-                    cursor.execute("""
-                        UPDATE ai_sessions
-                        SET name = %s
-                        WHERE session_id = %s
-                          AND user_id = %s
-                          AND company_id IS NOT DISTINCT FROM %s
-                    """, (
-                        title,
-                        session_id,
-                        user_id,
-                        company_id,
-                    ))
 
     return True
 
