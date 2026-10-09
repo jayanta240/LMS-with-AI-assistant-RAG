@@ -426,8 +426,6 @@ export default function DashboardPage() {
             icon={<Bot size={22} />}
             iconClassName="bg-indigo-50 text-indigo-500"
           />
-            iconClassName="bg-indigo-50 text-indigo-500"
-          />
 
         </div>
 
