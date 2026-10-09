@@ -90,3 +90,89 @@ export async function updateNotificationSettings(
     settings: NotificationSettings;
   };
 }
+
+
+export type AppNotification = {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  link?: string | null;
+  is_read: boolean;
+  created_at: string;
+};
+
+export async function getNotifications() {
+  const res = await fetch(
+    `${BASE}/api/notifications`,
+    {
+      headers: authHeaders(),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to load notifications"
+    );
+  }
+
+  return data as {
+    notifications: AppNotification[];
+    unread_count: number;
+  };
+}
+
+export async function markNotificationRead(
+  id: number
+) {
+  const res = await fetch(
+    `${BASE}/api/notifications/${id}/read`,
+    {
+      method: "PATCH",
+      headers: authHeaders(),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to update notification"
+    );
+  }
+
+  return data as {
+    success: boolean;
+  };
+}
+
+export async function markAllNotificationsRead() {
+  const res = await fetch(
+    `${BASE}/api/notifications/read-all`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to mark notifications as read"
+    );
+  }
+
+  return data as {
+    success: boolean;
+    updated: number;
+  };
+}
