@@ -19,6 +19,9 @@ import {
   getMessages,
   createSession,
   diagnoseImage,
+  getSessions,
+  renameSession,
+  deleteSession,
 } from "../../lib/api";
 
 import {
@@ -56,6 +59,13 @@ type Message = {
   sources?: any[];
   video?: string;
 };
+
+type ChatSession = {
+  id: string;
+  name: string;
+  created_at?: string;
+  updated_at?: string;
+};
  
 
 
@@ -81,6 +91,12 @@ export default function Home() {
 
   const [session, setSession] =
     useState("");
+
+  const [chatSessions, setChatSessions] =
+    useState<ChatSession[]>([]);
+
+  const [historyLoading, setHistoryLoading] =
+    useState(false);
 
   const [loading, setLoading] =
     useState(false);
@@ -163,6 +179,23 @@ export default function Home() {
 
   async function initializeAssistant() {
     try {
+      setHistoryLoading(true);
+
+      const existingSessions =
+        await getSessions();
+
+      const sessionList: ChatSession[] =
+        Array.isArray(existingSessions)
+          ? existingSessions
+          : [];
+
+      setChatSessions(sessionList);
+
+      if (sessionList.length > 0) {
+        setSession(sessionList[0].id);
+        return;
+      }
+
       const response =
         await createSession();
 
@@ -172,10 +205,13 @@ export default function Home() {
         );
       }
 
-      setSession(
-        response.id
-      );
+      const newSession: ChatSession = {
+        id: response.id,
+        name: response.name || "New Chat",
+      };
 
+      setChatSessions([newSession]);
+      setSession(newSession.id);
       setMessages([]);
 
     } catch (error) {
@@ -185,6 +221,9 @@ export default function Home() {
       );
 
       setMessages([]);
+
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -238,6 +277,33 @@ export default function Home() {
 
     const currentMessage =
       message.trim();
+
+    const currentSession =
+      chatSessions.find(
+        (item) => item.id === session
+      );
+
+    if (
+      currentSession &&
+      currentSession.name === "New Chat" &&
+      currentMessage
+    ) {
+      const autoTitle =
+        currentMessage.length > 60
+          ? currentMessage.slice(0, 57).trimEnd() + "..."
+          : currentMessage;
+
+      setChatSessions((prev) =>
+        prev.map((item) =>
+          item.id === session
+            ? {
+                ...item,
+                name: autoTitle,
+              }
+            : item
+        )
+      );
+    }
 
     setMessages((prev) => [
       ...prev,
@@ -719,29 +785,80 @@ ${diagnosis.solution}
 
   async function handleNewChat() {
     try {
-
       const response =
         await createSession();
 
-      if (response?.id) {
-
-        setSession(
-          response.id
+      if (!response?.id) {
+        throw new Error(
+          "Failed to create session."
         );
-
-        setMessages([]);
-
-      } else {
-        setMessages([]);
       }
 
-    } catch (error) {
+      const newSession: ChatSession = {
+        id: response.id,
+        name: response.name || "New Chat",
+      };
 
+      setChatSessions((prev) => [
+        newSession,
+        ...prev,
+      ]);
+
+      setSession(newSession.id);
+      setMessages([]);
+
+    } catch (error) {
       console.error(
         "Failed to create session:",
         error
       );
+    }
+  }
 
+
+  async function handleDeleteChat(
+    sessionId: string
+  ) {
+    try {
+      await deleteSession(sessionId);
+
+      const remaining =
+        chatSessions.filter(
+          (item) => item.id !== sessionId
+        );
+
+      if (remaining.length === 0) {
+        const response =
+          await createSession();
+
+        if (!response?.id) {
+          throw new Error(
+            "Failed to create replacement chat."
+          );
+        }
+
+        const newSession: ChatSession = {
+          id: response.id,
+          name: response.name || "New Chat",
+        };
+
+        setChatSessions([newSession]);
+        setSession(newSession.id);
+        setMessages([]);
+        return;
+      }
+
+      setChatSessions(remaining);
+
+      if (session === sessionId) {
+        setSession(remaining[0].id);
+      }
+
+    } catch (error) {
+      console.error(
+        "Failed to delete session:",
+        error
+      );
     }
   }
 
@@ -1504,6 +1621,81 @@ ${diagnosis.solution}
 
           </div>
         )}
+
+
+        {/* =====================================================
+            CHAT HISTORY
+           ===================================================== */}
+
+        <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+
+          <div className="mb-3 flex items-center justify-between gap-3">
+
+            <div>
+              <p className="text-sm font-semibold text-slate-800">
+                Chat History
+              </p>
+
+              <p className="mt-0.5 text-xs text-slate-400">
+                Your conversations are saved to your account.
+              </p>
+            </div>
+
+            {historyLoading && (
+              <Loader2
+                size={16}
+                className="animate-spin text-slate-400"
+              />
+            )}
+
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+
+            {chatSessions.map((chat) => (
+
+              <div
+                key={chat.id}
+                className={
+                  "flex shrink-0 items-center gap-1 rounded-xl border transition " +
+                  (chat.id === session
+                    ? "border-slate-300 bg-slate-50"
+                    : "border-slate-200 bg-white")
+                }
+              >
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (chat.id !== session) {
+                      setSession(chat.id);
+                    }
+                  }}
+                  className="max-w-[220px] truncate px-3 py-2 text-left text-xs font-semibold text-slate-700"
+                  title={chat.name}
+                >
+                  {chat.name}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteChat(chat.id)
+                  }
+                  className="mr-1 rounded-lg p-1.5 text-slate-400 transition hover:bg-white hover:text-red-500"
+                  title="Delete chat"
+                  aria-label={"Delete " + chat.name}
+                >
+                  <X size={14} />
+                </button>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
 
 
         {/* =====================================================
