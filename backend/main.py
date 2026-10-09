@@ -95,7 +95,9 @@ from services.chat_db import (
     list_chat_sessions,
     get_chat_session,
     get_chat_messages,
+    get_chat_context,
     append_chat_message,
+    append_chat_exchange,
     rename_chat_session,
     delete_chat_session,
 )
@@ -160,7 +162,8 @@ from services.file_db import (
     get_all_issues,
     update_course,
     delete_course,
-    get_file_url_by_company_and_filename
+    get_file_url_by_company_and_filename,
+    get_file_urls_by_company_and_filenames
 )
 app = FastAPI()
 init_db()
@@ -378,30 +381,24 @@ def chat(
     req: ChatRequest,
     current_user=Depends(get_current_user)
 ):
-    session_data = get_owned_session(
+    user_id = current_user.get("user_id")
+    company_id = current_user.get("company_id")
+
+    runtime_context = get_chat_context(
         req.session_id,
-        current_user
+        user_id,
+        company_id,
+        max_history=6,
     )
 
-    chat_history = get_chat_messages(
-        req.session_id,
-        current_user.get("user_id"),
-        current_user.get("company_id"),
-    )
-
-    if chat_history is None:
+    if runtime_context is None:
         raise HTTPException(
             status_code=404,
             detail="Chat session not found."
         )
 
-    try:
-        record_ai_message(
-            req.session_id,
-            current_user.get("user_id"),
-        )
-    except Exception as ai_tracking_error:
-        print("⚠️ Failed to record AI activity:", ai_tracking_error)
+    session_data = runtime_context["session"]
+    chat_history = runtime_context["messages"]
 
     from services.llm_service import ask_llm
 
@@ -413,9 +410,7 @@ def chat(
     user_id = current_user.get("user_id")
     user_department_id = current_user.get("department_id")
 
-    user_course_ids = get_user_course_ids(
-        user_id
-    )
+    user_course_ids = runtime_context["course_ids"]
     
 
     if user_company_id is None:
@@ -1037,6 +1032,19 @@ QUESTION:
     if relevant_content_found:
 
         seen_sources = set()
+        document_names = [
+            r.get("metadata", {}).get("source")
+            for r in top
+            if (
+                r.get("metadata", {}).get("type") == "document"
+                and r.get("metadata", {}).get("source")
+            )
+        ]
+
+        document_urls = get_file_urls_by_company_and_filenames(
+            user_company_id,
+            document_names,
+        )
 
         for r in top:
 
@@ -1050,17 +1058,12 @@ QUESTION:
                 or "Uploaded content"
             )
 
-            source_url = metadata.get("video_url")
-
-            if (
-                not source_url
-                and metadata.get("type") == "document"
-                and metadata.get("source")
-            ):
-                source_url = get_file_url_by_company_and_filename(
-                    user_company_id,
+            source_url = (
+                metadata.get("video_url")
+                or document_urls.get(
                     metadata.get("source")
                 )
+            )
 
             source_key = (
                 source_name,
@@ -1070,49 +1073,21 @@ QUESTION:
             )
 
             if source_key in seen_sources:
-
                 continue
 
-            seen_sources.add(
-                source_key
-            )
+            seen_sources.add(source_key)
 
             sources.append(
-
                 SourceItem(
-
-                    type=metadata.get(
-                        "type"
-                    ),
-
-                    video=metadata.get(
-                        "video"
-                    ),
-
-                    video_url=metadata.get(
-                        "video_url"
-                    ),
-
-                    start=metadata.get(
-                        "start"
-                    ),
-
-                    end=metadata.get(
-                        "end"
-                    ),
-
-                    source=metadata.get(
-                        "source"
-                    ),
-
+                    type=metadata.get("type"),
+                    video=metadata.get("video"),
+                    video_url=metadata.get("video_url"),
+                    start=metadata.get("start"),
+                    end=metadata.get("end"),
+                    source=metadata.get("source"),
                     source_url=source_url,
-
-                    page=metadata.get(
-                        "page"
-                    )
-
+                    page=metadata.get("page"),
                 )
-
             )
 
             if len(sources) >= 5:
@@ -1124,19 +1099,11 @@ QUESTION:
 
     
 
-    append_chat_message(
+    append_chat_exchange(
         req.session_id,
         current_user.get("user_id"),
         current_user.get("company_id"),
-        "user",
         req.message,
-    )
-
-    append_chat_message(
-        req.session_id,
-        current_user.get("user_id"),
-        current_user.get("company_id"),
-        "assistant",
         answer,
         sources=sources,
     )
