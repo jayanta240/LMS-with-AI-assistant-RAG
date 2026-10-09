@@ -881,7 +881,6 @@ export default function DepartmentHeadsPage() {
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Gmail / Email</th>
                   <th className="px-4 py-3">Department</th>
-             <th className="px-4 py-3">Department ID</th>
                   <th className="px-4 py-3 text-right">Action</th>
 
                 </tr>
