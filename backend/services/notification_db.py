@@ -170,35 +170,82 @@ def notify_company_admins(
     link: str | None = None,
     exclude_user_id: int | None = None,
 ):
+    """
+    Insert company-admin notifications in one database operation.
+    """
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
+
             if exclude_user_id is None:
                 cursor.execute("""
-                    SELECT id
+                    INSERT INTO notifications
+                    (
+                        user_id,
+                        company_id,
+                        title,
+                        message,
+                        notification_type,
+                        link,
+                        is_read,
+                        created_at
+                    )
+                    SELECT
+                        id,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        FALSE,
+                        %s
                     FROM users
                     WHERE role = 'company_admin'
                       AND company_id = %s
-                """, (company_id,))
+                """, (
+                    company_id,
+                    title,
+                    message,
+                    notification_type,
+                    link,
+                    datetime.now(),
+                    company_id,
+                ))
             else:
                 cursor.execute("""
-                    SELECT id
+                    INSERT INTO notifications
+                    (
+                        user_id,
+                        company_id,
+                        title,
+                        message,
+                        notification_type,
+                        link,
+                        is_read,
+                        created_at
+                    )
+                    SELECT
+                        id,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        FALSE,
+                        %s
                     FROM users
                     WHERE role = 'company_admin'
                       AND company_id = %s
                       AND id <> %s
-                """, (company_id, exclude_user_id))
-
-            user_ids = [row[0] for row in cursor.fetchall()]
-
-    for user_id in user_ids:
-        create_notification(
-            user_id=user_id,
-            company_id=company_id,
-            title=title,
-            message=message,
-            notification_type=notification_type,
-            link=link,
-        )
+                """, (
+                    company_id,
+                    title,
+                    message,
+                    notification_type,
+                    link,
+                    datetime.now(),
+                    company_id,
+                    exclude_user_id,
+                ))
 
 
 def notify_super_admins(
@@ -208,33 +255,77 @@ def notify_super_admins(
     link: str | None = None,
     exclude_user_id: int | None = None,
 ):
+    """
+    Insert super-admin notifications in one database operation.
+    """
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
+
             if exclude_user_id is None:
                 cursor.execute("""
-                    SELECT id
+                    INSERT INTO notifications
+                    (
+                        user_id,
+                        company_id,
+                        title,
+                        message,
+                        notification_type,
+                        link,
+                        is_read,
+                        created_at
+                    )
+                    SELECT
+                        id,
+                        NULL,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        FALSE,
+                        %s
                     FROM users
                     WHERE role = 'super_admin'
-                """)
+                """, (
+                    title,
+                    message,
+                    notification_type,
+                    link,
+                    datetime.now(),
+                ))
             else:
                 cursor.execute("""
-                    SELECT id
+                    INSERT INTO notifications
+                    (
+                        user_id,
+                        company_id,
+                        title,
+                        message,
+                        notification_type,
+                        link,
+                        is_read,
+                        created_at
+                    )
+                    SELECT
+                        id,
+                        NULL,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        FALSE,
+                        %s
                     FROM users
                     WHERE role = 'super_admin'
                       AND id <> %s
-                """, (exclude_user_id,))
+                """, (
+                    title,
+                    message,
+                    notification_type,
+                    link,
+                    datetime.now(),
+                    exclude_user_id,
+                ))
 
-            user_ids = [row[0] for row in cursor.fetchall()]
-
-    for user_id in user_ids:
-        create_notification(
-            user_id=user_id,
-            company_id=None,
-            title=title,
-            message=message,
-            notification_type=notification_type,
-            link=link,
-        )
 
 
 def get_notifications(user_id: int, limit: int = 30):
