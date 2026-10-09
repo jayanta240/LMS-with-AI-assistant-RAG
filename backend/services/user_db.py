@@ -158,6 +158,110 @@ def get_all_users(company_id=None):
 
 
 # ============================================================
+# GET EMPLOYEES WITH PROGRESS
+# ============================================================
+
+def get_employees_with_progress(
+    company_id=None,
+    department_id=None,
+):
+    """
+    Return employee records and progress in one query.
+
+    This replaces the previous N+1 pattern where each employee
+    triggered a separate progress query.
+    """
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            filters = [
+                "u.role = 'employee'"
+            ]
+            params = []
+
+            if company_id is not None:
+                filters.append(
+                    "u.company_id = %s"
+                )
+                params.append(company_id)
+
+            if department_id is not None:
+                filters.append(
+                    "u.department_id = %s"
+                )
+                params.append(department_id)
+
+            where_clause = " AND ".join(filters)
+
+            cursor.execute(f"""
+                SELECT
+                    u.id,
+                    u.name,
+                    u.email,
+                    u.role,
+                    u.company_id,
+                    c.company_name,
+                    u.department_id,
+                    d.department_name,
+                    u.created_at,
+
+                    CASE
+                        WHEN COUNT(DISTINCT l.id) = 0 THEN 0
+                        ELSE CAST(
+                            (
+                                COUNT(
+                                    DISTINCT CASE
+                                        WHEN lp.completed = 1
+                                        THEN lp.lesson_id
+                                    END
+                                )::numeric
+                                /
+                                COUNT(DISTINCT l.id)
+                                * 100
+                            ) AS INTEGER
+                        )
+                    END AS progress
+
+                FROM users u
+
+                LEFT JOIN companies c
+                    ON u.company_id = c.id
+
+                LEFT JOIN departments d
+                    ON u.department_id = d.id
+
+                LEFT JOIN enrollments e
+                    ON e.user_id = u.id
+
+                LEFT JOIN lessons l
+                    ON l.course_id = e.course_id
+
+                LEFT JOIN lesson_progress lp
+                    ON lp.lesson_id = l.id
+                   AND lp.user_id = u.id
+                   AND lp.completed = 1
+
+                WHERE {where_clause}
+
+                GROUP BY
+                    u.id,
+                    u.name,
+                    u.email,
+                    u.role,
+                    u.company_id,
+                    c.company_name,
+                    u.department_id,
+                    d.department_name,
+                    u.created_at
+
+                ORDER BY u.id DESC
+            """, tuple(params))
+
+            return cursor.fetchall()
+
+
+# ============================================================
 # GET USER COUNT
 # ============================================================
 
