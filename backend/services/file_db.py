@@ -87,6 +87,36 @@ def init_db():
             # ========================================================
 
             cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_company_id
+                ON users(company_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_department_id
+                ON users(department_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_role_company
+                ON users(role, company_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_role_department
+                ON users(role, department_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_enrollments_user_course
+                ON enrollments(user_id, course_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_enrollments_course_user
+                ON enrollments(course_id, user_id)
+            """)
+
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS uploaded_files (
                     id INTEGER PRIMARY KEY,
                     filename TEXT,
