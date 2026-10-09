@@ -44,6 +44,7 @@ from services.user_db import (
     delete_department_head,
     get_user_progress,
     get_employees_with_progress,
+    get_department_heads_by_company,
 )
 
 from services.auth_service import (
@@ -2680,7 +2681,7 @@ def get_department_heads_api(
             detail="Only Company Admin can view Department Heads."
         )
 
-    rows = get_all_users(
+    rows = get_department_heads_by_company(
         current_user["company_id"]
     )
 
@@ -2694,7 +2695,6 @@ def get_department_heads_api(
             "created_at": row[8],
         }
         for row in rows
-        if row[3] == "department_head"
     ]
 
 
