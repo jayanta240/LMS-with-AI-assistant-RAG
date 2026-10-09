@@ -351,42 +351,24 @@ def classify_intent(message: str):
 # -----------------------------
 
 
-def get_owned_session(
-    session_id: str,
-    current_user
-):
-    user_id = current_user.get("user_id")
-    company_id = current_user.get("company_id")
-
-    session_data = get_chat_session(
-        session_id,
-        user_id,
-        company_id,
-    )
-
-    if not session_data:
-        raise HTTPException(
-            status_code=404,
-            detail="Chat session not found."
-        )
-
-    return session_data
-
-
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(
     req: ChatRequest,
     current_user=Depends(get_current_user)
 ):
-    session_data = get_owned_session(
-        req.session_id,
-        current_user
-    )
+    import time
 
+    request_started = time.perf_counter()
+
+    user_id = current_user.get("user_id")
+    company_id = current_user.get("company_id")
+
+    # One DB read is enough: it verifies session ownership and
+    # returns the stored history used for conversational memory.
     chat_history = get_chat_messages(
         req.session_id,
-        current_user.get("user_id"),
-        current_user.get("company_id"),
+        user_id,
+        company_id,
     )
 
     if chat_history is None:
@@ -394,14 +376,6 @@ def chat(
             status_code=404,
             detail="Chat session not found."
         )
-
-    try:
-        record_ai_message(
-            req.session_id,
-            current_user.get("user_id"),
-        )
-    except Exception as ai_tracking_error:
-        print("⚠️ Failed to record AI activity:", ai_tracking_error)
 
     from services.llm_service import ask_llm
 
@@ -682,7 +656,9 @@ def chat(
 
         )
 
-        top = ranked[:10]
+        # Fewer retrieved chunks keeps prompts smaller and faster
+        # while still giving the model multiple relevant references.
+        top = ranked[:8]
 
     # ============================================================
     # SIMILARITY
@@ -838,6 +814,12 @@ def chat(
         context_parts
     )
 
+    # Hard cap retrieved text so very large documents do not create
+    # unnecessarily slow LLM requests.
+    MAX_CONTEXT_CHARS = 12000
+    if len(context) > MAX_CONTEXT_CHARS:
+        context = context[:MAX_CONTEXT_CHARS].rstrip() + "\n[Context truncated for response speed.]"
+
     print(
         "📚 FINAL CONTEXT:"
     )
@@ -882,21 +864,20 @@ def chat(
 
     history_text = ""
 
+    # Keep enough recent context for follow-up questions without
+    # repeatedly sending a large transcript to the LLM.
     for msg in chat_history[-6:]:
-
         role = msg["role"]
+        content_text = str(msg.get("content", ""))
+
+        # Prevent a single large answer from inflating every later prompt.
+        if len(content_text) > 1400:
+            content_text = content_text[:1400].rstrip() + "..."
 
         if role == "user":
-
-            history_text += (
-                f"User: {msg['content']}\n"
-            )
-
+            history_text += f"User: {content_text}\n"
         else:
-
-            history_text += (
-                f"Assistant: {msg['content']}\n"
-            )
+            history_text += f"Assistant: {content_text}\n"
 
     # ============================================================
     # PROMPT
@@ -1134,12 +1115,23 @@ QUESTION:
 
     append_chat_message(
         req.session_id,
-        current_user.get("user_id"),
-        current_user.get("company_id"),
+        user_id,
+        company_id,
         "assistant",
         answer,
         sources=sources,
     )
+
+    try:
+        record_ai_message(
+            req.session_id,
+            user_id,
+        )
+    except Exception as ai_tracking_error:
+        print("⚠️ Failed to record AI activity:", ai_tracking_error)
+
+    total_ms = int((time.perf_counter() - request_started) * 1000)
+    print(f"⏱️ CHAT TOTAL: {total_ms} ms")
 
     # ============================================================
     # RESPONSE
