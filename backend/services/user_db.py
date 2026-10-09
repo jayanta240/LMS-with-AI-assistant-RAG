@@ -330,6 +330,52 @@ def get_user_progress(user_id):
 
 
 # ============================================================
+# GET DEPARTMENT HEADS BY COMPANY
+# ============================================================
+
+def get_department_heads_by_company(
+    company_id
+):
+    """
+    Fetch only Department Head records for one company.
+    Avoids loading all company users and filtering in Python.
+    """
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                SELECT
+                    u.id,
+                    u.name,
+                    u.email,
+                    u.role,
+                    u.company_id,
+                    c.company_name,
+                    u.department_id,
+                    d.department_name,
+                    u.created_at
+
+                FROM users u
+
+                LEFT JOIN companies c
+                    ON u.company_id = c.id
+
+                LEFT JOIN departments d
+                    ON u.department_id = d.id
+
+                WHERE u.company_id = %s
+                  AND u.role = 'department_head'
+
+                ORDER BY u.id DESC
+            """, (
+                company_id,
+            ))
+
+            return cursor.fetchall()
+
+
+# ============================================================
 # DELETE COMPANY ADMIN
 # ============================================================
 
