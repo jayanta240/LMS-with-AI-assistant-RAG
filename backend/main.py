@@ -85,7 +85,6 @@ from services.dashboard_db import (
     touch_user_activity,
     record_learning_time,
     register_ai_session,
-    record_ai_message,
     get_dashboard_metrics,
 )
 
