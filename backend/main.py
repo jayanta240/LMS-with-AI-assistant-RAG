@@ -369,6 +369,7 @@ def chat(
         req.session_id,
         user_id,
         company_id,
+        limit=6,
     )
 
     if chat_history is None:
@@ -543,6 +544,8 @@ def chat(
     #   General knowledge questions
     # ============================================================
 
+    retrieval_started = time.perf_counter()
+
     results = search(
 
         query=english_query,
@@ -551,13 +554,17 @@ def chat(
         department_id=user_department_id,
         course_ids=user_course_ids,
 
-        limit=10
+        limit=8
 
     )
 
     print(
         "🔐 SECURE SEARCH COMPANY:",
         user_company_id
+    )
+
+    print(
+        f"⏱️ CHAT RETRIEVAL: {int((time.perf_counter() - retrieval_started) * 1000)} ms"
     )
 
     # ============================================================
@@ -992,8 +999,14 @@ QUESTION:
     # LLM
     # ============================================================
 
+    llm_started = time.perf_counter()
+
     answer = ask_llm(
         prompt
+    )
+
+    print(
+        f"⏱️ CHAT LLM: {int((time.perf_counter() - llm_started) * 1000)} ms"
     )
 
     # ============================================================
