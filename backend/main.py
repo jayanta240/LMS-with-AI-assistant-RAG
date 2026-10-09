@@ -365,11 +365,17 @@ def chat(
 
     # One DB read is enough: it verifies session ownership and
     # returns the stored history used for conversational memory.
+    history_started = time.perf_counter()
+
     chat_history = get_chat_messages(
         req.session_id,
         user_id,
         company_id,
         limit=6,
+    )
+
+    print(
+        f"⏱️ CHAT HISTORY DB: {int((time.perf_counter() - history_started) * 1000)} ms"
     )
 
     if chat_history is None:
@@ -388,8 +394,14 @@ def chat(
     user_id = current_user.get("user_id")
     user_department_id = current_user.get("department_id")
 
+    courses_started = time.perf_counter()
+
     user_course_ids = get_user_course_ids(
         user_id
+    )
+
+    print(
+        f"⏱️ CHAT COURSE IDS DB: {int((time.perf_counter() - courses_started) * 1000)} ms"
     )
     
 
@@ -443,6 +455,8 @@ def chat(
     # is being searched through one stable retrieval language.
     # ------------------------------------------------------------
 
+    translation_started = time.perf_counter()
+
     if lang == "en":
         english_query = req.message
     else:
@@ -453,6 +467,10 @@ def chat(
             # Do not crash the chat. We can still attempt retrieval
             # using the original user text.
             english_query = req.message
+
+    print(
+        f"⏱️ CHAT TRANSLATION: {int((time.perf_counter() - translation_started) * 1000)} ms"
+    )
 
     language_instruction = {
         "en": "IMPORTANT: Answer in English.",
