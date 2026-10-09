@@ -111,6 +111,9 @@ export default function EmployeesPage() {
   const [assigningUserId, setAssigningUserId] =
     useState<number | null>(null);
 
+  const [assignmentMessage, setAssignmentMessage] =
+    useState("");
+
 
   // ==========================================================
   // PAGE STATE
@@ -398,10 +401,13 @@ export default function EmployeesPage() {
       }
 
 
-      alert(
+      setAssignmentMessage(
         "Course assigned successfully."
       );
 
+      window.setTimeout(() => {
+        setAssignmentMessage("");
+      }, 2500);
 
       setSelectedCourse(
         (current) => ({
@@ -409,9 +415,6 @@ export default function EmployeesPage() {
           [userId]: 0,
         })
       );
-
-
-      await loadUsers();
 
     } catch (error: any) {
 
@@ -1003,6 +1006,12 @@ export default function EmployeesPage() {
             FILTER TOOLBAR
            ================================================== */}
 
+        {assignmentMessage && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            {assignmentMessage}
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
 
           <div className="relative w-full lg:max-w-md">
@@ -1393,6 +1402,7 @@ export default function EmployeesPage() {
                                 text-xs
                                 font-semibold
                                 text-white
+                                cursor-pointer
                                 transition
                                 hover:bg-slate-800
                                 disabled:cursor-not-allowed
