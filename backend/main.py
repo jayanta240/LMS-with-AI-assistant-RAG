@@ -5,6 +5,7 @@ from services.auth_dependency import get_current_user
 from config import settings
 import os
 import uuid
+import time
 from qdrant_client.models import (
     Filter,
     FieldCondition,
@@ -380,6 +381,8 @@ def chat(
     req: ChatRequest,
     current_user=Depends(get_current_user)
 ):
+    chat_started_at = time.perf_counter()
+
     user_id = current_user.get("user_id")
     company_id = current_user.get("company_id")
 
@@ -398,6 +401,11 @@ def chat(
 
     session_data = runtime_context["session"]
     chat_history = runtime_context["messages"]
+
+    print(
+        "⏱️ CHAT CONTEXT:",
+        f"{(time.perf_counter() - chat_started_at) * 1000:.0f} ms"
+    )
 
     from services.llm_service import ask_llm
 
@@ -563,6 +571,8 @@ def chat(
     #   General knowledge questions
     # ============================================================
 
+    retrieval_started_at = time.perf_counter()
+
     results = search(
 
         query=english_query,
@@ -578,6 +588,11 @@ def chat(
     print(
         "🔐 SECURE SEARCH COMPANY:",
         user_company_id
+    )
+
+    print(
+        "⏱️ CHAT RETRIEVAL:",
+        f"{(time.perf_counter() - retrieval_started_at) * 1000:.0f} ms"
     )
 
     # ============================================================
@@ -1005,8 +1020,15 @@ QUESTION:
     # LLM
     # ============================================================
 
+    llm_started_at = time.perf_counter()
+
     answer = ask_llm(
         prompt
+    )
+
+    print(
+        "⏱️ CHAT LLM:",
+        f"{(time.perf_counter() - llm_started_at) * 1000:.0f} ms"
     )
 
     # ============================================================
@@ -1098,6 +1120,8 @@ QUESTION:
 
     
 
+    persist_started_at = time.perf_counter()
+
     append_chat_exchange(
         req.session_id,
         current_user.get("user_id"),
@@ -1105,6 +1129,16 @@ QUESTION:
         req.message,
         answer,
         sources=sources,
+    )
+
+    print(
+        "⏱️ CHAT PERSIST:",
+        f"{(time.perf_counter() - persist_started_at) * 1000:.0f} ms"
+    )
+
+    print(
+        "⏱️ CHAT TOTAL:",
+        f"{(time.perf_counter() - chat_started_at) * 1000:.0f} ms"
     )
 
     # ============================================================
