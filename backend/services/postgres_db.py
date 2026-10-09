@@ -28,8 +28,9 @@ if not DATABASE_URL:
 # ============================================================
 #
 # Neon can close idle SSL connections while the connection
-# remains stored inside the local pool. Therefore every
-# connection taken from the pool is health-checked before use.
+# remains stored inside the local pool. Connections are
+# health-checked periodically and stale connections are
+# discarded and replaced automatically.
 #
 # Starting conservatively:
 #
@@ -73,7 +74,8 @@ def _get_healthy_connection():
 
     A pooled connection can look open locally even when the
     remote PostgreSQL server has already closed the socket.
-    Run a lightweight SELECT 1 before returning it.
+    Run a lightweight SELECT 1 when the connection has not
+    been checked within the configured interval.
 
     Dead connections are discarded and replaced with a fresh
     connection.
