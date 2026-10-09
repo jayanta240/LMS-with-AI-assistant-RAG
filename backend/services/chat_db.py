@@ -246,8 +246,7 @@ def append_chat_message(
             cursor.execute("""
                 UPDATE ai_sessions
                 SET
-                    last_message_at = %s,
-                    message_count = message_count + 1
+                    last_message_at = %s
                 WHERE session_id = %s
                   AND user_id = %s
                   AND company_id IS NOT DISTINCT FROM %s
@@ -257,6 +256,25 @@ def append_chat_message(
                 user_id,
                 company_id,
             ))
+
+            if role == "user" and session.get("name") == "New Chat":
+                title = " ".join((content or "").split()).strip()
+                if len(title) > 60:
+                    title = title[:57].rstrip() + "..."
+
+                if title:
+                    cursor.execute("""
+                        UPDATE ai_sessions
+                        SET name = %s
+                        WHERE session_id = %s
+                          AND user_id = %s
+                          AND company_id IS NOT DISTINCT FROM %s
+                    """, (
+                        title,
+                        session_id,
+                        user_id,
+                        company_id,
+                    ))
 
     return True
 
