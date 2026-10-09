@@ -375,10 +375,13 @@ def chat(
         current_user
     )
 
-    record_ai_message(
-        req.session_id,
-        current_user.get("user_id"),
-    )
+    try:
+        record_ai_message(
+            req.session_id,
+            current_user.get("user_id"),
+        )
+    except Exception as ai_tracking_error:
+        print("⚠️ Failed to record AI activity:", ai_tracking_error)
 
     from services.llm_service import ask_llm
 
@@ -2021,11 +2024,14 @@ def create_session(
         "messages": [],
     }
 
-    register_ai_session(
-        session_id,
-        user_id,
-        company_id,
-    )
+    try:
+        register_ai_session(
+            session_id,
+            user_id,
+            company_id,
+        )
+    except Exception as session_error:
+        print("⚠️ Failed to persist AI session:", session_error)
 
     return {
         "id": session_id,
@@ -2505,7 +2511,10 @@ async def login_user(
         }
 
     # Record successful login as user activity for dashboard analytics.
-    touch_user_activity(user[0])
+    try:
+        touch_user_activity(user[0])
+    except Exception as activity_error:
+        print("⚠️ Failed to record login activity:", activity_error)
 
     token = create_access_token(
         user_id=user[0],
@@ -3309,13 +3318,19 @@ def add_learning_time(
     seconds = min(max(seconds, 0), 120)
 
     if seconds > 0:
-        record_learning_time(
-            user_id=user_id,
-            company_id=company_id,
-            course_id=course_id,
-            lesson_id=lesson_id,
-            seconds=seconds,
-        )
+        try:
+            record_learning_time(
+                user_id=user_id,
+                company_id=company_id,
+                course_id=course_id,
+                lesson_id=lesson_id,
+                seconds=seconds,
+            )
+        except Exception as learning_time_error:
+            print(
+                "⚠️ Failed to record learning time:",
+                learning_time_error,
+            )
 
     return {
         "success": True,
