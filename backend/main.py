@@ -1119,6 +1119,7 @@ QUESTION:
 @app.post("/api/upload")
 def upload(
     files: List[UploadFile] = File(...),
+    background_tasks: BackgroundTasks,
 
     # -------------------------------------------------
     # Access control for uploaded content
@@ -1506,13 +1507,14 @@ def upload(
     # =================================================
 
     if uploaded:
-        notify_company_admins(
+        background_tasks.add_task(
+            notify_company_admins,
             company_id,
             title="Knowledge files uploaded",
             message=f"{len(uploaded)} file{'s' if len(uploaded) != 1 else ''} were added to the knowledge base.",
             notification_type="file",
             link="/dashboard/files",
-        )
+                )
 
     # =================================================
     # RESPONSE
@@ -1601,6 +1603,7 @@ def list_files(
 @app.delete("/api/files/{file_id}")
 def delete_uploaded_file(
     file_id: int,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -1746,13 +1749,14 @@ def delete_uploaded_file(
     except Exception as e:
         print("❌ Database delete error:", e)
 
-    notify_company_admins(
+    background_tasks.add_task(
+        notify_company_admins,
         target[6],
         title="Knowledge file deleted",
         message=f"{filename} was removed from the knowledge base.",
         notification_type="file",
         link="/dashboard/files",
-    )
+        )
 
     return {
         "success": True,
@@ -2101,6 +2105,7 @@ def get_courses_api(
 @app.post("/api/courses")
 def create_course_api(
     data: CourseCreate,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
     role = current_user["role"]
@@ -2129,13 +2134,14 @@ def create_course_api(
         thumbnail_url=data.thumbnail_url or ""
     )
 
-    notify_company_admins(
+    background_tasks.add_task(
+        notify_company_admins,
         company_id,
         title="Course created",
         message=f"Course “{data.title}” was created.",
         notification_type="course",
         link=f"/dashboard/courses/{course_id}",
-    )
+        )
 
     return {
         "success": True,
@@ -2145,6 +2151,7 @@ def create_course_api(
 @app.get("/api/courses/{course_id}")
 def get_course_api(
     course_id: int,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
     role = current_user["role"]
@@ -2206,6 +2213,7 @@ def get_course_api(
 @app.post("/api/lessons")
 def create_lesson_api(
     data: LessonCreate,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
     role = current_user["role"]
@@ -2246,13 +2254,14 @@ def create_lesson_api(
         company_id=company_id
     )
 
-    notify_company_admins(
+    background_tasks.add_task(
+        notify_company_admins,
         company_id,
         title="Lesson added",
         message=f"“{data.title}” was added to {course[1] if course else 'a course'}.",
         notification_type="lesson",
         link=f"/dashboard/courses/{data.course_id}",
-    )
+        )
 
     return {
         "success": True,
@@ -2321,6 +2330,7 @@ def get_course_lessons_api(
 @app.post("/api/auth/register")
 def register_user(
     data: UserRegister,
+    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user)
 ):
 
@@ -2433,14 +2443,16 @@ def register_user(
 
     if data.company_id:
         if data.role == "company_admin":
-            notify_super_admins(
+            background_tasks.add_task(
+                notify_super_admins,
                 title="Company Admin created",
                 message=f"{data.name} was created as a Company Admin.",
                 notification_type="user",
                 link="/dashboard/company-admins",
-            )
+                        )
         else:
-            notify_company_admins(
+            background_tasks.add_task(
+                notify_company_admins,
                 data.company_id,
                 title=(
                     "Department Head created"
@@ -2450,7 +2462,7 @@ def register_user(
                 message=f"{data.name} was added to your organization.",
                 notification_type="user",
                 link="/dashboard/employees",
-            )
+                        )
 
     return {
         "success": True,
@@ -2605,6 +2617,7 @@ def get_company_admins_api(
 @app.delete("/api/company-admins/{user_id}")
 def delete_company_admin_api(
     user_id: int,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -2657,13 +2670,14 @@ def delete_company_admin_api(
             detail="Company Admin not found."
         )
 
-    notify_super_admins(
+    background_tasks.add_task(
+        notify_super_admins,
         title="Company Admin deleted",
         message=f"{target_user[1] or target_user[2]} was removed from the platform.",
         notification_type="user",
         link="/dashboard/company-admins",
         exclude_user_id=current_user.get("user_id"),
-    )
+        )
 
     return {
         "success": True,
@@ -2702,6 +2716,7 @@ def get_department_heads_api(
 @app.delete("/api/department-heads/{user_id}")
 def delete_department_head_api(
     user_id: int,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -2746,13 +2761,14 @@ def delete_department_head_api(
             detail="Department Head not found."
         )
 
-    notify_company_admins(
+    background_tasks.add_task(
+        notify_company_admins,
         current_user["company_id"],
         title="Department Head deleted",
         message=f"{target_user[1] or target_user[2]} was removed from your organization.",
         notification_type="user",
         link="/dashboard/department-heads",
-    )
+        )
 
     return {
         "success": True,
@@ -3002,6 +3018,7 @@ def get_user_courses_api(
 def update_course_api(
     course_id: int,
     data: CourseCreate,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -3023,13 +3040,14 @@ def update_course_api(
     )
 
     if current_user.get("company_id"):
-        notify_company_admins(
+        background_tasks.add_task(
+            notify_company_admins,
             current_user["company_id"],
             title="Course updated",
             message=f"{data.title} was updated.",
             notification_type="course",
             link=f"/dashboard/courses/{course_id}",
-        )
+                )
 
     return {
         "success": True
@@ -3066,20 +3084,22 @@ def delete_course_api(
     )
 
     if current_user.get("company_id"):
-        notify_company_admins(
+        background_tasks.add_task(
+            notify_company_admins,
             current_user["company_id"],
             title="Course deleted",
             message=f"{course[1] if course else 'A course'} was deleted.",
             notification_type="course",
             link="/dashboard/courses",
-        )
+                )
     else:
-        notify_super_admins(
+        background_tasks.add_task(
+            notify_super_admins,
             title="Course deleted",
             message=f"{course[1] if course else 'A course'} was deleted.",
             notification_type="course",
             link="/dashboard/courses",
-        )
+                )
 
     return {
         "success": True
@@ -3677,14 +3697,15 @@ def complete_lesson(
 
 
     if certificate:
-        create_notification(
+        background_tasks.add_task(
+            create_notification,
             user_id=user_id,
             company_id=company_id,
             title="Certificate issued",
             message=f"Your certificate for “{course_title}” is ready.",
             notification_type="certificate",
             link="/learning/dashboard",
-        )
+                )
 
     # ========================================================
     # RESPONSE
@@ -4076,6 +4097,7 @@ async def upload_company_logo(
 @app.post("/api/companies")
 def create_company_api(
     data: CompanyCreate,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -4099,12 +4121,13 @@ def create_company_api(
             detail=str(exc)
         )
 
-    notify_super_admins(
+    background_tasks.add_task(
+        notify_super_admins,
         title="New company created",
         message=f"{data.company_name} was added to the platform.",
         notification_type="company",
         link="/dashboard/companies",
-    )
+        )
 
     return {
         "success": True,
@@ -4177,6 +4200,7 @@ def get_company_api(company_id: int):
 def update_company_api(
     company_id: int,
     data: CompanyUpdate,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -4196,13 +4220,14 @@ def update_company_api(
         data.status
     )
 
-    notify_super_admins(
+    background_tasks.add_task(
+        notify_super_admins,
         title="Company updated",
         message=f"{data.company_name} was updated.",
         notification_type="company",
         link="/dashboard/companies",
         exclude_user_id=current_user.get("user_id"),
-    )
+        )
 
     return {
         "success": True
@@ -4210,6 +4235,7 @@ def update_company_api(
 @app.delete("/api/companies/{company_id}")
 def delete_company_api(
     company_id: int,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -4229,13 +4255,14 @@ def delete_company_api(
 
     delete_company(company_id)
 
-    notify_super_admins(
+    background_tasks.add_task(
+        notify_super_admins,
         title="Company deleted",
         message=f"{company_name} was removed from the platform.",
         notification_type="company",
         link="/dashboard/companies",
         exclude_user_id=current_user.get("user_id"),
-    )
+        )
 
     return {
         "success": True
@@ -4244,6 +4271,7 @@ def delete_company_api(
 @app.post("/api/departments")
 def create_department_api(
     data: DepartmentCreate,
+    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user)
 ):
 
@@ -4282,20 +4310,22 @@ def create_department_api(
     )
 
     if current_user["role"] == "company_admin":
-        notify_company_admins(
+        background_tasks.add_task(
+            notify_company_admins,
             company_id,
             title="Department created",
             message=f"{data.department_name} was added.",
             notification_type="department",
             link="/dashboard/departments",
-        )
+                )
     else:
-        notify_super_admins(
+        background_tasks.add_task(
+            notify_super_admins,
             title="Department created",
             message=f"{data.department_name} was added to a company.",
             notification_type="department",
             link="/dashboard/departments",
-        )
+                )
 
     return {
         "success": True,
@@ -4334,6 +4364,7 @@ def get_departments_api(
 @app.delete("/api/departments/{department_id}")
 def delete_department_api(
     department_id: int,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
 
@@ -4350,21 +4381,23 @@ def delete_department_api(
     delete_department(department_id)
 
     if current_user["role"] == "company_admin":
-        notify_company_admins(
+        background_tasks.add_task(
+            notify_company_admins,
             current_user["company_id"],
             title="Department deleted",
             message="A department was removed from your organization.",
             notification_type="department",
             link="/dashboard/departments",
-        )
+                )
     else:
-        notify_super_admins(
+        background_tasks.add_task(
+            notify_super_admins,
             title="Department deleted",
             message="A department was removed from the platform.",
             notification_type="department",
             link="/dashboard/departments",
             exclude_user_id=current_user.get("user_id"),
-        )
+                )
 
     return {
         "success": True
