@@ -26,8 +26,14 @@ def init_chat_db():
                     role TEXT NOT NULL,
                     content TEXT NOT NULL,
                     sources JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    video TEXT,
                     created_at TIMESTAMP NOT NULL
                 )
+            """)
+
+            cursor.execute("""
+                ALTER TABLE ai_messages
+                ADD COLUMN IF NOT EXISTS video TEXT
             """)
 
             cursor.execute("""
@@ -159,7 +165,8 @@ def get_chat_messages(session_id, user_id, company_id):
                 SELECT
                     role,
                     content,
-                    sources
+                    sources,
+                    video
                 FROM ai_messages
                 WHERE session_id = %s
                 ORDER BY id ASC
@@ -169,7 +176,7 @@ def get_chat_messages(session_id, user_id, company_id):
 
     messages = []
 
-    for role, content, sources in rows:
+    for role, content, sources, video in rows:
         parsed_sources = sources or []
 
         if isinstance(parsed_sources, str):
@@ -178,11 +185,16 @@ def get_chat_messages(session_id, user_id, company_id):
             except Exception:
                 parsed_sources = []
 
-        messages.append({
+        item = {
             "role": role,
             "content": content,
             "sources": parsed_sources,
-        })
+        }
+
+        if video:
+            item["video"] = video
+
+        messages.append(item)
 
     return messages
 
@@ -194,6 +206,7 @@ def append_chat_message(
     role,
     content,
     sources=None,
+    video=None,
 ):
     session = get_chat_session(
         session_id,
@@ -232,14 +245,16 @@ def append_chat_message(
                     role,
                     content,
                     sources,
+                    video,
                     created_at
                 )
-                VALUES (%s, %s, %s, %s::jsonb, %s)
+                VALUES (%s, %s, %s, %s::jsonb, %s, %s)
             """, (
                 session_id,
                 role,
                 content,
                 json.dumps(normalized_sources),
+                video,
                 now,
             ))
 
