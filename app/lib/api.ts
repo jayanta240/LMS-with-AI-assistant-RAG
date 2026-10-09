@@ -651,7 +651,85 @@ export async function createSession() {
 
 
 // ============================================================
-// UPLOAD IMAGE
+export async function getSessions() {
+  const res = await fetch(
+    `${BASE}/api/sessions`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to load chat sessions"
+    );
+  }
+
+  return data;
+}
+
+
+export async function renameSession(
+  session_id: string,
+  name: string
+) {
+  const res = await fetch(
+    `${BASE}/api/sessions/${session_id}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ name }),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to rename chat"
+    );
+  }
+
+  return data;
+}
+
+
+export async function deleteSession(
+  session_id: string
+) {
+  const res = await fetch(
+    `${BASE}/api/sessions/${session_id}`,
+    {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to delete chat"
+    );
+  }
+
+  return data;
+}
+
+
+// ============================================================
+// 
 // ============================================================
 
 export async function uploadImage(
