@@ -651,6 +651,41 @@ export async function createSession() {
 
 
 // ============================================================
+export async function saveSessionMessage(
+  session_id: string,
+  message: {
+    role: "user" | "assistant";
+    content: string;
+    sources?: any[];
+    video?: string;
+  }
+) {
+  const res = await fetch(
+    `${BASE}/api/sessions/${session_id}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(message),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to save chat message"
+    );
+  }
+
+  return data;
+}
+
+
 export async function getSessions() {
   const res = await fetch(
     `${BASE}/api/sessions`,
