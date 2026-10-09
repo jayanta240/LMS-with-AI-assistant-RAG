@@ -548,19 +548,6 @@ export default function CourseDetails() {
                 <div className="rounded-xl border border-slate-100 p-4">
 
                   <p className="text-xs text-slate-400">
-                    Course ID
-                  </p>
-
-                  <p className="mt-1 text-sm font-semibold text-slate-800">
-                    #{course?.id}
-                  </p>
-
-                </div>
-
-
-                <div className="rounded-xl border border-slate-100 p-4">
-
-                  <p className="text-xs text-slate-400">
                     Created
                   </p>
 
