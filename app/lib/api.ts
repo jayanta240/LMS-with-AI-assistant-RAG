@@ -19,6 +19,45 @@ function getAuthHeaders() {
 }
 
 
+function getChatCacheIdentity() {
+  if (typeof window === "undefined") {
+    return "server";
+  }
+
+  const userId =
+    localStorage.getItem("user_id") || "unknown-user";
+
+  const companyId =
+    localStorage.getItem("company_id") || "no-company";
+
+  return `${userId}:${companyId}`;
+}
+
+const chatSessionsCache =
+  new Map<string, any[]>();
+
+const chatMessagesCache =
+  new Map<string, any[]>();
+
+function chatSessionsCacheKey() {
+  return getChatCacheIdentity();
+}
+
+function chatMessagesCacheKey(session_id: string) {
+  return `${getChatCacheIdentity()}:${session_id}`;
+}
+
+function updateChatMessagesCache(
+  session_id: string,
+  messages: any[]
+) {
+  chatMessagesCache.set(
+    chatMessagesCacheKey(session_id),
+    messages.slice(-100)
+  );
+}
+
+
 // ============================================================
 // SEND CHAT MESSAGE
 // ============================================================
@@ -80,6 +119,35 @@ export async function sendMessage(
       "Chat request failed"
     );
 
+  }
+
+  const cacheKey =
+    chatMessagesCacheKey(session_id);
+
+  const cached =
+    chatMessagesCache.get(cacheKey);
+
+  if (cached) {
+    updateChatMessagesCache(
+      session_id,
+      [
+        ...cached,
+        {
+          role: "user",
+          content: message,
+        },
+        {
+          role: "assistant",
+          content:
+            data?.answer ||
+            "I could not generate a response.",
+          sources:
+            Array.isArray(data?.sources)
+              ? data.sources
+              : [],
+        },
+      ]
+    );
   }
 
   return data;
@@ -587,32 +655,53 @@ export async function generateVideo(
 export async function getMessages(
   session_id: string
 ) {
+  const cacheKey =
+    chatMessagesCacheKey(session_id);
 
-  const res = await fetch(
+  const cached =
+    chatMessagesCache.get(cacheKey);
+
+  const refresh = fetch(
     `${BASE}/api/sessions/${session_id}/messages`,
     {
       headers: getAuthHeaders(),
       cache: "no-store",
     }
-  );
+  )
+    .then(async (res) => {
+      const data = await res.json();
 
+      if (!res.ok) {
+        throw new Error(
+          data?.detail ||
+          data?.message ||
+          "Failed to load messages"
+        );
+      }
 
-  const data = await res.json();
+      const normalized =
+        Array.isArray(data) ? data : [];
 
+      updateChatMessagesCache(
+        session_id,
+        normalized
+      );
 
-  if (!res.ok) {
+      return normalized;
+    });
 
-    throw new Error(
-      data?.detail ||
-      data?.message ||
-      "Failed to load messages"
-    );
+  if (cached) {
+    refresh.catch((error) => {
+      console.error(
+        "Background chat refresh failed:",
+        error
+      );
+    });
 
+    return cached;
   }
 
-
-  return data;
-
+  return refresh;
 }
 
 
@@ -645,6 +734,22 @@ export async function createSession() {
 
   }
 
+
+  const cached =
+    chatSessionsCache.get(
+      chatSessionsCacheKey()
+    ) || [];
+
+  chatSessionsCache.set(
+    chatSessionsCacheKey(),
+    [
+      {
+        id: data.id,
+        name: data.name || "New Chat",
+      },
+      ...cached,
+    ]
+  );
 
   return data;
 
@@ -683,30 +788,72 @@ export async function saveSessionMessage(
     );
   }
 
+  const cacheKey =
+    chatMessagesCacheKey(session_id);
+
+  const cached =
+    chatMessagesCache.get(cacheKey) || [];
+
+  updateChatMessagesCache(
+    session_id,
+    [
+      ...cached,
+      message,
+    ]
+  );
+
   return data;
 }
 
 
 export async function getSessions() {
-  const res = await fetch(
+  const cacheKey =
+    chatSessionsCacheKey();
+
+  const cached =
+    chatSessionsCache.get(cacheKey);
+
+  const refresh = fetch(
     `${BASE}/api/sessions`,
     {
       headers: getAuthHeaders(),
       cache: "no-store",
     }
-  );
+  )
+    .then(async (res) => {
+      const data = await res.json();
 
-  const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          data?.detail ||
+          data?.message ||
+          "Failed to load chat sessions"
+        );
+      }
 
-  if (!res.ok) {
-    throw new Error(
-      data?.detail ||
-      data?.message ||
-      "Failed to load chat sessions"
-    );
+      const normalized =
+        Array.isArray(data) ? data : [];
+
+      chatSessionsCache.set(
+        cacheKey,
+        normalized
+      );
+
+      return normalized;
+    });
+
+  if (cached) {
+    refresh.catch((error) => {
+      console.error(
+        "Background chat session refresh failed:",
+        error
+      );
+    });
+
+    return cached;
   }
 
-  return data;
+  return refresh;
 }
 
 
@@ -736,6 +883,29 @@ export async function renameSession(
     );
   }
 
+  const key =
+    chatSessionsCacheKey();
+
+  const cached =
+    chatSessionsCache.get(key);
+
+  if (cached) {
+    chatSessionsCache.set(
+      key,
+      cached.map((chat) =>
+        chat.id === session_id
+          ? {
+              ...chat,
+              name:
+                data.name ||
+                name ||
+                "New Chat",
+            }
+          : chat
+      )
+    );
+  }
+
   return data;
 }
 
@@ -758,6 +928,28 @@ export async function deleteSession(
       data?.detail ||
       data?.message ||
       "Failed to delete chat"
+    );
+  }
+
+  const sessionKey =
+    chatMessagesCacheKey(session_id);
+
+  chatMessagesCache.delete(
+    sessionKey
+  );
+
+  const sessionsKey =
+    chatSessionsCacheKey();
+
+  const cached =
+    chatSessionsCache.get(sessionsKey);
+
+  if (cached) {
+    chatSessionsCache.set(
+      sessionsKey,
+      cached.filter(
+        (chat) => chat.id !== session_id
+      )
     );
   }
 
