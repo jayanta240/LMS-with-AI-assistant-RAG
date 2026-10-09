@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 
-import { markLessonComplete } from "@/lib/course-api";
+import {
+  markLessonComplete,
+  recordLearningTime,
+} from "@/lib/course-api";
 
 interface Props {
   lesson: any;
@@ -22,6 +25,84 @@ export default function LessonViewer({ lesson, courseId, onCompleted }: Props) {
   useEffect(() => {
     setCompleted(false);
   }, [lesson?.id]);
+
+  // ----------------------------------------------------------
+  // TRACK ACTIVE LEARNING TIME
+  // ----------------------------------------------------------
+  // The browser reports only time while this lesson page is
+  // visible. A small heartbeat is sent periodically so the
+  // backend can accumulate real learning time.
+  useEffect(() => {
+    if (!lesson?.id || !courseId) {
+      return;
+    }
+
+    let lastTick = Date.now();
+    let pendingSeconds = 0;
+
+    const flushTime = async () => {
+      const now = Date.now();
+
+      if (
+        document.visibilityState === "visible"
+      ) {
+        pendingSeconds += Math.floor(
+          (now - lastTick) / 1000
+        );
+      }
+
+      lastTick = now;
+
+      if (pendingSeconds <= 0) {
+        return;
+      }
+
+      const secondsToSend = Math.min(
+        pendingSeconds,
+        120
+      );
+
+      pendingSeconds -= secondsToSend;
+
+      try {
+        await recordLearningTime(
+          courseId,
+          Number(lesson.id),
+          secondsToSend
+        );
+      } catch (error) {
+        console.error(
+          "Failed to record learning time:",
+          error
+        );
+      }
+    };
+
+    const resetVisibilityClock = () => {
+      lastTick = Date.now();
+    };
+
+    const interval = window.setInterval(
+      flushTime,
+      15000
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      resetVisibilityClock
+    );
+
+    return () => {
+      window.clearInterval(interval);
+
+      document.removeEventListener(
+        "visibilitychange",
+        resetVisibilityClock
+      );
+
+      void flushTime();
+    };
+  }, [courseId, lesson?.id]);
 
   if (!lesson) {
     return (
