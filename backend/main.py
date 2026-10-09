@@ -98,6 +98,7 @@ from services.chat_db import (
     get_chat_context,
     append_chat_message,
     append_chat_exchange,
+    cache_chat_exchange,
     rename_chat_session,
     delete_chat_session,
 )
@@ -379,6 +380,7 @@ def get_owned_session(
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(
     req: ChatRequest,
+    background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user)
 ):
     chat_started_at = time.perf_counter()
@@ -518,19 +520,20 @@ def chat(
 
         
 
-        append_chat_message(
+        cache_chat_exchange(
             req.session_id,
             current_user.get("user_id"),
             current_user.get("company_id"),
-            "user",
             req.message,
+            answer,
         )
 
-        append_chat_message(
+        background_tasks.add_task(
+            append_chat_exchange,
             req.session_id,
             current_user.get("user_id"),
             current_user.get("company_id"),
-            "assistant",
+            req.message,
             answer,
         )
 
@@ -614,19 +617,20 @@ def chat(
 
         
 
-        append_chat_message(
+        cache_chat_exchange(
             req.session_id,
             current_user.get("user_id"),
             current_user.get("company_id"),
-            "user",
             req.message,
+            answer,
         )
 
-        append_chat_message(
+        background_tasks.add_task(
+            append_chat_exchange,
             req.session_id,
             current_user.get("user_id"),
             current_user.get("company_id"),
-            "assistant",
+            req.message,
             answer,
         )
 
@@ -1120,9 +1124,17 @@ QUESTION:
 
     
 
-    persist_started_at = time.perf_counter()
+    cache_chat_exchange(
+        req.session_id,
+        current_user.get("user_id"),
+        current_user.get("company_id"),
+        req.message,
+        answer,
+        sources=sources,
+    )
 
-    append_chat_exchange(
+    background_tasks.add_task(
+        append_chat_exchange,
         req.session_id,
         current_user.get("user_id"),
         current_user.get("company_id"),
@@ -1132,12 +1144,7 @@ QUESTION:
     )
 
     print(
-        "⏱️ CHAT PERSIST:",
-        f"{(time.perf_counter() - persist_started_at) * 1000:.0f} ms"
-    )
-
-    print(
-        "⏱️ CHAT TOTAL:",
+        "⏱️ CHAT RESPONSE READY:",
         f"{(time.perf_counter() - chat_started_at) * 1000:.0f} ms"
     )
 
