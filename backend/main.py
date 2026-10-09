@@ -208,7 +208,7 @@ def get_user_notifications(
 
 
 @app.patch("/api/notifications/{notification_id}/read")
-async def mark_user_notification_read(
+def mark_user_notification_read(
     notification_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -221,7 +221,7 @@ async def mark_user_notification_read(
 
 
 @app.post("/api/notifications/read-all")
-async def mark_user_notifications_read(
+def mark_user_notifications_read(
     current_user=Depends(get_current_user)
 ):
     return {
@@ -1114,7 +1114,7 @@ QUESTION:
 
     )
 @app.post("/api/upload")
-async def upload(
+def upload(
     files: List[UploadFile] = File(...),
 
     # -------------------------------------------------
@@ -1760,7 +1760,7 @@ def delete_uploaded_file(
     }
 
 @app.post("/api/upload-image")
-async def upload_image(
+def upload_image(
     file: UploadFile = File(...)
 ):
 
@@ -1780,7 +1780,7 @@ async def upload_image(
         "public_id": cloud["public_id"]
     }
 @app.post("/api/upload-issue")
-async def upload_issue(
+def upload_issue(
     file: UploadFile = File(...),
     problem: str = Form(...),
     solution: str = Form(...)
@@ -1852,7 +1852,7 @@ def list_issues():
 
     return result
 @app.post("/api/diagnose-image")
-async def diagnose_image(
+def diagnose_image(
     file: UploadFile = File(...)
 ):
 
@@ -2098,7 +2098,7 @@ def get_courses_api(
 
     return courses
 @app.post("/api/courses")
-async def create_course_api(
+def create_course_api(
     data: CourseCreate,
     current_user=Depends(get_current_user)
 ):
@@ -2142,7 +2142,7 @@ async def create_course_api(
         "company_id": company_id
     }
 @app.get("/api/courses/{course_id}")
-async def get_course_api(
+def get_course_api(
     course_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -2203,7 +2203,7 @@ async def get_course_api(
     }
 
 @app.post("/api/lessons")
-async def create_lesson_api(
+def create_lesson_api(
     data: LessonCreate,
     current_user=Depends(get_current_user)
 ):
@@ -2258,7 +2258,7 @@ async def create_lesson_api(
         "lesson_id": lesson_id
     }
 @app.get("/api/courses/{course_id}/lessons")
-async def get_course_lessons_api(
+def get_course_lessons_api(
     course_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -2318,7 +2318,7 @@ async def get_course_lessons_api(
 
     return lessons
 @app.post("/api/auth/register")
-async def register_user(
+def register_user(
     data: UserRegister,
     current_user = Depends(get_current_user)
 ):
@@ -2457,7 +2457,7 @@ async def register_user(
     }
 
 @app.post("/api/auth/login")
-async def login_user(
+def login_user(
     data: UserLogin
 ):
 
@@ -2602,7 +2602,7 @@ def get_company_admins_api(
 
 
 @app.delete("/api/company-admins/{user_id}")
-async def delete_company_admin_api(
+def delete_company_admin_api(
     user_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -2700,7 +2700,7 @@ def get_department_heads_api(
 
 
 @app.delete("/api/department-heads/{user_id}")
-async def delete_department_head_api(
+def delete_department_head_api(
     user_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -2761,7 +2761,7 @@ async def delete_department_head_api(
 
 
 @app.post("/api/enrollments")
-async def assign_course_api(
+def assign_course_api(
     data: EnrollmentCreate,
     background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user),
@@ -2999,7 +2999,7 @@ def get_user_courses_api(
 
 
 @app.put("/api/courses/{course_id}")
-async def update_course_api(
+def update_course_api(
     course_id: int,
     data: CourseCreate,
     current_user=Depends(get_current_user)
@@ -3036,7 +3036,7 @@ async def update_course_api(
     }
 
 @app.delete("/api/courses/{course_id}")
-async def delete_course_api(
+def delete_course_api(
     course_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -3090,7 +3090,7 @@ async def delete_course_api(
 # ============================================================
 
 @app.get("/api/my-certificates")
-async def my_certificates(
+def my_certificates(
     current_user=Depends(get_current_user)
 ):
 
@@ -3111,7 +3111,7 @@ async def my_certificates(
 # ============================================================
 
 @app.get("/api/certificates/{certificate_id}")
-async def get_single_certificate(
+def get_single_certificate(
     certificate_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -3188,7 +3188,7 @@ async def get_single_certificate(
 # ============================================================
 
 @app.get("/api/company-certificates")
-async def company_certificates(
+def company_certificates(
     current_user=Depends(get_current_user)
 ):
 
@@ -3335,7 +3335,7 @@ def dashboard_stats(
 # ============================================================
 
 @app.post("/api/lesson-progress")
-async def complete_lesson(
+def complete_lesson(
     data: LessonProgressRequest,
     background_tasks: BackgroundTasks,
     current_user=Depends(get_current_user),
@@ -3708,7 +3708,7 @@ async def complete_lesson(
 
     }
 @app.get("/api/users/{user_id}/courses/{course_id}/progress")
-async def course_progress(
+def course_progress(
     user_id: int,
     course_id: int,
     current_user=Depends(get_current_user)
@@ -3746,7 +3746,7 @@ async def course_progress(
     )
 
 @app.get("/api/users/{user_id}/completed-lessons")
-async def completed_lessons(
+def completed_lessons(
     user_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -3780,7 +3780,7 @@ async def completed_lessons(
     return get_completed_lessons(user_id)
 
 @app.get("/api/admin/analytics")
-async def admin_analytics(
+def admin_analytics(
     current_user=Depends(get_current_user)
 ):
 
@@ -3870,7 +3870,7 @@ def get_company_notification_settings_api(
 
 
 @app.put("/api/company/notification-settings")
-async def update_company_notification_settings_api(
+def update_company_notification_settings_api(
     data: NotificationSettingsUpdate,
     current_user=Depends(get_current_user)
 ):
@@ -3906,7 +3906,7 @@ async def update_company_notification_settings_api(
 # ============================================================
 
 @app.get("/api/company/branding")
-async def get_company_branding_api(
+def get_company_branding_api(
     current_user=Depends(get_current_user)
 ):
 
@@ -3938,7 +3938,7 @@ async def get_company_branding_api(
 # ============================================================
 
 @app.put("/api/company/branding")
-async def update_company_branding_api(
+def update_company_branding_api(
     data: CompanyBrandingUpdate,
     current_user=Depends(get_current_user)
 ):
@@ -4076,7 +4076,7 @@ async def upload_company_logo(
             detail="Failed to upload company logo."
         )
 @app.post("/api/companies")
-async def create_company_api(
+def create_company_api(
     data: CompanyCreate,
     current_user=Depends(get_current_user)
 ):
@@ -4114,7 +4114,7 @@ async def create_company_api(
     }
 
 @app.get("/api/companies")
-async def get_companies_api(
+def get_companies_api(
     current_user=Depends(get_current_user)
 ):
 
@@ -4145,7 +4145,7 @@ async def get_companies_api(
 
 
 @app.get("/api/companies/{company_id}")
-async def get_company_api(company_id: int):
+def get_company_api(company_id: int):
 
     row = get_company(company_id)
 
@@ -4176,7 +4176,7 @@ async def get_company_api(company_id: int):
 
 
 @app.put("/api/companies/{company_id}")
-async def update_company_api(
+def update_company_api(
     company_id: int,
     data: CompanyUpdate,
     current_user=Depends(get_current_user)
@@ -4210,7 +4210,7 @@ async def update_company_api(
         "success": True
     }
 @app.delete("/api/companies/{company_id}")
-async def delete_company_api(
+def delete_company_api(
     company_id: int,
     current_user=Depends(get_current_user)
 ):
@@ -4244,7 +4244,7 @@ async def delete_company_api(
     }
 
 @app.post("/api/departments")
-async def create_department_api(
+def create_department_api(
     data: DepartmentCreate,
     current_user = Depends(get_current_user)
 ):
@@ -4334,7 +4334,7 @@ def get_departments_api(
     return departments
 
 @app.delete("/api/departments/{department_id}")
-async def delete_department_api(
+def delete_department_api(
     department_id: int,
     current_user=Depends(get_current_user)
 ):
