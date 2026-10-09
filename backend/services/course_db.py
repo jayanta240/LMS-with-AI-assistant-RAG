@@ -579,6 +579,68 @@ def get_lessons(
 
 
 # ============================================================
+# DASHBOARD SUMMARY
+# ============================================================
+
+def get_dashboard_summary(company_id=None):
+    """
+    Fetch the four dashboard counters in one PostgreSQL query.
+    """
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+
+            if company_id is None:
+
+                cursor.execute("""
+                    SELECT
+                        (SELECT COUNT(*) FROM users),
+                        (SELECT COUNT(*) FROM courses),
+                        (SELECT COUNT(*) FROM lessons),
+                        (SELECT COUNT(*) FROM uploaded_files)
+                """)
+
+                row = cursor.fetchone()
+
+            else:
+
+                cursor.execute("""
+                    SELECT
+                        (SELECT COUNT(*)
+                         FROM users
+                         WHERE company_id = %s),
+
+                        (SELECT COUNT(*)
+                         FROM courses
+                         WHERE company_id = %s),
+
+                        (SELECT COUNT(*)
+                         FROM lessons l
+                         JOIN courses c
+                           ON c.id = l.course_id
+                         WHERE c.company_id = %s),
+
+                        (SELECT COUNT(*)
+                         FROM uploaded_files
+                         WHERE company_id = %s)
+                """, (
+                    company_id,
+                    company_id,
+                    company_id,
+                    company_id,
+                ))
+
+                row = cursor.fetchone()
+
+    return {
+        "users": row[0] or 0,
+        "courses": row[1] or 0,
+        "lessons": row[2] or 0,
+        "files": row[3] or 0,
+    }
+
+
+# ============================================================
 # DASHBOARD STATS
 # ============================================================
 
