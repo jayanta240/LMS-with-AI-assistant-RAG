@@ -94,6 +94,7 @@ from services.course_db import (
     get_lessons,
     get_all_courses,
     get_course_stats,
+    get_dashboard_summary,
     mark_lesson_complete,
     get_course_progress,
     get_completed_lessons,
@@ -3230,30 +3231,33 @@ def dashboard_stats(
     role = current_user["role"]
 
     company_id = current_user.get("company_id")
-
     user_id = current_user.get("user_id")
 
 
     # ============================================================
     # SUPER ADMIN
+    # One database round trip for all dashboard counters.
     # ============================================================
 
     if role == "super_admin":
 
-        users_count = get_user_count()
+        stats = get_dashboard_summary()
 
-        companies_count = get_company_count()
-
-        stats = get_course_stats()
-
-        files_count = get_file_count()
+        return {
+            "companies": get_company_count(),
+            "users": stats["users"],
+            "courses": stats["courses"],
+            "lessons": stats["lessons"],
+            "files": stats["files"],
+        }
 
 
     # ============================================================
     # COMPANY ADMIN
+    # One database round trip for all company counters.
     # ============================================================
 
-    elif role == "company_admin":
+    if role == "company_admin":
 
         if company_id is None:
             raise HTTPException(
@@ -3261,28 +3265,25 @@ def dashboard_stats(
                 detail="Company information is missing."
             )
 
-        users_count = get_user_count(
+        stats = get_dashboard_summary(
             company_id=company_id
         )
 
-        stats = get_course_stats(
-            company_id=company_id
-        )
-
-        files_count = get_file_count(
-            company_id=company_id
-        )
+        return {
+            "companies": 0,
+            "users": stats["users"],
+            "courses": stats["courses"],
+            "lessons": stats["lessons"],
+            "files": stats["files"],
+        }
 
 
     # ============================================================
     # DEPARTMENT HEAD
+    # Keep existing semantics.
     # ============================================================
 
-    elif role == "department_head":
-
-        # Keep the existing dashboard behavior for now.
-        # Department-specific optimization can be handled separately
-        # without changing the current dashboard semantics.
+    if role == "department_head":
 
         all_users = get_all_users()
 
@@ -3294,41 +3295,39 @@ def dashboard_stats(
 
         stats = get_course_stats()
 
-        files_count = get_file_count()
+        return {
+            "companies": 0,
+            "users": users_count,
+            "courses": stats["courses"],
+            "lessons": stats["lessons"],
+            "files": get_file_count(),
+        }
 
 
     # ============================================================
     # EMPLOYEE
+    # Keep existing semantics.
     # ============================================================
 
-    elif role == "employee":
-
-        users_count = 1
+    if role == "employee":
 
         stats = get_course_stats()
 
-        files_count = get_file_count()
+        return {
+            "companies": 0,
+            "users": 1,
+            "courses": stats["courses"],
+            "lessons": stats["lessons"],
+            "files": get_file_count(),
+        }
 
 
-    else:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied."
-        )
+    raise HTTPException(
+        status_code=403,
+        detail="Permission denied."
+    )
 
 
-    # ============================================================
-    # RESPONSE
-    # ============================================================
-
-    return {
-        "companies": companies_count if role == "super_admin" else 0,
-        "users": users_count,
-        "courses": stats["courses"],
-        "lessons": stats["lessons"],
-        "files": files_count
-    }
 # ============================================================
 # LESSON COMPLETION + CERTIFICATE ISSUANCE
 # ============================================================
