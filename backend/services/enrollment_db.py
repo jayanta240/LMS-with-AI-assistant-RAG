@@ -148,7 +148,14 @@ def get_user_course_ids(user_id):
 
             rows = cursor.fetchall()
 
-    return [
+    course_ids = [
         row[0]
         for row in rows
     ]
+
+    _COURSE_IDS_CACHE[user_id] = (
+        list(course_ids),
+        now + _COURSE_IDS_CACHE_TTL,
+    )
+
+    return course_ids
