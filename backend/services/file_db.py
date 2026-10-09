@@ -183,6 +183,46 @@ def get_file_url_by_company_and_filename(
     return row[0] if row and row[0] else None
 
 
+
+def get_file_urls_by_company_and_filenames(
+    company_id,
+    filenames,
+):
+    """
+    Resolve multiple company file URLs with one database query.
+    Returns {filename: cloudinary_url}.
+    """
+    names = [
+        name
+        for name in dict.fromkeys(filenames or [])
+        if isinstance(name, str) and name
+    ]
+
+    if company_id is None or not names:
+        return {}
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT ON (filename)
+                    filename,
+                    cloudinary_url
+                FROM uploaded_files
+                WHERE company_id = %s
+                  AND filename = ANY(%s)
+                ORDER BY filename, id DESC
+            """, (
+                company_id,
+                names,
+            ))
+
+            return {
+                row[0]: row[1]
+                for row in cursor.fetchall()
+                if row[0] and row[1]
+            }
+
+
 def get_all_files():
 
     with get_db_connection() as conn:
