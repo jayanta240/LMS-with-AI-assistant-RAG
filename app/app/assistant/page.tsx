@@ -21,6 +21,7 @@ import {
   diagnoseImage,
   getSessions,
   deleteSession,
+  saveSessionMessage,
 } from "../../lib/api";
 
 import {
@@ -362,6 +363,31 @@ ${diagnosis.solution}
             content: answer,
           },
         ]);
+
+        try {
+          await saveSessionMessage(
+            session,
+            {
+              role: "user",
+              content:
+                currentMessage ||
+                "📷 Image Uploaded",
+            }
+          );
+
+          await saveSessionMessage(
+            session,
+            {
+              role: "assistant",
+              content: answer,
+            }
+          );
+        } catch (saveError) {
+          console.error(
+            "Failed to persist image diagnosis:",
+            saveError
+          );
+        }
 
         setImageFile(null);
         setMessage("");
@@ -884,16 +910,30 @@ ${diagnosis.solution}
         );
       }
 
+      const generatedMessage = {
+        role: "assistant" as const,
+        content:
+          "🎥 Generated Explanation Video",
+        video:
+          response.video_path,
+      };
+
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content:
-            "🎥 Generated Explanation Video",
-          video:
-            response.video_path,
-        },
+        generatedMessage,
       ]);
+
+      try {
+        await saveSessionMessage(
+          session,
+          generatedMessage
+        );
+      } catch (saveError) {
+        console.error(
+          "Failed to persist generated video message:",
+          saveError
+        );
+      }
 
     } catch (error: any) {
 
