@@ -20,7 +20,6 @@ import {
   createSession,
   diagnoseImage,
   getSessions,
-  renameSession,
   deleteSession,
 } from "../../lib/api";
 
