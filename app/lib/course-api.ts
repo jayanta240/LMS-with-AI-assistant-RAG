@@ -801,6 +801,11 @@ export async function assignCourse(
     `user-courses:${userId}`
   );
 
+  // The employee directory also displays learning progress.
+  invalidateCache(
+    "users"
+  );
+
 
   // Progress-related data may also be affected.
   invalidateCache(
