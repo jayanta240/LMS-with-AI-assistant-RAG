@@ -98,6 +98,18 @@ export default function Home() {
   const [historyLoading, setHistoryLoading] =
     useState(false);
 
+  const [chatLoading, setChatLoading] =
+    useState(false);
+
+  const [creatingChat, setCreatingChat] =
+    useState(false);
+
+  const chatLoadRequestRef =
+    useRef(0);
+
+  const skipNextSessionLoadRef =
+    useRef(false);
+
   const [loading, setLoading] =
     useState(false);
 
@@ -173,6 +185,15 @@ export default function Home() {
       return;
     }
 
+    if (session.startsWith("__pending__")) {
+      return;
+    }
+
+    if (skipNextSessionLoadRef.current) {
+      skipNextSessionLoadRef.current = false;
+      return;
+    }
+
     loadMessages(session);
   }, [session]);
 
@@ -231,9 +252,21 @@ export default function Home() {
   async function loadMessages(
     sessionId: string
   ) {
+    const requestId =
+      ++chatLoadRequestRef.current;
+
+    setChatLoading(true);
+
     try {
       const data =
         await getMessages(sessionId);
+
+      if (
+        requestId !==
+        chatLoadRequestRef.current
+      ) {
+        return;
+      }
 
       setMessages(
         Array.isArray(data)
@@ -242,12 +275,27 @@ export default function Home() {
       );
 
     } catch (error) {
+      if (
+        requestId !==
+        chatLoadRequestRef.current
+      ) {
+        return;
+      }
+
       console.error(
         "Failed to load messages:",
         error
       );
 
       setMessages([]);
+
+    } finally {
+      if (
+        requestId ===
+        chatLoadRequestRef.current
+      ) {
+        setChatLoading(false);
+      }
     }
   }
 
@@ -809,6 +857,33 @@ ${diagnosis.solution}
   // =========================================================
 
   async function handleNewChat() {
+    if (creatingChat) {
+      return;
+    }
+
+    const previousSession =
+      session;
+
+    const previousMessages =
+      messages;
+
+    const pendingId =
+      `__pending__${Date.now()}`;
+
+    const pendingSession: ChatSession = {
+      id: pendingId,
+      name: "New Chat",
+    };
+
+    setCreatingChat(true);
+    setChatSessions((prev) => [
+      pendingSession,
+      ...prev,
+    ]);
+    setSession(pendingId);
+    setMessages([]);
+    setChatLoading(false);
+
     try {
       const response =
         await createSession();
@@ -824,10 +899,16 @@ ${diagnosis.solution}
         name: response.name || "New Chat",
       };
 
-      setChatSessions((prev) => [
-        newSession,
-        ...prev,
-      ]);
+      skipNextSessionLoadRef.current =
+        true;
+
+      setChatSessions((prev) =>
+        prev.map((item) =>
+          item.id === pendingId
+            ? newSession
+            : item
+        )
+      );
 
       setSession(newSession.id);
       setMessages([]);
@@ -837,6 +918,17 @@ ${diagnosis.solution}
         "Failed to create session:",
         error
       );
+
+      setChatSessions((prev) =>
+        prev.filter(
+          (item) => item.id !== pendingId
+        )
+      );
+
+      setSession(previousSession);
+      setMessages(previousMessages);
+    } finally {
+      setCreatingChat(false);
     }
   }
 
@@ -1190,7 +1282,8 @@ ${diagnosis.solution}
               onClick={
                 handleNewChat
               }
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              disabled={creatingChat}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
             >
               <Plus
                 size={17}
@@ -1706,11 +1799,16 @@ ${diagnosis.solution}
                 <button
                   type="button"
                   onClick={() => {
-                    if (chat.id !== session) {
+                    if (
+                      chat.id !== session &&
+                      !chat.id.startsWith("__pending__")
+                    ) {
+                      setMessages([]);
+                      setChatLoading(true);
                       setSession(chat.id);
                     }
                   }}
-                  className="max-w-[220px] truncate px-3 py-2 text-left text-xs font-semibold text-slate-700"
+                  className="max-w-[220px] cursor-pointer truncate px-3 py-2 text-left text-xs font-semibold text-slate-700"
                   title={chat.name}
                 >
                   {chat.name}
@@ -1743,7 +1841,19 @@ ${diagnosis.solution}
 
         <div className="flex-1 overflow-y-auto py-8">
 
-          {messages.length === 0 ? (
+          {chatLoading ? (
+            <div className="flex min-h-[55vh] items-center justify-center">
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <Loader2
+                  size={18}
+                  className="animate-spin text-slate-400"
+                />
+                <span className="text-sm text-slate-500">
+                  Loading conversation...
+                </span>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
 
             /* =================================================
                EMPTY STATE
@@ -2454,8 +2564,12 @@ ${diagnosis.solution}
               onKeyDown={
                 handleKeyDown
               }
-              placeholder="Ask anything..."
-              disabled={loading}
+              placeholder={
+                creatingChat
+                  ? "Preparing new chat..."
+                  : "Ask anything..."
+              }
+              disabled={loading || creatingChat}
               className="flex-1 bg-transparent px-1 text-sm text-slate-800 outline-none placeholder:text-slate-400 disabled:opacity-60"
             />
 
