@@ -592,6 +592,7 @@ export async function getMessages(
     `${BASE}/api/sessions/${session_id}/messages`,
     {
       headers: getAuthHeaders(),
+      cache: "no-store",
     }
   );
 
@@ -691,6 +692,7 @@ export async function getSessions() {
     `${BASE}/api/sessions`,
     {
       headers: getAuthHeaders(),
+      cache: "no-store",
     }
   );
 
