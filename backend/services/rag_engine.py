@@ -26,6 +26,7 @@ ISSUE_COLLECTION = "issue_images"
 
 client = None
 embed_model = None
+qdrant_ready = False
 
 
 # ============================================================
@@ -33,7 +34,10 @@ embed_model = None
 # ============================================================
 
 def init_qdrant():
-    global client, embed_model
+    global client, embed_model, qdrant_ready
+
+    if qdrant_ready and client is not None and embed_model is not None:
+        return
 
     # --------------------------------------------------------
     # QDRANT CLIENT
@@ -204,6 +208,7 @@ def init_qdrant():
             model_name="BAAI/bge-base-en-v1.5"
         )
 
+    qdrant_ready = True
     print("✅ Qdrant Ready")
 
 
