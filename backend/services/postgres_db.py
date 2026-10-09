@@ -1,4 +1,5 @@
 import os
+import time
 from contextlib import contextmanager
 
 import psycopg2
@@ -51,6 +52,16 @@ db_pool = ThreadedConnectionPool(
     dsn=DATABASE_URL,
 )
 
+# Health checks are cached briefly per pooled connection.
+# This avoids an extra SELECT 1 round trip on every request
+# while still detecting connections that have been idle long
+# enough to become stale.
+HEALTH_CHECK_INTERVAL = float(
+    os.getenv("DB_HEALTH_CHECK_INTERVAL", "60")
+)
+
+_last_health_checks = {}
+
 
 # ============================================================
 # GET HEALTHY DATABASE CONNECTION
@@ -77,6 +88,10 @@ def _get_healthy_connection():
 
             # Local psycopg2 closed-state check.
             if connection.closed:
+                _last_health_checks.pop(
+                    id(connection),
+                    None,
+                )
                 db_pool.putconn(
                     connection,
                     close=True,
@@ -84,19 +99,38 @@ def _get_healthy_connection():
                 connection = None
                 continue
 
-            # Remote health check.
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
+            # Remote health check only when this pooled
+            # connection has not been checked recently.
+            connection_key = id(connection)
+            last_checked = _last_health_checks.get(
+                connection_key,
+                0,
+            )
 
-            # The health check starts/uses a transaction in
-            # psycopg2. Return the connection in a clean state.
-            connection.rollback()
+            if (
+                time.monotonic() - last_checked
+                >= HEALTH_CHECK_INTERVAL
+            ):
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+
+                # The health check starts/uses a transaction in
+                # psycopg2. Return the connection in a clean state.
+                connection.rollback()
+
+                _last_health_checks[
+                    connection_key
+                ] = time.monotonic()
 
             return connection
 
         except (psycopg2.Error, OSError):
 
             if connection is not None:
+                _last_health_checks.pop(
+                    id(connection),
+                    None,
+                )
                 try:
                     db_pool.putconn(
                         connection,
