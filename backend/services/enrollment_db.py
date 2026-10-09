@@ -1,6 +1,18 @@
 from datetime import datetime
+import time
 
 from services.postgres_db import get_db_connection
+
+
+_COURSE_IDS_CACHE = {}
+_COURSE_IDS_CACHE_TTL = 30.0
+
+
+def clear_user_course_ids_cache(user_id=None):
+    if user_id is None:
+        _COURSE_IDS_CACHE.clear()
+    else:
+        _COURSE_IDS_CACHE.pop(user_id, None)
 
 
 # ============================================================
@@ -28,6 +40,8 @@ def assign_course(
                 course_id,
                 datetime.now(),
             ))
+
+    clear_user_course_ids_cache(user_id)
 
 
 # ============================================================
@@ -113,6 +127,12 @@ def get_user_course_ids(user_id):
     Return only the course IDs assigned to a user.
     Used by the RAG access-control layer.
     """
+
+    now = time.monotonic()
+    cached = _COURSE_IDS_CACHE.get(user_id)
+
+    if cached and cached[1] > now:
+        return list(cached[0])
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
