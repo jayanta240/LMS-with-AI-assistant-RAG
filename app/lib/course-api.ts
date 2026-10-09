@@ -816,6 +816,60 @@ export async function assignCourse(
 // LESSON PROGRESS
 // ============================================================
 
+// ============================================================
+// LEARNING TIME
+// ============================================================
+
+export async function recordLearningTime(
+  courseId: number,
+  lessonId: number,
+  seconds: number
+) {
+  const safeSeconds = Math.max(
+    0,
+    Math.min(Math.floor(seconds), 120)
+  );
+
+  if (safeSeconds <= 0) {
+    return {
+      success: true,
+      recorded_seconds: 0,
+    };
+  }
+
+  const res = await fetch(
+    `${BASE}/api/learning-time`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        course_id: courseId,
+        lesson_id: lessonId,
+        seconds: safeSeconds,
+      }),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to record learning time"
+    );
+  }
+
+  invalidateCache("dashboard-stats");
+
+  return data;
+}
+
+
+// ============================================================
+// LESSON PROGRESS
+// ============================================================
+
 export async function markLessonComplete(
   userId: number,
   courseId: number,
