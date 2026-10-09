@@ -86,6 +86,7 @@ from services.dashboard_db import (
     record_learning_time,
     register_ai_session,
     record_ai_message,
+    get_dashboard_metrics,
 )
 
 from services.certificate_service import (
