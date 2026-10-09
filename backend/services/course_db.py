@@ -73,21 +73,6 @@ def init_course_db():
                 ON courses(company_id)
             """)
 
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_lessons_course_id
-                ON lessons(course_id)
-            """)
-
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_lesson_progress_user_course
-                ON lesson_progress(user_id, course_id)
-            """)
-
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_lesson_progress_lesson_user
-                ON lesson_progress(lesson_id, user_id)
-            """)
-
             # ========================================================
             # LESSONS
             # ========================================================
@@ -115,6 +100,21 @@ def init_course_db():
                     completed INTEGER DEFAULT 0,
                     completed_at TIMESTAMP
                 )
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_lessons_course_id
+                ON lessons(course_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_lesson_progress_user_course
+                ON lesson_progress(user_id, course_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_lesson_progress_lesson_user
+                ON lesson_progress(lesson_id, user_id)
             """)
 
             # ========================================================
