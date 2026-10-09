@@ -80,6 +80,14 @@ from services.notification_db import (
     mark_all_notifications_read,
 )
 
+from services.dashboard_db import (
+    init_dashboard_db,
+    touch_user_activity,
+    record_learning_time,
+    register_ai_session,
+    record_ai_message,
+)
+
 from services.certificate_service import (
     generate_certificate_pdf
 )
@@ -146,6 +154,7 @@ app = FastAPI()
 init_db()
 init_course_db()
 init_notification_db()
+init_dashboard_db()
 app.mount("/temp_videos", StaticFiles(directory="temp_videos"), name="temp_videos")
 os.makedirs(
     "certificates",
@@ -364,7 +373,13 @@ def chat(
     session_data = get_owned_session(
         req.session_id,
         current_user
-    )    
+    )
+
+    record_ai_message(
+        req.session_id,
+        current_user.get("user_id"),
+    )
+
     from services.llm_service import ask_llm
 
     # ============================================================
@@ -2006,6 +2021,12 @@ def create_session(
         "messages": [],
     }
 
+    register_ai_session(
+        session_id,
+        user_id,
+        company_id,
+    )
+
     return {
         "id": session_id,
         "name": "New Chat",
@@ -2482,6 +2503,9 @@ async def login_user(
             "success": False,
             "message": "Invalid credentials"
         }
+
+    # Record successful login as user activity for dashboard analytics.
+    touch_user_activity(user[0])
 
     token = create_access_token(
         user_id=user[0],
@@ -3242,112 +3266,63 @@ async def company_certificates(
         "certificates": certificates,
     }
 @app.get("/api/dashboard/stats")
-async def dashboard_stats(
+def dashboard_stats(
     current_user=Depends(get_current_user)
 ):
-
     role = current_user["role"]
 
+    return get_dashboard_metrics(
+        role=role,
+        company_id=current_user.get("company_id"),
+        department_id=current_user.get("department_id"),
+        user_id=current_user.get("user_id"),
+    )
+
+# ============================================================
+# LEARNING TIME
+# ============================================================
+
+@app.post("/api/learning-time")
+def add_learning_time(
+    data: dict,
+    current_user=Depends(get_current_user),
+):
+    user_id = current_user.get("user_id")
     company_id = current_user.get("company_id")
 
-    user_id = current_user.get("user_id")
-
-
-    # ============================================================
-    # SUPER ADMIN
-    # ============================================================
-
-    if role == "super_admin":
-
-        users_count = get_user_count()
-
-        companies_count = get_company_count()
-
-        stats = get_course_stats()
-
-        files_count = get_file_count()
-
-
-    # ============================================================
-    # COMPANY ADMIN
-    # ============================================================
-
-    elif role == "company_admin":
-
-        if company_id is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Company information is missing."
-            )
-
-        users_count = get_user_count(
-            company_id=company_id
-        )
-
-        stats = get_course_stats(
-            company_id=company_id
-        )
-
-        files_count = get_file_count(
-            company_id=company_id
-        )
-
-
-    # ============================================================
-    # DEPARTMENT HEAD
-    # ============================================================
-
-    elif role == "department_head":
-
-        # Keep the existing dashboard behavior for now.
-        # Department-specific optimization can be handled separately
-        # without changing the current dashboard semantics.
-
-        all_users = get_all_users()
-
-        users_count = sum(
-            1
-            for user in all_users
-            if user[6] == current_user.get("department_id")
-        )
-
-        stats = get_course_stats()
-
-        files_count = get_file_count()
-
-
-    # ============================================================
-    # EMPLOYEE
-    # ============================================================
-
-    elif role == "employee":
-
-        users_count = 1
-
-        stats = get_course_stats()
-
-        files_count = get_file_count()
-
-
-    else:
-
+    try:
+        course_id = int(data.get("course_id"))
+        lesson_id = int(data.get("lesson_id"))
+        seconds = int(data.get("seconds"))
+    except (TypeError, ValueError):
         raise HTTPException(
-            status_code=403,
-            detail="Permission denied."
+            status_code=400,
+            detail="course_id, lesson_id and seconds must be valid integers."
         )
 
+    if course_id <= 0 or lesson_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid course or lesson."
+        )
 
-    # ============================================================
-    # RESPONSE
-    # ============================================================
+    seconds = min(max(seconds, 0), 120)
+
+    if seconds > 0:
+        record_learning_time(
+            user_id=user_id,
+            company_id=company_id,
+            course_id=course_id,
+            lesson_id=lesson_id,
+            seconds=seconds,
+        )
 
     return {
-        "companies": companies_count if role == "super_admin" else 0,
-        "users": users_count,
-        "courses": stats["courses"],
-        "lessons": stats["lessons"],
-        "files": files_count
+        "success": True,
+        "recorded_seconds": seconds,
     }
+
+
 # ============================================================
 # LESSON COMPLETION + CERTIFICATE ISSUANCE
 # ============================================================
