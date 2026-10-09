@@ -42,7 +42,8 @@ from services.user_db import (
     delete_user,
     delete_company_admin,
     delete_department_head,
-    get_user_progress
+    get_user_progress,
+    get_employees_with_progress,
 )
 
 from services.auth_service import (
@@ -2512,52 +2513,34 @@ async def get_users_api(
     current_user=Depends(get_current_user)
 ):
 
-    rows = get_all_users()
+    role = current_user["role"]
+
+    if role == "super_admin":
+
+        rows = get_employees_with_progress()
+
+    elif role == "company_admin":
+
+        rows = get_employees_with_progress(
+            company_id=current_user["company_id"]
+        )
+
+    elif role == "department_head":
+
+        rows = get_employees_with_progress(
+            department_id=current_user["department_id"]
+        )
+
+    else:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied."
+        )
 
     users = []
 
     for row in rows:
-
-        # Employees page must contain employees only.
-        if row[3] != "employee":
-            continue
-
-        # -------------------------
-        # Super Admin
-        # -------------------------
-
-        if current_user["role"] == "super_admin":
-
-            pass
-
-        # -------------------------
-        # Company Admin
-        # -------------------------
-
-        elif current_user["role"] == "company_admin":
-
-            if row[4] != current_user["company_id"]:
-                continue
-
-        # -------------------------
-        # Department Head
-        # -------------------------
-
-        elif current_user["role"] == "department_head":
-
-            if row[6] != current_user["department_id"]:
-                continue
-
-        # -------------------------
-        # Employee
-        # -------------------------
-
-        else:
-
-            raise HTTPException(
-                status_code=403,
-                detail="Permission denied."
-            )
 
         users.append({
 
@@ -2576,8 +2559,8 @@ async def get_users_api(
             "department": row[7],
 
             "created_at": row[8],
-            "progress": get_user_progress(row[0]),
-            
+
+            "progress": row[9],
 
         })
 
