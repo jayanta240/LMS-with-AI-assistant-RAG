@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime
 
 from services.postgres_db import get_db_connection
@@ -8,6 +9,127 @@ from services.enrollment_db import get_user_course_ids
 # ============================================================
 # PERSISTENT AI CHAT HISTORY
 # ============================================================
+
+# Short-lived runtime cache for active chats.
+# PostgreSQL remains the source of truth. The cache only avoids
+# repeating remote DB reads for every message in the same chat.
+_CHAT_CONTEXT_CACHE = {}
+_CHAT_CONTEXT_CACHE_TTL = 30.0
+
+
+def _cache_key(session_id, user_id, company_id):
+    return (
+        str(session_id),
+        user_id,
+        company_id,
+    )
+
+
+def _get_cached_context(session_id, user_id, company_id):
+    key = _cache_key(
+        session_id,
+        user_id,
+        company_id,
+    )
+
+    cached = _CHAT_CONTEXT_CACHE.get(key)
+
+    if not cached:
+        return None
+
+    if cached["expires_at"] <= time.monotonic():
+        _CHAT_CONTEXT_CACHE.pop(key, None)
+        return None
+
+    return {
+        "session": dict(cached["session"]),
+        "messages": [
+            dict(message)
+            for message in cached["messages"]
+        ],
+        "course_ids": list(cached["course_ids"]),
+    }
+
+
+def _store_cached_context(
+    session,
+    messages,
+    course_ids,
+):
+    key = _cache_key(
+        session["id"],
+        session["user_id"],
+        session["company_id"],
+    )
+
+    _CHAT_CONTEXT_CACHE[key] = {
+        "session": dict(session),
+        "messages": [
+            dict(message)
+            for message in messages[-6:]
+        ],
+        "course_ids": list(course_ids),
+        "expires_at": (
+            time.monotonic()
+            + _CHAT_CONTEXT_CACHE_TTL
+        ),
+    }
+
+
+def cache_chat_exchange(
+    session_id,
+    user_id,
+    company_id,
+    user_content,
+    assistant_content,
+    sources=None,
+    video=None,
+):
+    """
+    Update the in-process chat cache immediately after the model
+    responds. Persistence to PostgreSQL can happen independently.
+    """
+    key = _cache_key(
+        session_id,
+        user_id,
+        company_id,
+    )
+
+    cached = _CHAT_CONTEXT_CACHE.get(key)
+
+    if not cached:
+        return False
+
+    cached["messages"].extend([
+        {
+            "role": "user",
+            "content": user_content,
+        },
+        {
+            "role": "assistant",
+            "content": assistant_content,
+        },
+    ])
+
+    cached["messages"] = cached["messages"][-6:]
+
+    cached["session"]["last_message_at"] = datetime.now()
+
+    if (
+        cached["session"].get("name") == "New Chat"
+        and user_content
+    ):
+        cached["session"]["name"] = (
+            " ".join(user_content.split())[:60]
+            or "New Chat"
+        )
+
+    cached["expires_at"] = (
+        time.monotonic()
+        + _CHAT_CONTEXT_CACHE_TTL
+    )
+
+    return True
 
 def init_chat_db():
     with get_db_connection() as conn:
@@ -220,10 +342,19 @@ def get_chat_context(
     max_history=6,
 ):
     """
-    Load the owned session and recent conversation with one database
-    connection. Assigned course IDs use a short-lived cache because
-    chat access rules do not change on every message.
+    Load the owned session and recent conversation. Active chats are
+    served from a short-lived in-process cache, while PostgreSQL
+    remains the durable source of truth.
     """
+    cached = _get_cached_context(
+        session_id,
+        user_id,
+        company_id,
+    )
+
+    if cached:
+        return cached
+
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -262,7 +393,9 @@ def get_chat_context(
                 max_history,
             ))
 
-            message_rows = list(reversed(cursor.fetchall()))
+            message_rows = list(
+                reversed(cursor.fetchall())
+            )
 
             messages = [
                 {
@@ -274,8 +407,18 @@ def get_chat_context(
 
     course_ids = get_user_course_ids(user_id)
 
+    session = _session_row_to_dict(
+        session_row
+    )
+
+    _store_cached_context(
+        session,
+        messages,
+        course_ids,
+    )
+
     return {
-        "session": _session_row_to_dict(session_row),
+        "session": session,
         "messages": messages,
         "course_ids": course_ids,
     }
