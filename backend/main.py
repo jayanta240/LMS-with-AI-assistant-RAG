@@ -2436,7 +2436,6 @@ async def register_user(
                 message=f"{data.name} was created as a Company Admin.",
                 notification_type="user",
                 link="/dashboard/company-admins",
-                exclude_user_id=current_user.get("user_id"),
             )
         else:
             notify_company_admins(
@@ -3098,7 +3097,6 @@ async def delete_course_api(
             message=f"{course[1] if course else 'A course'} was deleted.",
             notification_type="course",
             link="/dashboard/courses",
-            exclude_user_id=current_user.get("user_id"),
         )
 
     return {
@@ -3705,7 +3703,7 @@ async def complete_lesson(
             title="Certificate issued",
             message=f"Your certificate for “{course_title}” is ready.",
             notification_type="certificate",
-            link="/dashboard/certificates",
+            link="/learning/dashboard",
         )
 
     # ========================================================
@@ -4126,7 +4124,6 @@ async def create_company_api(
         message=f"{data.company_name} was added to the platform.",
         notification_type="company",
         link="/dashboard/companies",
-        exclude_user_id=current_user.get("user_id"),
     )
 
     return {
@@ -4318,7 +4315,6 @@ async def create_department_api(
             message=f"{data.department_name} was added to a company.",
             notification_type="department",
             link="/dashboard/departments",
-            exclude_user_id=current_user.get("user_id"),
         )
 
     return {
