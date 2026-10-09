@@ -250,9 +250,7 @@ def get_chat_context(
             cursor.execute("""
                 SELECT
                     role,
-                    content,
-                    sources,
-                    video
+                    content
                 FROM ai_messages
                 WHERE session_id = %s
                 ORDER BY id DESC
@@ -264,27 +262,13 @@ def get_chat_context(
 
             message_rows = list(reversed(cursor.fetchall()))
 
-            messages = []
-
-            for role, content, sources, video in message_rows:
-                parsed_sources = sources or []
-
-                if isinstance(parsed_sources, str):
-                    try:
-                        parsed_sources = json.loads(parsed_sources)
-                    except Exception:
-                        parsed_sources = []
-
-                item = {
+            messages = [
+                {
                     "role": role,
                     "content": content,
-                    "sources": parsed_sources,
                 }
-
-                if video:
-                    item["video"] = video
-
-                messages.append(item)
+                for role, content in message_rows
+            ]
 
             cursor.execute("""
                 SELECT course_id
