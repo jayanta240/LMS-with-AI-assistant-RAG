@@ -76,6 +76,16 @@ export default function LoginPage() {
         String(data.department_id)
       );
 
+      localStorage.setItem(
+        "employee_id",
+        data.employee_id || ""
+      );
+
+      localStorage.setItem(
+        "profile_photo_url",
+        data.profile_photo_url || ""
+      );
+
       if (data.company_id && data.branding) {
         localStorage.setItem(
           `company_branding_${data.company_id}`,
