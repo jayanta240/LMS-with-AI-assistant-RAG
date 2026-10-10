@@ -1242,6 +1242,176 @@ export async function registerUser(
 
 
 // ============================================================
+// COMPANY ADMIN REGISTRATION
+// ============================================================
+
+export async function getNextEmployeeId(
+  companyId: number
+) {
+  const res = await fetch(
+    `${BASE}/api/company-admins/next-employee-id?company_id=${companyId}`,
+    {
+      headers: authHeaders(),
+      cache: "no-store",
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.message ||
+      "Failed to generate Employee ID"
+    );
+  }
+
+  return data;
+}
+
+
+export async function registerCompanyAdmin(
+  data: {
+    company_id: number;
+    employee_id: string;
+    employee_name: string;
+    first_name: string;
+    middle_name?: string;
+    last_name: string;
+    gender: string;
+    date_of_birth: string;
+    profile_photo: File;
+    email: string;
+    password: string;
+    mobile_number: string;
+    employment_type: string;
+    employment_status: string;
+    date_of_joining: string;
+    date_of_confirmation?: string;
+    date_of_exit?: string;
+    designation: string;
+  }
+) {
+  const formData = new FormData();
+
+  formData.append(
+    "company_id",
+    String(data.company_id)
+  );
+
+  formData.append(
+    "employee_id",
+    data.employee_id
+  );
+
+  formData.append(
+    "employee_name",
+    data.employee_name
+  );
+
+  formData.append(
+    "first_name",
+    data.first_name
+  );
+
+  formData.append(
+    "middle_name",
+    data.middle_name || ""
+  );
+
+  formData.append(
+    "last_name",
+    data.last_name
+  );
+
+  formData.append(
+    "gender",
+    data.gender
+  );
+
+  formData.append(
+    "date_of_birth",
+    data.date_of_birth
+  );
+
+  formData.append(
+    "profile_photo",
+    data.profile_photo
+  );
+
+  formData.append(
+    "email",
+    data.email
+  );
+
+  formData.append(
+    "password",
+    data.password
+  );
+
+  formData.append(
+    "mobile_number",
+    data.mobile_number
+  );
+
+  formData.append(
+    "employment_type",
+    data.employment_type
+  );
+
+  formData.append(
+    "employment_status",
+    data.employment_status
+  );
+
+  formData.append(
+    "date_of_joining",
+    data.date_of_joining
+  );
+
+  formData.append(
+    "date_of_confirmation",
+    data.date_of_confirmation || ""
+  );
+
+  formData.append(
+    "date_of_exit",
+    data.date_of_exit || ""
+  );
+
+  formData.append(
+    "designation",
+    data.designation
+  );
+
+  const res = await fetch(
+    `${BASE}/api/company-admins`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: formData,
+    }
+  );
+
+  const result = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      result?.detail ||
+      result?.message ||
+      "Failed to create Company Admin"
+    );
+  }
+
+  invalidateCache("users");
+  invalidateCache("companies");
+  invalidateCache("dashboard-stats");
+
+  return result;
+}
+
+
+// ============================================================
 // COMPANY BRANDING
 // ============================================================
 
