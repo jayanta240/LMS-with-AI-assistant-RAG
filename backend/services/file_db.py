@@ -70,6 +70,86 @@ def init_db():
             """)
 
             # ========================================================
+            # EXTENDED USER PROFILE
+            # Used by the Company Admin registration workflow.
+            # ========================================================
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS employee_id TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS first_name TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS middle_name TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS last_name TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS gender TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS date_of_birth DATE
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS profile_photo_url TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS mobile_number TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS employment_type TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS employment_status TEXT
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS date_of_joining DATE
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS date_of_confirmation DATE
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS date_of_exit DATE
+            """)
+
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS designation TEXT
+            """)
+
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_users_employee_id_unique
+                ON users(employee_id)
+                WHERE employee_id IS NOT NULL
+            """)
+
+            # ========================================================
             # ENROLLMENTS
             # ========================================================
 
