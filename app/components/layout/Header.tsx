@@ -47,6 +47,12 @@ export default function Header({
   const [companyName, setCompanyName] =
     useState("");
 
+  const [profilePhotoUrl, setProfilePhotoUrl] =
+    useState("");
+
+  const [profilePhotoError, setProfilePhotoError] =
+    useState(false);
+
 
   async function loadNotifications() {
     try {
@@ -180,8 +186,14 @@ export default function Header({
       localStorage.getItem("company_name") ||
       "";
 
+    const storedPhoto =
+      localStorage.getItem("profile_photo_url") ||
+      "";
+
     setUserName(storedName);
     setCompanyName(storedCompany);
+    setProfilePhotoUrl(storedPhoto);
+    setProfilePhotoError(false);
 
     switch (storedRole) {
       case "super_admin":
@@ -495,7 +507,16 @@ export default function Header({
                 "var(--brand-accent)",
             }}
           >
-            {initials || "U"}
+            {profilePhotoUrl && !profilePhotoError ? (
+              <img
+                src={profilePhotoUrl}
+                alt={userName}
+                className="h-full w-full rounded-full object-cover"
+                onError={() => setProfilePhotoError(true)}
+              />
+            ) : (
+              initials || "U"
+            )}
           </div>
 
 
