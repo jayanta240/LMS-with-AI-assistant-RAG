@@ -2570,6 +2570,20 @@ async def login_user(
         "user_id": user[0],
         "company_id": user[5],
         "department_id": user[6],
+        "employee_id": user[8] if len(user) > 8 else None,
+        "profile_photo_url": user[14] if len(user) > 14 else None,
+        "first_name": user[9] if len(user) > 9 else None,
+        "middle_name": user[10] if len(user) > 10 else None,
+        "last_name": user[11] if len(user) > 11 else None,
+        "gender": user[12] if len(user) > 12 else None,
+        "date_of_birth": str(user[13]) if len(user) > 13 and user[13] else None,
+        "mobile_number": user[15] if len(user) > 15 else None,
+        "employment_type": user[16] if len(user) > 16 else None,
+        "employment_status": user[17] if len(user) > 17 else None,
+        "date_of_joining": str(user[18]) if len(user) > 18 and user[18] else None,
+        "date_of_confirmation": str(user[19]) if len(user) > 19 and user[19] else None,
+        "date_of_exit": str(user[20]) if len(user) > 20 and user[20] else None,
+        "designation": user[21] if len(user) > 21 else None,
         "branding": branding
     }
 @app.get("/api/users")
