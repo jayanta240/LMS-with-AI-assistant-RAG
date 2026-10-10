@@ -109,6 +109,30 @@ def employee_id_exists(employee_id):
             return cursor.fetchone() is not None
 
 
+def get_company_admin_profiles():
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    u.id,
+                    u.name,
+                    u.email,
+                    u.role,
+                    u.company_id,
+                    c.company_name,
+                    u.employee_id,
+                    u.profile_photo_url,
+                    u.created_at
+                FROM users u
+                LEFT JOIN companies c
+                    ON c.id = u.company_id
+                WHERE u.role = 'company_admin'
+                ORDER BY u.id DESC
+            """)
+
+            return cursor.fetchall()
+
+
 # ============================================================
 # GET USER BY EMAIL
 # ============================================================
