@@ -42,7 +42,9 @@ from services.user_db import (
     delete_user,
     delete_company_admin,
     delete_department_head,
-    get_user_progress
+    get_user_progress,
+    employee_id_exists,
+    get_company_admin_profiles,
 )
 
 from services.auth_service import (
