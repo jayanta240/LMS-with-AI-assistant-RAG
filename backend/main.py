@@ -2899,6 +2899,7 @@ async def create_company_admin_profile(
         )
 
     profile_photo_url = None
+    photo_contents = b""
 
     if profile_photo is not None:
         if profile_photo.content_type not in {
