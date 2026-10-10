@@ -264,11 +264,6 @@ export default function CompanyAdminsPage() {
       return false;
     }
 
-    if (!profilePhoto) {
-      alert("Profile Photo is required.");
-      return false;
-    }
-
     return true;
   }
 
@@ -410,8 +405,9 @@ export default function CompanyAdminsPage() {
     setDateOfBirth("");
     setProfilePhoto(null);
     setEmail("");
-    setPassword("");
-    setConfirmPassword("");
+    const nextPassword = generatePassword();
+    setPassword(nextPassword);
+    setConfirmPassword(nextPassword);
     setMobileNumber("");
     setEmploymentType("");
     setEmploymentStatus("");
@@ -691,11 +687,15 @@ export default function CompanyAdminsPage() {
 
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-slate-800">
-                          Profile Photo <span className="text-red-500">*</span>
+                          Profile Photo
+                          <span className="ml-1 text-[11px] font-normal text-slate-400">
+                            (Optional)
+                          </span>
                         </p>
                         <p className="mt-1 text-xs leading-5 text-slate-500">
                           Upload a JPG or PNG image. Maximum size: 5 MB.
                           This photo will be used in the user profile/header.
+                          If no photo is uploaded, the system will show initials.
                         </p>
 
                         <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
