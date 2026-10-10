@@ -13,7 +13,21 @@ def create_user(
     password_hash,
     role="employee",
     company_id=None,
-    department_id=None
+    department_id=None,
+    employee_id=None,
+    first_name=None,
+    middle_name=None,
+    last_name=None,
+    gender=None,
+    date_of_birth=None,
+    profile_photo_url=None,
+    mobile_number=None,
+    employment_type=None,
+    employment_status=None,
+    date_of_joining=None,
+    date_of_confirmation=None,
+    date_of_exit=None,
+    designation=None,
 ):
 
     with get_db_connection() as conn:
@@ -28,9 +42,27 @@ def create_user(
                     role,
                     company_id,
                     department_id,
-                    created_at
+                    created_at,
+                    employee_id,
+                    first_name,
+                    middle_name,
+                    last_name,
+                    gender,
+                    date_of_birth,
+                    profile_photo_url,
+                    mobile_number,
+                    employment_type,
+                    employment_status,
+                    date_of_joining,
+                    date_of_confirmation,
+                    date_of_exit,
+                    designation
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
                 RETURNING id
             """, (
                 name,
@@ -40,11 +72,41 @@ def create_user(
                 company_id,
                 department_id,
                 datetime.now(),
+                employee_id,
+                first_name,
+                middle_name,
+                last_name,
+                gender,
+                date_of_birth,
+                profile_photo_url,
+                mobile_number,
+                employment_type,
+                employment_status,
+                date_of_joining,
+                date_of_confirmation,
+                date_of_exit,
+                designation,
             ))
 
             user_id = cursor.fetchone()[0]
 
             return user_id
+
+
+def employee_id_exists(employee_id):
+    if not employee_id:
+        return False
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT 1
+                FROM users
+                WHERE employee_id = %s
+                LIMIT 1
+            """, (employee_id,))
+
+            return cursor.fetchone() is not None
 
 
 # ============================================================
