@@ -1280,7 +1280,7 @@ export async function registerCompanyAdmin(
     last_name: string;
     gender: string;
     date_of_birth: string;
-    profile_photo: File;
+    profile_photo?: File | null;
     email: string;
     password: string;
     mobile_number: string;
@@ -1334,10 +1334,12 @@ export async function registerCompanyAdmin(
     data.date_of_birth
   );
 
-  formData.append(
-    "profile_photo",
-    data.profile_photo
-  );
+  if (data.profile_photo) {
+    formData.append(
+      "profile_photo",
+      data.profile_photo
+    );
+  }
 
   formData.append(
     "email",
