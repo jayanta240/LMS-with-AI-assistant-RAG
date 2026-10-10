@@ -1386,11 +1386,22 @@ export async function registerCompanyAdmin(
     data.designation
   );
 
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
+
   const res = await fetch(
     `${BASE}/api/company-admins`,
     {
       method: "POST",
-      headers: authHeaders(),
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {},
+      // Let the browser set multipart/form-data and its boundary.
+      // Do not set Content-Type manually for FormData.
       body: formData,
     }
   );
@@ -1398,11 +1409,25 @@ export async function registerCompanyAdmin(
   const result = await res.json();
 
   if (!res.ok) {
-    throw new Error(
-      result?.detail ||
-      result?.message ||
-      "Failed to create Company Admin"
-    );
+    let errorMessage = "Failed to create Company Admin";
+
+    if (Array.isArray(result?.detail)) {
+      errorMessage = result.detail
+        .map((item: any) => {
+          const location = Array.isArray(item?.loc)
+            ? item.loc[item.loc.length - 1]
+            : "field";
+
+          return `${location}: ${item?.msg || "Invalid value"}`;
+        })
+        .join("\n");
+    } else if (result?.detail) {
+      errorMessage = String(result.detail);
+    } else if (result?.message) {
+      errorMessage = String(result.message);
+    }
+
+    throw new Error(errorMessage);
   }
 
   invalidateCache("users");
