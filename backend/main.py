@@ -2716,7 +2716,7 @@ async def create_company_admin_profile(
     date_of_confirmation: str = Form(""),
     date_of_exit: str = Form(""),
     designation: str = Form(...),
-    profile_photo: UploadFile = File(...),
+    profile_photo: Optional[UploadFile] = File(None),
     current_user=Depends(get_current_user),
 ):
     if current_user["role"] != "super_admin":
@@ -2746,6 +2746,12 @@ async def create_company_admin_profile(
     gender = gender.strip()
     email = email.strip().lower()
     mobile_number = mobile_number.strip()
+
+    employee_name = " ".join(
+        part
+        for part in [first_name, middle_name, last_name]
+        if part
+    )
     employment_type = employment_type.strip()
     employment_status = employment_status.strip()
     designation = designation.strip()
@@ -2892,39 +2898,43 @@ async def create_company_admin_profile(
             detail="Employee ID already exists. Generate a new Employee ID."
         )
 
-    if profile_photo.content_type not in {
-        "image/jpeg",
-        "image/png",
-        "image/jpg",
-    }:
-        raise HTTPException(
-            status_code=400,
-            detail="Profile photo must be JPG or PNG."
-        )
+    profile_photo_url = None
 
-    photo_contents = await profile_photo.read()
-    if not photo_contents:
-        raise HTTPException(
-            status_code=400,
-            detail="Profile photo is required."
-        )
+    if profile_photo is not None:
+        if profile_photo.content_type not in {
+            "image/jpeg",
+            "image/png",
+            "image/jpg",
+        }:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo must be JPG or PNG."
+            )
 
-    if len(photo_contents) > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail="Profile photo must be smaller than 5 MB."
-        )
+        photo_contents = await profile_photo.read()
+        if not photo_contents:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo cannot be empty."
+            )
+
+        if len(photo_contents) > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo must be smaller than 5 MB."
+            )
 
     try:
-        upload_result = cloudinary.uploader.upload(
-            photo_contents,
-            folder="lms/profile_photos",
-            resource_type="image",
-        )
+        if photo_contents:
+            upload_result = cloudinary.uploader.upload(
+                photo_contents,
+                folder="lms/profile_photos",
+                resource_type="image",
+            )
 
-        profile_photo_url = upload_result.get("secure_url", "")
-        if not profile_photo_url:
-            raise ValueError("Cloudinary did not return a profile photo URL.")
+            profile_photo_url = upload_result.get("secure_url", "")
+            if not profile_photo_url:
+                raise ValueError("Cloudinary did not return a profile photo URL.")
 
         password_hash = hash_password(password)
 
