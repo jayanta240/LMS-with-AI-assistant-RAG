@@ -10,6 +10,9 @@ import {
   getUsers,
   getCourses,
   assignCourse,
+  getDepartmentHeads,
+  registerEmployee,
+  getNextEmployeeId,
 } from "@/lib/course-api";
 
 import { getCurrentUser } from "@/lib/current-user";
@@ -29,6 +32,14 @@ import {
   UserRound,
   X,
   ChevronDown,
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  Eye,
+  EyeOff,
+  ImagePlus,
+  RefreshCw,
+  Check,
 } from "lucide-react";
 
 
