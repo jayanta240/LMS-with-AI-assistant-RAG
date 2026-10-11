@@ -90,6 +90,39 @@ const GENDERS = [
 ];
 
 
+function generateEmployeePassword() {
+  const chars =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%&*";
+
+  const bytes =
+    new Uint32Array(12);
+
+  if (
+    typeof crypto !== "undefined" &&
+    crypto.getRandomValues
+  ) {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(
+        Math.random() * 0xffffffff
+      );
+    }
+  }
+
+  return (
+    "Aa1@" +
+    Array.from(bytes)
+      .map(
+        (value) =>
+          chars[value % chars.length]
+      )
+      .join("")
+      .slice(0, 8)
+  );
+}
+
+
 export default function EmployeesPage() {
 
   const currentUser = getCurrentUser();
@@ -353,7 +386,29 @@ export default function EmployeesPage() {
   async function openCreateForm() {
     setCreateStep(1);
     setShowCreateForm(true);
-    setDepartmentHeadId("");
+    setDepartmentId(
+      currentUser.role === "department_head"
+        ? String(currentUser.departmentId || "")
+        : ""
+    );
+    setDepartmentHeadId(
+      currentUser.role === "department_head"
+        ? String(currentUser.userId || "")
+        : ""
+    );
+    setDepartmentHeads(
+      currentUser.role === "department_head"
+        ? [
+            {
+              id: currentUser.userId,
+              name: currentUser.name || "Department Head",
+              email: currentUser.email || "",
+              department_id: currentUser.departmentId,
+              department: "",
+            },
+          ]
+        : []
+    );
     setProfilePhoto(null);
     setProfilePhotoPreview("");
     setEmail("");
@@ -979,343 +1034,577 @@ export default function EmployeesPage() {
            ================================================== */}
 
         {showCreateForm && (
-
           <div className="rounded-2xl border border-amber-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-5 sm:px-7">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Register Employee
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Complete the required identity, login and employment details.
+                  </p>
+                </div>
 
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ["1", "Basic Information"],
+                    ["2", "Login Information"],
+                    ["3", "Employment Details"],
+                  ].map(([number, title]) => (
+                    <div
+                      key={number}
+                      className={
+                        "flex items-center gap-2 rounded-xl border px-3 py-2 " +
+                        (createStep === Number(number)
+                          ? "border-slate-300 bg-slate-50"
+                          : "border-slate-100 bg-white")
+                      }
+                    >
+                      <div
+                        className={
+                          "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold " +
+                          (createStep > Number(number)
+                            ? "bg-emerald-100 text-emerald-700"
+                            : createStep === Number(number)
+                              ? "bg-slate-900 text-white"
+                              : "bg-slate-100 text-slate-400")
+                        }
+                      >
+                        {createStep > Number(number) ? (
+                          <Check size={14} />
+                        ) : (
+                          number
+                        )}
+                      </div>
+                      <span className="hidden text-xs font-semibold text-slate-700 lg:block">
+                        {title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
 
-              <div>
-
-                <h2 className="text-base font-semibold text-slate-900">
-                  Add New Employee
-                </h2>
-
+                <button
+                  type="button"
+                  onClick={closeCreateForm}
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 xl:self-start"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
               </div>
-
-
-              <button
-                type="button"
-                onClick={() => {
-
-                  setShowCreateForm(false);
-
-                  setName("");
-
-                  setEmail("");
-
-                  setPassword("");
-
-                  setDepartmentId("");
-
-                }}
-                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              >
-
-                <X size={18} />
-
-              </button>
-
             </div>
 
-
-            <div className="p-6">
-
-              <div className="grid gap-5 md:grid-cols-2">
-
-
-                {/* Name */}
-
-                <div>
-
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Employee Name
-                  </label>
-
-                  <div className="relative">
-
-                    <UserRound
-                      size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                      value={name}
-                      onChange={(e) =>
-                        setName(e.target.value)
-                      }
-                      placeholder="Full name"
-                      className="
-                        h-11
-                        w-full
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-slate-50
-                        pl-10
-                        pr-4
-                        text-sm
-                        outline-none
-                        transition
-                        focus:border-amber-400
-                        focus:bg-white
-                        focus:ring-2
-                        focus:ring-amber-100
-                      "
-                    />
-
+            <div className="p-5 sm:p-7">
+              {createStep === 1 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Basic Information
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Employee identity and profile photo.
+                    </p>
                   </div>
 
-                </div>
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Employee ID <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          value={employeeId}
+                          readOnly
+                          placeholder="Generating..."
+                          className="h-11 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const result =
+                                await getNextEmployeeId(companyId);
+                              setEmployeeId(
+                                result?.employee_id || ""
+                              );
+                            } catch (error: any) {
+                              alert(
+                                error?.message ||
+                                  "Failed to generate Employee ID."
+                              );
+                            }
+                          }}
+                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
+                          title="Generate another ID"
+                        >
+                          <RefreshCw size={17} />
+                        </button>
+                      </div>
+                    </div>
 
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Employee Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        value={employeeName}
+                        readOnly
+                        placeholder="Enter first and last name"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none"
+                      />
+                    </div>
 
-                {/* Email */}
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        First Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="First name"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
 
-                <div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Middle Name
+                      </label>
+                      <input
+                        value={middleName}
+                        onChange={(e) => setMiddleName(e.target.value)}
+                        placeholder="Middle name (optional)"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
 
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Email
-                  </label>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Last Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Last name"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
 
-                  <div className="relative">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Gender <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      >
+                        <option value="">Select Gender</option>
+                        {GENDERS.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                    <Mail
-                      size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Date of Birth <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <CalendarDays
+                          size={17}
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                        />
+                        <input
+                          type="date"
+                          value={dateOfBirth}
+                          onChange={(e) => setDateOfBirth(e.target.value)}
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                        />
+                      </div>
+                    </div>
 
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) =>
-                        setEmail(e.target.value)
-                      }
-                      placeholder="employee@company.com"
-                      className="
-                        h-11
-                        w-full
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-slate-50
-                        pl-10
-                        pr-4
-                        text-sm
-                        outline-none
-                        transition
-                        focus:border-amber-400
-                        focus:bg-white
-                        focus:ring-2
-                        focus:ring-amber-100
-                      "
-                    />
-
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Profile Photo
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50">
+                          {profilePhotoPreview ? (
+                            <img
+                              src={profilePhotoPreview}
+                              alt="Employee preview"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <UserRound size={19} className="text-slate-300" />
+                          )}
+                        </div>
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                          <ImagePlus size={16} />
+                          {profilePhoto ? "Change Photo" : "Upload Photo"}
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                            className="hidden"
+                            onChange={handlePhotoChange}
+                          />
+                        </label>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">
+                        JPG or PNG, up to 5 MB.
+                      </p>
+                    </div>
                   </div>
 
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Next
+                      <ArrowRight size={17} />
+                    </button>
+                  </div>
                 </div>
+              )}
 
+              {createStep === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Login Information
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Credentials and mobile contact details.
+                    </p>
+                  </div>
 
-                {/* Password */}
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Login Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="employee@company.com"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
 
-                <div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={password}
+                            onChange={(e) => {
+                              setAutoGeneratePassword(false);
+                              setPassword(e.target.value);
+                            }}
+                            placeholder="Minimum 8 characters"
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 pr-11 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowPassword((current) => !current)
+                            }
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                            title="Show password"
+                          >
+                            {showPassword ? (
+                              <EyeOff size={17} />
+                            ) : (
+                              <Eye size={17} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={autoGeneratePassword}
+                          onChange={(e) => {
+                            const enabled = e.target.checked;
+                            setAutoGeneratePassword(enabled);
 
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Temporary Password
-                  </label>
+                            if (enabled) {
+                              const generated =
+                                generateEmployeePassword();
+                              setPassword(generated);
+                              setConfirmPassword(generated);
+                            }
+                          }}
+                        />
+                        Auto-generate password
+                      </label>
+                    </div>
 
-                  <div className="relative">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Confirm Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Re-enter password"
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 pr-11 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowConfirmPassword((current) => !current)
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                          title="Show password"
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff size={17} />
+                          ) : (
+                            <Eye size={17} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
 
-                    <ShieldCheck
-                      size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        placeholder="Mobile number"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
+                  </div>
 
-                    <input
-                      type={
-                        showPassword
-                          ? "text"
-                          : "password"
-                      }
-                      value={password}
-                      onChange={(e) =>
-                        setPassword(e.target.value)
-                      }
-                      placeholder="Create a password"
-                      className="
-                        h-11
-                        w-full
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-slate-50
-                        pl-10
-                        pr-11
-                        text-sm
-                        outline-none
-                        transition
-                        focus:border-amber-400
-                        focus:bg-white
-                        focus:ring-2
-                        focus:ring-amber-100
-                      "
-                    />
+                  <div className="flex justify-between">
+                    <button
+                      type="button"
+                      onClick={previousStep}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                    >
+                      <ArrowLeft size={17} />
+                      Back
+                    </button>
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowPassword(
-                          (current) => !current
-                        )
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                      onClick={nextStep}
+                      className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-
-                      {showPassword
-                        ? <EyeOff size={17} />
-                        : <Eye size={17} />}
-
+                      Next
+                      <ArrowRight size={17} />
                     </button>
+                  </div>
+                </div>
+              )}
 
+              {createStep === 3 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      Employment Details
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Job information and reporting structure.
+                    </p>
                   </div>
 
-                </div>
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Employment Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={employmentType}
+                        onChange={(e) => setEmploymentType(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      >
+                        <option value="">Select Employment Type</option>
+                        {EMPLOYMENT_TYPES.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Employment Status <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={employmentStatus}
+                        onChange={(e) => setEmploymentStatus(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      >
+                        <option value="">Select Employment Status</option>
+                        {EMPLOYMENT_STATUSES.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                {/* Department */}
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Date of Joining <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <CalendarDays
+                          size={17}
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                        />
+                        <input
+                          type="date"
+                          value={dateOfJoining}
+                          onChange={(e) => setDateOfJoining(e.target.value)}
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                        />
+                      </div>
+                    </div>
 
-                <div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Date of Confirmation
+                      </label>
+                      <input
+                        type="date"
+                        value={dateOfConfirmation}
+                        onChange={(e) => setDateOfConfirmation(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
 
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Department
-                  </label>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Date of Exit
+                      </label>
+                      <input
+                        type="date"
+                        value={dateOfExit}
+                        onChange={(e) => setDateOfExit(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
 
-                  <div className="relative">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Designation <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        value={designation}
+                        onChange={(e) => setDesignation(e.target.value)}
+                        placeholder="Designation"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-amber-400 focus:bg-white"
+                      />
+                    </div>
 
-                    <BriefcaseBusiness
-                      size={17}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <select
-                      value={departmentId}
-                      onChange={(e) =>
-                        setDepartmentId(
-                          e.target.value
-                        )
-                      }
-                      className="
-                        h-11
-                        w-full
-                        appearance-none
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-slate-50
-                        pl-10
-                        pr-10
-                        text-sm
-                        text-slate-700
-                        outline-none
-                        transition
-                        focus:border-amber-400
-                        focus:bg-white
-                        focus:ring-2
-                        focus:ring-amber-100
-                      "
-                    >
-
-                      <option value="">
-                        Select Department
-                      </option>
-
-                      {departments.map(
-                        (department) => (
-
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Department <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={departmentId}
+                        onChange={(e) =>
+                          handleDepartmentChange(e.target.value)
+                        }
+                        disabled={
+                          currentUser.role === "department_head"
+                        }
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none disabled:cursor-not-allowed disabled:opacity-60 focus:border-amber-400 focus:bg-white"
+                      >
+                        <option value="">Select Department</option>
+                        {departments.map((department) => (
                           <option
                             key={department.id}
                             value={department.id}
                           >
-                            {
-                              department.department_name
-                            }
+                            {department.department_name}
                           </option>
+                        ))}
+                      </select>
+                    </div>
 
-                        )
-                      )}
-
-                    </select>
-
-                    <ChevronDown
-                      size={16}
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Department Head <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={departmentHeadId}
+                        onChange={(e) =>
+                          setDepartmentHeadId(e.target.value)
+                        }
+                        disabled={
+                          currentUser.role === "department_head" ||
+                          !departmentId
+                        }
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none disabled:cursor-not-allowed disabled:opacity-60 focus:border-amber-400 focus:bg-white"
+                      >
+                        <option value="">
+                          {departmentId
+                            ? departmentHeads.length
+                              ? "Select Department Head"
+                              : "No Department Head found"
+                            : "Select Department first"}
+                        </option>
+                        {departmentHeads.map((head) => (
+                          <option
+                            key={head.id}
+                            value={head.id}
+                          >
+                            {head.name} ({head.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
+                  <div className="flex justify-between">
+                    <button
+                      type="button"
+                      onClick={previousStep}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                    >
+                      <ArrowLeft size={17} />
+                      Back
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCreate}
+                      disabled={saving}
+                      className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <Loader2 size={17} className="animate-spin" />
+                      ) : (
+                        <Plus size={17} />
+                      )}
+                      {saving ? "Creating..." : "Create Employee"}
+                    </button>
+                  </div>
                 </div>
-
-              </div>
-
-
-
-              <div className="mt-6 flex justify-end gap-3">
-
-                <button
-                  type="button"
-                  onClick={() => {
-
-                    setShowCreateForm(false);
-
-                    setName("");
-
-                    setEmail("");
-
-                    setPassword("");
-
-                    setDepartmentId("");
-
-                  }}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-
-
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={handleCreate}
-                  className="
-                    inline-flex
-                    items-center
-                    gap-2
-                    rounded-xl
-                    bg-slate-900
-                    px-5
-                    py-2.5
-                    text-sm
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-slate-800
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
-                >
-
-                  <Plus size={17} />
-
-                  {saving
-                    ? "Creating..."
-                    : "Create Employee"}
-
-                </button>
-
-              </div>
-
+              )}
             </div>
-
           </div>
-
         )}
 
 
