@@ -3336,36 +3336,28 @@ async def create_company_admin_profile(
 async def get_company_admins_api(
     current_user=Depends(get_current_user)
 ):
-
     if current_user["role"] != "super_admin":
-
         raise HTTPException(
             status_code=403,
             detail="Only Super Admin can view Company Admins."
         )
 
-    rows = get_all_users()
+    rows = get_company_admin_profiles()
 
-    company_admins = []
-
-    for row in rows:
-
-        if row[3] != "company_admin":
-            continue
-
-        company_admins.append({
-
+    return [
+        {
             "id": row[0],
             "name": row[1],
             "email": row[2],
+            "role": row[3],
             "company_id": row[4],
             "company": row[5] or "No company",
+            "employee_id": row[6],
+            "profile_photo_url": row[7],
             "created_at": row[8],
-
-        })
-
-    return company_admins
-
+        }
+        for row in rows
+    ]
 
 @app.delete("/api/company-admins/{user_id}")
 async def delete_company_admin_api(
