@@ -35,6 +35,7 @@ import {
   ArrowRight,
   CalendarDays,
   ImagePlus,
+  Loader2,
   RefreshCw,
   Check,
 } from "lucide-react";
