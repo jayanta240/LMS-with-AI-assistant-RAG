@@ -67,6 +67,28 @@ type Course = {
   title: string;
 };
 
+const EMPLOYMENT_TYPES = [
+  "Permanent",
+  "Contract",
+  "Intern",
+  "Part-time",
+  "Consultant",
+  "Temporary",
+  "Other",
+];
+
+const EMPLOYMENT_STATUSES = [
+  "Active",
+  "Inactive",
+  "Notice Period",
+];
+
+const GENDERS = [
+  "Male",
+  "Female",
+  "Other",
+];
+
 
 export default function EmployeesPage() {
 
@@ -226,6 +248,7 @@ export default function EmployeesPage() {
 
       await Promise.all([
         loadDepartments(companyId),
+        loadDepartmentHeads(),
         loadUsers(),
         loadCourses(),
       ]);
@@ -259,6 +282,18 @@ export default function EmployeesPage() {
         : []
     );
 
+  }
+
+
+  async function loadDepartmentHeads() {
+    const data =
+      await getDepartmentHeads();
+
+    setDepartmentHeads(
+      Array.isArray(data)
+        ? data
+        : []
+    );
   }
 
 
