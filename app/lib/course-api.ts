@@ -652,14 +652,24 @@ export async function getCompanyAdmins() {
 }
 
 
-export async function getDepartmentHeads() {
+export async function getDepartmentHeads(
+  departmentId?: number
+) {
+  const key =
+    departmentId !== undefined
+      ? "department-heads:" + departmentId
+      : "department-heads";
+
+  const url =
+    departmentId !== undefined
+      ? BASE + "/api/department-heads?department_id=" + departmentId
+      : BASE + "/api/department-heads";
 
   return cachedGet<any[]>(
-    "department-heads",
-    `${BASE}/api/department-heads`
+    key,
+    url
   );
 }
-
 
 export async function deleteDepartmentHead(
   id: number
@@ -1244,6 +1254,117 @@ export async function registerUser(
 // ============================================================
 // COMPANY ADMIN REGISTRATION
 // ============================================================
+
+
+export async function registerEmployee(
+  data: {
+    employee_id: string;
+    employee_name: string;
+    first_name: string;
+    middle_name?: string;
+    last_name: string;
+    gender: string;
+    date_of_birth: string;
+    profile_photo?: File | null;
+    email: string;
+    password: string;
+    confirm_password: string;
+    mobile_number: string;
+    employment_type: string;
+    employment_status: string;
+    date_of_joining: string;
+    date_of_confirmation?: string;
+    date_of_exit?: string;
+    designation: string;
+    department_id: number;
+    department_head_id: number;
+  }
+) {
+  const formData = new FormData();
+
+  const values: Record<string, string> = {
+    employee_id: data.employee_id,
+    employee_name: data.employee_name,
+    first_name: data.first_name,
+    middle_name: data.middle_name || "",
+    last_name: data.last_name,
+    gender: data.gender,
+    date_of_birth: data.date_of_birth,
+    email: data.email,
+    password: data.password,
+    confirm_password: data.confirm_password,
+    mobile_number: data.mobile_number,
+    employment_type: data.employment_type,
+    employment_status: data.employment_status,
+    date_of_joining: data.date_of_joining,
+    date_of_confirmation: data.date_of_confirmation || "",
+    date_of_exit: data.date_of_exit || "",
+    designation: data.designation,
+    department_id: String(data.department_id),
+    department_head_id: String(data.department_head_id),
+  };
+
+  Object.entries(values).forEach(([key, value]) => {
+    formData.append(key, value);
+  });
+
+  if (data.profile_photo) {
+    formData.append("profile_photo", data.profile_photo);
+  }
+
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
+
+  const res = await fetch(
+    BASE + "/api/employees",
+    {
+      method: "POST",
+      headers: token
+        ? {
+            Authorization: "Bearer " + token,
+          }
+        : {},
+      body: formData,
+    }
+  );
+
+  const result = await res.json();
+
+  if (!res.ok) {
+    let message = "Failed to create employee.";
+
+    if (Array.isArray(result?.detail)) {
+      message = result.detail
+        .map((item: any) => {
+          const location =
+            Array.isArray(item?.loc)
+              ? item.loc[item.loc.length - 1]
+              : "field";
+
+          return (
+            location +
+            ": " +
+            (item?.msg || "Invalid value")
+          );
+        })
+        .join("\n");
+    } else if (result?.detail) {
+      message = String(result.detail);
+    } else if (result?.message) {
+      message = String(result.message);
+    }
+
+    throw new Error(message);
+  }
+
+  invalidateCache("users");
+  invalidateCache("dashboard-stats");
+
+  return result;
+}
+
 
 export async function getNextEmployeeId(
   companyId: number
