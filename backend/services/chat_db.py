@@ -436,8 +436,8 @@ def append_chat_exchange(
     video=None,
 ):
     """
-    Persist one complete chat exchange in a single transaction.
-    This replaces multiple sequential DB round trips.
+    Persist one complete exchange using two SQL round trips:
+    one ownership/session update and one multi-row message insert.
     """
     if not isinstance(user_content, str) or not user_content.strip():
         raise ValueError("User message content is required")
@@ -447,61 +447,10 @@ def append_chat_exchange(
 
     normalized_sources = _normalize_sources(sources)
     now = datetime.now()
+    title = " ".join(user_content.split())[:60] or "New Chat"
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT name
-                FROM ai_sessions
-                WHERE session_id = %s
-                  AND user_id = %s
-                  AND company_id IS NOT DISTINCT FROM %s
-                FOR UPDATE
-            """, (
-                session_id,
-                user_id,
-                company_id,
-            ))
-
-            session_row = cursor.fetchone()
-
-            if not session_row:
-                return False
-
-            cursor.execute("""
-                INSERT INTO ai_messages (
-                    session_id,
-                    role,
-                    content,
-                    sources,
-                    video,
-                    created_at
-                )
-                VALUES (%s, 'user', %s, '[]'::jsonb, NULL, %s)
-            """, (
-                session_id,
-                user_content,
-                now,
-            ))
-
-            cursor.execute("""
-                INSERT INTO ai_messages (
-                    session_id,
-                    role,
-                    content,
-                    sources,
-                    video,
-                    created_at
-                )
-                VALUES (%s, 'assistant', %s, %s::jsonb, %s, %s)
-            """, (
-                session_id,
-                assistant_content,
-                json.dumps(normalized_sources),
-                video,
-                now,
-            ))
-
             cursor.execute("""
                 UPDATE ai_sessions
                 SET
@@ -515,12 +464,39 @@ def append_chat_exchange(
                 WHERE session_id = %s
                   AND user_id = %s
                   AND company_id IS NOT DISTINCT FROM %s
+                RETURNING session_id
             """, (
                 now,
-                " ".join(user_content.split())[:60] or "New Chat",
+                title,
                 session_id,
                 user_id,
                 company_id,
+            ))
+
+            if not cursor.fetchone():
+                return False
+
+            cursor.execute("""
+                INSERT INTO ai_messages (
+                    session_id,
+                    role,
+                    content,
+                    sources,
+                    video,
+                    created_at
+                )
+                VALUES
+                    (%s, 'user', %s, '[]'::jsonb, NULL, %s),
+                    (%s, 'assistant', %s, %s::jsonb, %s, %s)
+            """, (
+                session_id,
+                user_content,
+                now,
+                session_id,
+                assistant_content,
+                json.dumps(normalized_sources),
+                video,
+                now,
             ))
 
     return True
