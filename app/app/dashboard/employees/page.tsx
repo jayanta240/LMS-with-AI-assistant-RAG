@@ -195,6 +195,27 @@ export default function EmployeesPage() {
   const [showCreateForm, setShowCreateForm] =
     useState(false);
 
+  const employeeName = useMemo(
+    () =>
+      [firstName, middleName, lastName]
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .join(" "),
+    [firstName, middleName, lastName]
+  );
+
+  useEffect(() => {
+    if (!profilePhoto) {
+      setProfilePhotoPreview("");
+      return;
+    }
+
+    const url = URL.createObjectURL(profilePhoto);
+    setProfilePhotoPreview(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [profilePhoto]);
+
 
   // ==========================================================
   // ASSIGN COURSE
@@ -329,118 +350,315 @@ export default function EmployeesPage() {
   // CREATE EMPLOYEE
   // ==========================================================
 
-  async function handleCreate() {
+  async function openCreateForm() {
+    setCreateStep(1);
+    setShowCreateForm(true);
+    setDepartmentHeadId("");
+    setProfilePhoto(null);
+    setProfilePhotoPreview("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setMobileNumber("");
+    setEmploymentType("");
+    setEmploymentStatus("");
+    setDateOfJoining("");
+    setDateOfConfirmation("");
+    setDateOfExit("");
+    setDesignation("");
+    setFirstName("");
+    setMiddleName("");
+    setLastName("");
+    setGender("");
 
-    const cleanName =
-      name.trim();
+    if (companyId) {
+      try {
+        const result = await getNextEmployeeId(companyId);
+        setEmployeeId(result?.employee_id || "");
+      } catch (error) {
+        console.error("Failed to generate Employee ID:", error);
+        setEmployeeId("");
+      }
+    }
+  }
 
-    const cleanEmail =
-      email.trim();
+  function closeCreateForm() {
+    setShowCreateForm(false);
+    setCreateStep(1);
+    setProfilePhoto(null);
+    setProfilePhotoPreview("");
+  }
 
-    if (!cleanName) {
+  function handlePhotoChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
 
-      alert(
-        "Employee name is required."
-      );
-
+    if (!file) {
       return;
-
     }
 
-    if (!cleanEmail) {
-
-      alert(
-        "Employee email is required."
-      );
-
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      alert("Profile photo must be JPG or PNG.");
       return;
-
     }
 
-    if (!password) {
-
-      alert(
-        "Password is required."
-      );
-
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Profile photo must be smaller than 5 MB.");
       return;
-
     }
 
-    if (!departmentId) {
+    setProfilePhoto(file);
+  }
 
-      alert(
-        "Please select a department."
-      );
+  async function handleDepartmentChange(
+    value: string
+  ) {
+    setDepartmentId(value);
+    setDepartmentHeadId("");
 
+    if (!value) {
+      setDepartmentHeads([]);
       return;
-
     }
 
-    if (!companyId) {
-
-      alert(
-        "Company information is missing."
+    if (
+      currentUser.role === "department_head"
+    ) {
+      setDepartmentHeads([
+        {
+          id: currentUser.userId,
+          name: currentUser.name || "Department Head",
+          department_id: currentUser.departmentId,
+          department: "",
+        },
+      ]);
+      setDepartmentHeadId(
+        String(currentUser.userId)
       );
-
       return;
-
     }
 
     try {
+      const data =
+        await getDepartmentHeads(
+          Number(value)
+        );
 
+      setDepartmentHeads(
+        Array.isArray(data)
+          ? data
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Failed to load Department Heads:",
+        error
+      );
+      setDepartmentHeads([]);
+    }
+  }
+
+  function validateStepOne() {
+    if (!employeeId.trim()) {
+      alert("Employee ID is required.");
+      return false;
+    }
+
+    if (!firstName.trim()) {
+      alert("First Name is required.");
+      return false;
+    }
+
+    if (!lastName.trim()) {
+      alert("Last Name is required.");
+      return false;
+    }
+
+    if (!gender) {
+      alert("Gender is required.");
+      return false;
+    }
+
+    if (!dateOfBirth) {
+      alert("Date of Birth is required.");
+      return false;
+    }
+
+    return true;
+  }
+
+  function validateStepTwo() {
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      alert("Login Email is required.");
+      return false;
+    }
+
+    if (!password) {
+      alert("Password is required.");
+      return false;
+    }
+
+    if (password.length < 8) {
+      alert("Password must contain at least 8 characters.");
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      alert("Password and Confirm Password must match.");
+      return false;
+    }
+
+    const mobile =
+      mobileNumber.replace(/\D/g, "");
+
+    if (
+      mobile.length < 7 ||
+      mobile.length > 15
+    ) {
+      alert("Please enter a valid mobile number.");
+      return false;
+    }
+
+    return true;
+  }
+
+  function validateStepThree() {
+    if (!employmentType) {
+      alert("Employment Type is required.");
+      return false;
+    }
+
+    if (!employmentStatus) {
+      alert("Employment Status is required.");
+      return false;
+    }
+
+    if (!dateOfJoining) {
+      alert("Date of Joining is required.");
+      return false;
+    }
+
+    if (!designation.trim()) {
+      alert("Designation is required.");
+      return false;
+    }
+
+    if (!departmentId) {
+      alert("Department is required.");
+      return false;
+    }
+
+    if (!departmentHeadId) {
+      alert("Department Head is required.");
+      return false;
+    }
+
+    if (
+      dateOfConfirmation &&
+      dateOfJoining > dateOfConfirmation
+    ) {
+      alert(
+        "Date of Confirmation cannot be before Date of Joining."
+      );
+      return false;
+    }
+
+    if (
+      dateOfExit &&
+      dateOfJoining > dateOfExit
+    ) {
+      alert(
+        "Date of Exit cannot be before Date of Joining."
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  function nextStep() {
+    if (
+      createStep === 1 &&
+      validateStepOne()
+    ) {
+      setCreateStep(2);
+      return;
+    }
+
+    if (
+      createStep === 2 &&
+      validateStepTwo()
+    ) {
+      setCreateStep(3);
+    }
+  }
+
+  function previousStep() {
+    setCreateStep(
+      (current) =>
+        current === 1
+          ? 1
+          : ((current - 1) as CreateStep)
+    );
+  }
+
+  async function handleCreate() {
+    if (!validateStepThree()) {
+      return;
+    }
+
+    try {
       setSaving(true);
 
       const response =
-        await registerUser({
-
-          name: cleanName,
-
-          email: cleanEmail,
-
+        await registerEmployee({
+          employee_id: employeeId.trim(),
+          employee_name: employeeName,
+          first_name: firstName.trim(),
+          middle_name: middleName.trim(),
+          last_name: lastName.trim(),
+          gender,
+          date_of_birth: dateOfBirth,
+          profile_photo: profilePhoto,
+          email: email.trim(),
           password,
-
-          role: "employee",
-
-          company_id: companyId,
-
-          department_id:
-            Number(departmentId),
-
+          confirm_password: confirmPassword,
+          mobile_number: mobileNumber.trim(),
+          employment_type: employmentType,
+          employment_status: employmentStatus,
+          date_of_joining: dateOfJoining,
+          date_of_confirmation: dateOfConfirmation,
+          date_of_exit: dateOfExit,
+          designation: designation.trim(),
+          department_id: Number(departmentId),
+          department_head_id: Number(departmentHeadId),
         });
 
-
       if (response?.success === false) {
-
         alert(
           response?.message ||
-          "Unable to create employee."
+            "Unable to create employee."
         );
-
         return;
-
       }
 
-
       alert(
-        `${cleanName} was created successfully.`
+        employeeName +
+          " was created successfully.\n\nEmployee ID: " +
+          (response?.employee_id || employeeId)
       );
 
-
-      setName("");
-
-      setEmail("");
-
-      setPassword("");
-
-      setDepartmentId("");
-
-      setShowCreateForm(false);
-
-      await loadUsers();
-
+      closeCreateForm();
+      await Promise.all([
+        loadUsers(),
+        loadDepartments(companyId),
+        loadDepartmentHeads(),
+      ]);
     } catch (error: any) {
-
       console.error(
         "Employee creation error:",
         error
@@ -448,15 +666,11 @@ export default function EmployeesPage() {
 
       alert(
         error?.message ||
-        "Failed to create employee."
+          "Failed to create employee."
       );
-
     } finally {
-
       setSaving(false);
-
     }
-
   }
 
 
@@ -643,9 +857,7 @@ export default function EmployeesPage() {
 
           <button
             type="button"
-            onClick={() =>
-              setShowCreateForm(true)
-            }
+            onClick={openCreateForm}
             className="
               inline-flex
               items-center
