@@ -2625,7 +2625,7 @@ async def get_users_api(
 
         elif current_user["role"] == "department_head":
 
-            if row[6] != current_user["department_id"]:
+            if row[9] != current_user["user_id"]:
                 continue
 
         # -------------------------
@@ -2654,6 +2654,7 @@ async def get_users_api(
 
             "department_id": row[6],
             "department": row[7],
+            "department_head_id": row[9],
 
             "created_at": row[8],
             "progress": get_user_progress(row[0]),
