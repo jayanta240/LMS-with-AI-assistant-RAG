@@ -185,31 +185,122 @@ def _read_messages(cursor, session_id):
     return messages
 
 
-def get_chat_messages(session_id, user_id, company_id):
+def _decode_messages(rows):
+    messages = []
+
+    for role, content, sources, video in rows:
+        parsed_sources = sources or []
+
+        if isinstance(parsed_sources, str):
+            try:
+                parsed_sources = json.loads(parsed_sources)
+            except Exception:
+                parsed_sources = []
+
+        item = {
+            "role": role,
+            "content": content,
+            "sources": parsed_sources,
+        }
+
+        if video:
+            item["video"] = video
+
+        messages.append(item)
+
+    return messages
+
+
+def get_chat_messages(session_id, user_id, company_id, limit=None):
+    """
+    Load chat messages and verify session ownership in one SQL query.
+    """
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT
+            if limit is not None:
+                cursor.execute("""
+                    SELECT
+                        m.role,
+                        m.content,
+                        m.sources,
+                        m.video
+                    FROM (
+                        SELECT
+                            id,
+                            role,
+                            content,
+                            sources,
+                            video
+                        FROM ai_messages
+                        WHERE session_id = %s
+                        ORDER BY id DESC
+                        LIMIT %s
+                    ) m
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM ai_sessions s
+                        WHERE s.session_id = %s
+                          AND s.user_id = %s
+                          AND s.company_id IS NOT DISTINCT FROM %s
+                    )
+                    ORDER BY m.id ASC
+                """, (
+                    session_id,
+                    max(1, int(limit)),
                     session_id,
                     user_id,
                     company_id,
-                    name,
-                    started_at,
-                    last_message_at
-                FROM ai_sessions
-                WHERE session_id = %s
-                  AND user_id = %s
-                  AND company_id IS NOT DISTINCT FROM %s
-            """, (
-                session_id,
-                user_id,
-                company_id,
-            ))
+                ))
+            else:
+                cursor.execute("""
+                    SELECT
+                        m.role,
+                        m.content,
+                        m.sources,
+                        m.video
+                    FROM ai_messages m
+                    WHERE m.session_id = %s
+                      AND EXISTS (
+                          SELECT 1
+                          FROM ai_sessions s
+                          WHERE s.session_id = %s
+                            AND s.user_id = %s
+                            AND s.company_id IS NOT DISTINCT FROM %s
+                      )
+                    ORDER BY m.id ASC
+                """, (
+                    session_id,
+                    session_id,
+                    user_id,
+                    company_id,
+                ))
 
-            if not cursor.fetchone():
-                return None
+            rows = cursor.fetchall()
 
-            return _read_messages(cursor, session_id)
+    if (
+        limit is None
+        and not rows
+    ):
+        # An empty conversation is valid, but distinguish it from
+        # a session that does not belong to this user.
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT 1
+                    FROM ai_sessions
+                    WHERE session_id = %s
+                      AND user_id = %s
+                      AND company_id IS NOT DISTINCT FROM %s
+                """, (
+                    session_id,
+                    user_id,
+                    company_id,
+                ))
+
+                if not cursor.fetchone():
+                    return None
+
+    return _decode_messages(rows)
 
 
 def get_chat_context(
@@ -219,91 +310,104 @@ def get_chat_context(
     max_history=6,
 ):
     """
-    Load the owned session, recent conversation, and assigned course IDs
-    using a single PostgreSQL connection.
+    Load session ownership, recent conversation, and assigned course IDs
+    in a single PostgreSQL query.
     """
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
                 SELECT
-                    session_id,
-                    user_id,
-                    company_id,
-                    name,
-                    started_at,
-                    last_message_at
-                FROM ai_sessions
-                WHERE session_id = %s
-                  AND user_id = %s
-                  AND company_id IS NOT DISTINCT FROM %s
+                    s.session_id,
+                    s.user_id,
+                    s.company_id,
+                    s.name,
+                    s.started_at,
+                    s.last_message_at,
+                    COALESCE((
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'role', m.role,
+                                'content', m.content,
+                                'sources', COALESCE(
+                                    m.sources,
+                                    '[]'::jsonb
+                                ),
+                                'video', m.video
+                            )
+                            ORDER BY m.id
+                        )
+                        FROM (
+                            SELECT
+                                id,
+                                role,
+                                content,
+                                sources,
+                                video
+                            FROM ai_messages
+                            WHERE session_id = s.session_id
+                            ORDER BY id DESC
+                            LIMIT %s
+                        ) m
+                    ), '[]'::jsonb) AS messages,
+                    COALESCE((
+                        SELECT array_agg(
+                            e.course_id
+                            ORDER BY e.course_id
+                        )
+                        FROM enrollments e
+                        WHERE e.user_id = s.user_id
+                    ), ARRAY[]::integer[]) AS course_ids
+                FROM ai_sessions s
+                WHERE s.session_id = %s
+                  AND s.user_id = %s
+                  AND s.company_id IS NOT DISTINCT FROM %s
             """, (
+                max(1, int(max_history)),
                 session_id,
                 user_id,
                 company_id,
             ))
 
-            session_row = cursor.fetchone()
+            row = cursor.fetchone()
 
-            if not session_row:
-                return None
+    if not row:
+        return None
 
-            cursor.execute("""
-                SELECT
-                    role,
-                    content,
-                    sources,
-                    video
-                FROM ai_messages
-                WHERE session_id = %s
-                ORDER BY id DESC
-                LIMIT %s
-            """, (
-                session_id,
-                max_history,
-            ))
+    message_data = row[6] or []
 
-            message_rows = list(reversed(cursor.fetchall()))
+    if isinstance(message_data, str):
+        try:
+            message_data = json.loads(message_data)
+        except Exception:
+            message_data = []
 
-            messages = []
+    messages = []
 
-            for role, content, sources, video in message_rows:
-                parsed_sources = sources or []
+    for item in message_data:
+        parsed_sources = item.get("sources") or []
 
-                if isinstance(parsed_sources, str):
-                    try:
-                        parsed_sources = json.loads(parsed_sources)
-                    except Exception:
-                        parsed_sources = []
+        if isinstance(parsed_sources, str):
+            try:
+                parsed_sources = json.loads(parsed_sources)
+            except Exception:
+                parsed_sources = []
 
-                item = {
-                    "role": role,
-                    "content": content,
-                    "sources": parsed_sources,
-                }
-
-                if video:
-                    item["video"] = video
-
-                messages.append(item)
-
-            cursor.execute("""
-                SELECT course_id
-                FROM enrollments
-                WHERE user_id = %s
-                ORDER BY course_id
-            """, (user_id,))
-
-            course_ids = [
-                row[0]
-                for row in cursor.fetchall()
-            ]
+        messages.append({
+            "role": item.get("role"),
+            "content": item.get("content", ""),
+            "sources": parsed_sources,
+            **(
+                {"video": item.get("video")}
+                if item.get("video")
+                else {}
+            ),
+        })
 
     return {
-        "session": _session_row_to_dict(session_row),
+        "session": _session_row_to_dict(row[:6]),
         "messages": messages,
-        "course_ids": course_ids,
+        "course_ids": row[7] or [],
     }
-
 
 def _normalize_sources(sources):
     normalized_sources = []
