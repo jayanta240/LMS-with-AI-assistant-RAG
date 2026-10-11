@@ -3444,6 +3444,9 @@ async def get_department_heads_api(
         current_user["company_id"]
     )
 
+    if department_id is not None:
+        rows = [row for row in rows if row[6] == department_id]
+
     return [
         {
             "id": row[0],
