@@ -4,6 +4,55 @@ from services.postgres_db import get_db_connection
 
 
 # ============================================================
+# SAFE, IDEMPOTENT USER-SCHEMA MIGRATION
+# ============================================================
+
+def init_user_db():
+    """
+    Ensure department-head assignments are supported in existing
+    production databases. Existing records are preserved.
+
+    Legacy employees are auto-assigned only when exactly one
+    department head belongs to the same company and department.
+    Ambiguous assignments are left unchanged for an administrator
+    to resolve explicitly.
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS department_head_id INTEGER
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_department_head_id
+                ON users (department_head_id)
+            """)
+
+            cursor.execute("""
+                UPDATE users AS employee
+                SET department_head_id = (
+                    SELECT MIN(head.id)
+                    FROM users AS head
+                    WHERE head.role = 'department_head'
+                      AND head.company_id = employee.company_id
+                      AND head.department_id = employee.department_id
+                )
+                WHERE employee.role = 'employee'
+                  AND employee.department_head_id IS NULL
+                  AND employee.company_id IS NOT NULL
+                  AND employee.department_id IS NOT NULL
+                  AND (
+                    SELECT COUNT(*)
+                    FROM users AS head
+                    WHERE head.role = 'department_head'
+                      AND head.company_id = employee.company_id
+                      AND head.department_id = employee.department_id
+                  ) = 1
+            """)
+
+
+# ============================================================
 # CREATE USER
 # ============================================================
 
