@@ -44,7 +44,8 @@ from services.user_db import (
     delete_department_head,
     get_user_progress,
     employee_id_exists,
-    get_company_admin_profiles
+    get_company_admin_profiles,
+    init_user_db
 )
 
 from services.auth_service import (
@@ -194,6 +195,8 @@ app.add_middleware(
 # -----------------------------
 @app.on_event("startup")
 def startup():
+    print("🗄️ Ensuring user schema is up to date...")
+    init_user_db()
     print("🚀 Initializing Qdrant...")
     init_qdrant()
 
