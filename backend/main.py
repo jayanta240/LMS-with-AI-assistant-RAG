@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List,Optional
 from services.auth_dependency import get_current_user
@@ -42,7 +42,9 @@ from services.user_db import (
     delete_user,
     delete_company_admin,
     delete_department_head,
-    get_user_progress
+    get_user_progress,
+    employee_id_exists,
+    get_company_admin_profiles
 )
 
 from services.auth_service import (
@@ -2539,6 +2541,20 @@ async def login_user(
         "user_id": user[0],
         "company_id": user[5],
         "department_id": user[6],
+        "employee_id": user[8] if len(user) > 8 else None,
+        "profile_photo_url": user[14] if len(user) > 14 else None,
+        "first_name": user[9] if len(user) > 9 else None,
+        "middle_name": user[10] if len(user) > 10 else None,
+        "last_name": user[11] if len(user) > 11 else None,
+        "gender": user[12] if len(user) > 12 else None,
+        "date_of_birth": str(user[13]) if len(user) > 13 and user[13] else None,
+        "mobile_number": user[15] if len(user) > 15 else None,
+        "employment_type": user[16] if len(user) > 16 else None,
+        "employment_status": user[17] if len(user) > 17 else None,
+        "date_of_joining": str(user[18]) if len(user) > 18 and user[18] else None,
+        "date_of_confirmation": str(user[19]) if len(user) > 19 and user[19] else None,
+        "date_of_exit": str(user[20]) if len(user) > 20 and user[20] else None,
+        "designation": user[21] if len(user) > 21 else None,
         "branding": branding
     }
 @app.get("/api/users")
@@ -2579,7 +2595,7 @@ async def get_users_api(
 
         elif current_user["role"] == "department_head":
 
-            if row[6] != current_user["department_id"]:
+            if row[9] != current_user["user_id"]:
                 continue
 
         # -------------------------
@@ -2608,6 +2624,7 @@ async def get_users_api(
 
             "department_id": row[6],
             "department": row[7],
+            "department_head_id": row[9],
 
             "created_at": row[8],
             "progress": get_user_progress(row[0]),
@@ -2616,6 +2633,704 @@ async def get_users_api(
         })
 
     return users
+
+@app.get("/api/company-admins/next-employee-id")
+async def get_next_employee_id(
+    company_id: int,
+    current_user=Depends(get_current_user)
+):
+    role = current_user.get("role")
+
+    if role == "super_admin":
+        target_company_id = company_id
+    elif role in {"company_admin", "department_head"}:
+        target_company_id = current_user.get("company_id")
+
+        if target_company_id != company_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only generate Employee IDs for your own company."
+            )
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not allowed to generate Employee IDs."
+        )
+
+    if target_company_id is None or target_company_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="A valid company must be selected."
+        )
+
+    if not get_company(target_company_id):
+        raise HTTPException(
+            status_code=404,
+            detail="Selected company was not found."
+        )
+
+    for _ in range(20):
+        employee_id = (
+            f"EMP-{target_company_id}-"
+            f"{uuid.uuid4().hex[:8].upper()}"
+        )
+
+        if not employee_id_exists(employee_id):
+            return {
+                "success": True,
+                "employee_id": employee_id,
+            }
+
+    raise HTTPException(
+        status_code=500,
+        detail="Unable to generate a unique Employee ID."
+    )
+
+
+@app.post("/api/employees")
+async def create_employee_profile(
+    employee_id: str = Form(...),
+    employee_name: str = Form(...),
+    first_name: str = Form(...),
+    middle_name: str = Form(""),
+    last_name: str = Form(...),
+    gender: str = Form(...),
+    date_of_birth: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+    mobile_number: str = Form(...),
+    employment_type: str = Form(...),
+    employment_status: str = Form(...),
+    date_of_joining: str = Form(...),
+    date_of_confirmation: str = Form(""),
+    date_of_exit: str = Form(""),
+    designation: str = Form(...),
+    department_id: int = Form(...),
+    department_head_id: int = Form(...),
+    profile_photo: Optional[UploadFile] = File(None),
+    current_user=Depends(get_current_user),
+):
+    role = current_user.get("role")
+    company_id = current_user.get("company_id")
+
+    if role not in {"company_admin", "department_head"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Only Company Admin or Department Head can create employees."
+        )
+
+    if company_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Company information is missing."
+        )
+
+    if role == "department_head":
+        department_id = current_user.get("department_id")
+        department_head_id = current_user.get("user_id")
+
+    employee_id = employee_id.strip()
+    employee_name = employee_name.strip()
+    first_name = first_name.strip()
+    middle_name = middle_name.strip()
+    last_name = last_name.strip()
+    gender = gender.strip()
+    email = email.strip().lower()
+    mobile_number = mobile_number.strip()
+    employment_type = employment_type.strip()
+    employment_status = employment_status.strip()
+    designation = designation.strip()
+
+    employee_name = " ".join(
+        part for part in [
+            first_name,
+            middle_name,
+            last_name,
+        ] if part
+    )
+
+    if not employee_id:
+        raise HTTPException(status_code=400, detail="Employee ID is required.")
+
+    if not first_name:
+        raise HTTPException(status_code=400, detail="First Name is required.")
+
+    if not last_name:
+        raise HTTPException(status_code=400, detail="Last Name is required.")
+
+    if gender not in {"Male", "Female", "Other"}:
+        raise HTTPException(status_code=400, detail="Invalid gender.")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Login Email is required.")
+
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required.")
+
+    if password != confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Password and Confirm Password must match."
+        )
+
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least 8 characters."
+        )
+
+    mobile_digits = re.sub(r"\D", "", mobile_number)
+    if len(mobile_digits) < 7 or len(mobile_digits) > 15:
+        raise HTTPException(
+            status_code=400,
+            detail="Please enter a valid mobile number."
+        )
+
+    allowed_employment_types = {
+        "Permanent",
+        "Contract",
+        "Intern",
+        "Part-time",
+        "Consultant",
+        "Temporary",
+        "Other",
+    }
+
+    if employment_type not in allowed_employment_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Employment Type."
+        )
+
+    if employment_status not in {
+        "Active",
+        "Inactive",
+        "Notice Period",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Employment Status."
+        )
+
+    if not designation:
+        raise HTTPException(
+            status_code=400,
+            detail="Designation is required."
+        )
+
+    from datetime import datetime as _dt
+
+    def parse_date(
+        value: str,
+        field_name: str,
+        required: bool = False,
+    ):
+        clean = (value or "").strip()
+
+        if not clean:
+            if required:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{field_name} is required."
+                )
+            return None
+
+        try:
+            return _dt.strptime(
+                clean,
+                "%Y-%m-%d"
+            ).date()
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field_name} must be a valid date."
+            )
+
+    dob = parse_date(
+        date_of_birth,
+        "Date of Birth",
+        required=True,
+    )
+    doj = parse_date(
+        date_of_joining,
+        "Date of Joining",
+        required=True,
+    )
+    confirmation = parse_date(
+        date_of_confirmation,
+        "Date of Confirmation",
+    )
+    exit_date = parse_date(
+        date_of_exit,
+        "Date of Exit",
+    )
+
+    from datetime import date as _date
+
+    today = _date.today()
+
+    if dob > today:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Birth cannot be in the future."
+        )
+
+    if doj > today:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Joining cannot be in the future."
+        )
+
+    if confirmation and doj > confirmation:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Confirmation cannot be before Date of Joining."
+        )
+
+    if exit_date and doj > exit_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Exit cannot be before Date of Joining."
+        )
+
+    existing_user = get_user_by_email(email)
+
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Email already exists."
+        )
+
+    if employee_id_exists(employee_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Employee ID already exists. Generate a new Employee ID."
+        )
+
+    if department_id is None or department_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Department is required."
+        )
+
+    department_rows = get_departments(company_id)
+
+    department_exists = any(
+        row[0] == department_id
+        for row in department_rows
+    )
+
+    if not department_exists:
+        raise HTTPException(
+            status_code=403,
+            detail="Selected department does not belong to your company."
+        )
+
+    head = get_user_by_id(department_head_id)
+
+    if not head:
+        raise HTTPException(
+            status_code=404,
+            detail="Selected Department Head was not found."
+        )
+
+    if (
+        head[4] != "department_head"
+        or head[5] != company_id
+        or head[6] != department_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Selected Department Head is not assigned to this department."
+        )
+
+    profile_photo_url = None
+    photo_contents = b""
+
+    if profile_photo is not None:
+        if profile_photo.content_type not in {
+            "image/jpeg",
+            "image/png",
+            "image/jpg",
+        }:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo must be JPG or PNG."
+            )
+
+        photo_contents = await profile_photo.read()
+
+        if not photo_contents:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo cannot be empty."
+            )
+
+        if len(photo_contents) > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo must be smaller than 5 MB."
+            )
+
+    try:
+        if photo_contents:
+            upload_result = cloudinary.uploader.upload(
+                photo_contents,
+                folder="lms/profile_photos",
+                resource_type="image",
+            )
+
+            profile_photo_url = (
+                upload_result.get("secure_url", "")
+            )
+
+            if not profile_photo_url:
+                raise ValueError(
+                    "Cloudinary did not return a profile photo URL."
+                )
+
+        password_hash = hash_password(password)
+
+        user_id = create_user(
+            name=employee_name,
+            email=email,
+            password_hash=password_hash,
+            role="employee",
+            company_id=company_id,
+            department_id=department_id,
+            department_head_id=department_head_id,
+            employee_id=employee_id,
+            first_name=first_name,
+            middle_name=middle_name or None,
+            last_name=last_name,
+            gender=gender,
+            date_of_birth=dob,
+            profile_photo_url=profile_photo_url,
+            mobile_number=mobile_number,
+            employment_type=employment_type,
+            employment_status=employment_status,
+            date_of_joining=doj,
+            date_of_confirmation=confirmation,
+            date_of_exit=exit_date,
+            designation=designation,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print("Employee creation failed:", exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create Employee."
+        )
+
+    notify_company_admins(
+        company_id,
+        title="Employee created",
+        message=f"{employee_name} was added to your organization.",
+        notification_type="user",
+        link="/dashboard/employees",
+    )
+
+    return {
+        "success": True,
+        "user_id": user_id,
+        "employee_id": employee_id,
+        "profile_photo_url": profile_photo_url,
+        "department_head_id": department_head_id,
+    }
+
+
+@app.post("/api/company-admins")
+async def create_company_admin_profile(
+    company_id: int = Form(...),
+    employee_id: str = Form(...),
+    employee_name: str = Form(...),
+    first_name: str = Form(...),
+    middle_name: str = Form(""),
+    last_name: str = Form(...),
+    gender: str = Form(...),
+    date_of_birth: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    mobile_number: str = Form(...),
+    employment_type: str = Form(...),
+    employment_status: str = Form(...),
+    date_of_joining: str = Form(...),
+    date_of_confirmation: str = Form(""),
+    date_of_exit: str = Form(""),
+    designation: str = Form(...),
+    profile_photo: Optional[UploadFile] = File(None),
+    current_user=Depends(get_current_user),
+):
+    if current_user["role"] != "super_admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only Super Admin can create Company Admins."
+        )
+
+    if company_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="A valid company must be selected."
+        )
+
+    selected_company = get_company(company_id)
+    if not selected_company:
+        raise HTTPException(
+            status_code=404,
+            detail="Selected company was not found."
+        )
+
+    employee_id = employee_id.strip()
+    employee_name = employee_name.strip()
+    first_name = first_name.strip()
+    middle_name = middle_name.strip()
+    last_name = last_name.strip()
+    gender = gender.strip()
+    email = email.strip().lower()
+    mobile_number = mobile_number.strip()
+
+    employee_name = " ".join(
+        part
+        for part in [first_name, middle_name, last_name]
+        if part
+    )
+    employment_type = employment_type.strip()
+    employment_status = employment_status.strip()
+    designation = designation.strip()
+
+    if not employee_id:
+        raise HTTPException(status_code=400, detail="Employee ID is required.")
+
+    if not employee_name:
+        raise HTTPException(status_code=400, detail="Employee Name is required.")
+
+    if not first_name:
+        raise HTTPException(status_code=400, detail="First Name is required.")
+
+    if not last_name:
+        raise HTTPException(status_code=400, detail="Last Name is required.")
+
+    if gender not in {"Male", "Female", "Other"}:
+        raise HTTPException(status_code=400, detail="Invalid gender.")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Login Email is required.")
+
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least 8 characters."
+        )
+
+    mobile_digits = re.sub(r"\D", "", mobile_number)
+    if len(mobile_digits) < 7 or len(mobile_digits) > 15:
+        raise HTTPException(
+            status_code=400,
+            detail="Please enter a valid mobile number."
+        )
+
+    allowed_employment_types = {
+        "Permanent",
+        "Contract",
+        "Intern",
+        "Part-time",
+        "Consultant",
+        "Temporary",
+        "Other",
+    }
+
+    if employment_type not in allowed_employment_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Employment Type."
+        )
+
+    if employment_status not in {
+        "Active",
+        "Inactive",
+        "Notice Period",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Employment Status."
+        )
+
+    if not designation:
+        raise HTTPException(
+            status_code=400,
+            detail="Designation is required."
+        )
+
+    def validate_iso_date(value: str, field_name: str, required: bool = False):
+        from datetime import datetime as _dt
+
+        value = (value or "").strip()
+
+        if not value:
+            if required:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{field_name} is required."
+                )
+            return None
+
+        try:
+            return _dt.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field_name} must be a valid date."
+            )
+
+    dob = validate_iso_date(
+        date_of_birth,
+        "Date of Birth",
+        required=True,
+    )
+    doj = validate_iso_date(
+        date_of_joining,
+        "Date of Joining",
+        required=True,
+    )
+    confirmation = validate_iso_date(
+        date_of_confirmation,
+        "Date of Confirmation",
+    )
+    exit_date = validate_iso_date(
+        date_of_exit,
+        "Date of Exit",
+    )
+
+    today = __import__("datetime").date.today()
+
+    if dob > today:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Birth cannot be in the future."
+        )
+
+    if doj > today:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Joining cannot be in the future."
+        )
+
+    if confirmation and doj > confirmation:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Confirmation cannot be before Date of Joining."
+        )
+
+    if exit_date and doj > exit_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Date of Exit cannot be before Date of Joining."
+        )
+
+    existing_user = get_user_by_email(email)
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Email already exists."
+        )
+
+    if employee_id_exists(employee_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Employee ID already exists. Generate a new Employee ID."
+        )
+
+    profile_photo_url = None
+    photo_contents = b""
+
+    if profile_photo is not None:
+        if profile_photo.content_type not in {
+            "image/jpeg",
+            "image/png",
+            "image/jpg",
+        }:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo must be JPG or PNG."
+            )
+
+        photo_contents = await profile_photo.read()
+        if not photo_contents:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo cannot be empty."
+            )
+
+        if len(photo_contents) > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail="Profile photo must be smaller than 5 MB."
+            )
+
+    try:
+        if photo_contents:
+            upload_result = cloudinary.uploader.upload(
+                photo_contents,
+                folder="lms/profile_photos",
+                resource_type="image",
+            )
+
+            profile_photo_url = upload_result.get("secure_url", "")
+            if not profile_photo_url:
+                raise ValueError("Cloudinary did not return a profile photo URL.")
+
+        password_hash = hash_password(password)
+
+        user_id = create_user(
+            name=employee_name,
+            email=email,
+            password_hash=password_hash,
+            role="company_admin",
+            company_id=company_id,
+            department_id=None,
+            employee_id=employee_id,
+            first_name=first_name,
+            middle_name=middle_name or None,
+            last_name=last_name,
+            gender=gender,
+            date_of_birth=dob,
+            profile_photo_url=profile_photo_url,
+            mobile_number=mobile_number,
+            employment_type=employment_type,
+            employment_status=employment_status,
+            date_of_joining=doj,
+            date_of_confirmation=confirmation,
+            date_of_exit=exit_date,
+            designation=designation,
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        print("Company Admin creation failed:", exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create Company Admin."
+        )
+
+    notify_super_admins(
+        title="Company Admin created",
+        message=f"{employee_name} was created as a Company Admin.",
+        notification_type="user",
+        link="/dashboard/company-admins",
+        exclude_user_id=current_user.get("user_id"),
+    )
+
+    return {
+        "success": True,
+        "user_id": user_id,
+        "employee_id": employee_id,
+        "profile_photo_url": profile_photo_url,
+    }
 
 @app.get("/api/company-admins")
 async def get_company_admins_api(
@@ -2723,6 +3438,7 @@ async def delete_company_admin_api(
 
 @app.get("/api/department-heads")
 async def get_department_heads_api(
+    department_id: Optional[int] = None,
     current_user=Depends(get_current_user)
 ):
 
