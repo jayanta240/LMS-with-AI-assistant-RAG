@@ -563,7 +563,16 @@ export default function EmployeeLayout({
                     "var(--brand-primary-text)",
                 }}
               >
-                {initials || "L"}
+                {profilePhotoUrl && !profilePhotoError ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt={userName}
+                    className="h-full w-full rounded-full object-cover"
+                    onError={() => setProfilePhotoError(true)}
+                  />
+                ) : (
+                  initials || "L"
+                )}
               </div>
 
 
