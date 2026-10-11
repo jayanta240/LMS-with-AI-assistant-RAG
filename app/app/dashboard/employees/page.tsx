@@ -52,6 +52,7 @@ type Employee = {
   role: string;
   department?: string;
   department_id?: number;
+  department_head_id?: number;
   company_id?: number;
   progress?: number;
 };
@@ -335,6 +336,11 @@ export default function EmployeesPage() {
 
 
   async function loadDepartmentHeads() {
+    if (currentUser.role !== "company_admin") {
+      setDepartmentHeads([]);
+      return;
+    }
+
     const data =
       await getDepartmentHeads();
 
