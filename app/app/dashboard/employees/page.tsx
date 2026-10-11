@@ -6,7 +6,6 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 
 import {
   getDepartments,
-  registerUser,
   getUsers,
   getCourses,
   assignCourse,
@@ -20,8 +19,6 @@ import { getCurrentUser } from "@/lib/current-user";
 import {
   BriefcaseBusiness,
   CheckCircle2,
-  Eye,
-  EyeOff,
   GraduationCap,
   Mail,
   Plus,
@@ -35,8 +32,6 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
-  Eye,
-  EyeOff,
   ImagePlus,
   RefreshCw,
   Check,
