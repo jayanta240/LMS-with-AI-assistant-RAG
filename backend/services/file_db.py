@@ -144,6 +144,16 @@ def init_db():
             """)
 
             cursor.execute("""
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS department_head_id INTEGER
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_department_head_id
+                ON users(department_head_id)
+            """)
+
+            cursor.execute("""
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_employee_id_unique
                 ON users(employee_id)
                 WHERE employee_id IS NOT NULL
