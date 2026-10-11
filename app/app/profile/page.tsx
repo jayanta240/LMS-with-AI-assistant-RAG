@@ -8,14 +8,22 @@ export default function ProfilePage() {
     name: "",
     email: "",
     role: "",
+    profilePhotoUrl: "",
   });
+
+  const [profilePhotoError, setProfilePhotoError] =
+    useState(false);
 
   useEffect(() => {
     setUser({
       name: localStorage.getItem("user_name") || "Employee",
       email: localStorage.getItem("email") || "employee@example.com",
       role: localStorage.getItem("role") || "Employee",
+      profilePhotoUrl:
+        localStorage.getItem("profile_photo_url") || "",
     });
+
+    setProfilePhotoError(false);
   }, []);
 
   return (
@@ -31,8 +39,17 @@ export default function ProfilePage() {
 
         <div className="mt-8 rounded-2xl bg-white p-8 shadow">
           <div className="flex items-center gap-6">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-600 text-4xl text-white">
-              👤
+            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-4xl text-white">
+              {user.profilePhotoUrl && !profilePhotoError ? (
+                <img
+                  src={user.profilePhotoUrl}
+                  alt={user.name}
+                  className="h-full w-full object-cover"
+                  onError={() => setProfilePhotoError(true)}
+                />
+              ) : (
+                "👤"
+              )}
             </div>
 
             <div>
