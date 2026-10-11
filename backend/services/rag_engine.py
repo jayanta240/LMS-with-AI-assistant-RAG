@@ -26,6 +26,7 @@ ISSUE_COLLECTION = "issue_images"
 
 client = None
 embed_model = None
+qdrant_initialized = False
 
 
 # ============================================================
@@ -33,11 +34,12 @@ embed_model = None
 # ============================================================
 
 def init_qdrant():
-    global client, embed_model
+    global client, embed_model, qdrant_initialized
 
-    # --------------------------------------------------------
-    # QDRANT CLIENT
-    # --------------------------------------------------------
+    # Qdrant collection/index discovery and embedding-model
+    # initialization only need to happen once per backend process.
+    if qdrant_initialized:
+        return
 
     if client is None:
         client = QdrantClient(
@@ -46,21 +48,12 @@ def init_qdrant():
             timeout=30,
         )
 
-    # --------------------------------------------------------
-    # GET EXISTING COLLECTIONS
-    # --------------------------------------------------------
-
     collections = [
         c.name
         for c in client.get_collections().collections
     ]
 
-    # ========================================================
-    # ISSUE IMAGE COLLECTION
-    # ========================================================
-
     if ISSUE_COLLECTION not in collections:
-
         print("⚡ Creating issue image collection...")
 
         client.create_collection(
@@ -71,14 +64,7 @@ def init_qdrant():
             ),
         )
 
-        print("✅ Issue image collection created")
-
-    # ========================================================
-    # LEARNING CONTENT COLLECTION
-    # ========================================================
-
     if COLLECTION_NAME not in collections:
-
         print("⚡ Creating learning content collection...")
 
         client.create_collection(
@@ -88,12 +74,6 @@ def init_qdrant():
                 distance=Distance.COSINE,
             ),
         )
-
-        print("✅ Learning content collection created")
-
-    # ========================================================
-    # PAYLOAD INDEXES
-    # ========================================================
 
     existing_indexes = set()
 
@@ -110,102 +90,37 @@ def init_qdrant():
             payload_schema.keys()
         )
 
-    except Exception as e:
+    except Exception as error:
         print(
             "⚠️ Could not inspect payload indexes:",
-            e,
+            error,
         )
 
-    # --------------------------------------------------------
-    # SOURCE
-    # --------------------------------------------------------
+    required_indexes = {
+        "source": "keyword",
+        "video": "keyword",
+        "company_id": "integer",
+        "department_id": "integer",
+        "course_id": "integer",
+        "uploaded_by": "integer",
+        "visibility": "keyword",
+    }
 
-    if "source" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="source",
-            field_schema="keyword",
-        )
-
-    # --------------------------------------------------------
-    # VIDEO
-    # --------------------------------------------------------
-
-    if "video" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="video",
-            field_schema="keyword",
-        )
-
-    # --------------------------------------------------------
-    # COMPANY ID
-    # --------------------------------------------------------
-
-    if "company_id" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="company_id",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # DEPARTMENT ID
-    # --------------------------------------------------------
-
-    if "department_id" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="department_id",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # COURSE ID
-    # --------------------------------------------------------
-
-    if "course_id" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="course_id",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # UPLOADED BY
-    # --------------------------------------------------------
-
-    if "uploaded_by" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="uploaded_by",
-            field_schema="integer",
-        )
-
-    # --------------------------------------------------------
-    # VISIBILITY
-    # --------------------------------------------------------
-
-    if "visibility" not in existing_indexes:
-        client.create_payload_index(
-            collection_name=COLLECTION_NAME,
-            field_name="visibility",
-            field_schema="keyword",
-        )
-
-    print("✅ Qdrant payload indexes ready")
-
-    # ========================================================
-    # EMBEDDING MODEL
-    # ========================================================
+    for field_name, field_schema in required_indexes.items():
+        if field_name not in existing_indexes:
+            client.create_payload_index(
+                collection_name=COLLECTION_NAME,
+                field_name=field_name,
+                field_schema=field_schema,
+            )
 
     if embed_model is None:
         embed_model = HuggingFaceEmbedding(
             model_name="BAAI/bge-base-en-v1.5"
         )
 
+    qdrant_initialized = True
     print("✅ Qdrant Ready")
-
 
 # ============================================================
 # GET CLIENT
