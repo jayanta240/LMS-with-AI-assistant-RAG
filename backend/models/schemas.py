@@ -78,6 +78,21 @@ class UserRegister(BaseModel):
     role: str = "employee"
     company_id: Optional[int] = None
     department_id: Optional[int] = None
+    department_head_id: Optional[int] = None
+    employee_id: Optional[str] = None
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    last_name: Optional[str] = None
+    gender: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    profile_photo_url: Optional[str] = None
+    mobile_number: Optional[str] = None
+    employment_type: Optional[str] = None
+    employment_status: Optional[str] = None
+    date_of_joining: Optional[str] = None
+    date_of_confirmation: Optional[str] = None
+    date_of_exit: Optional[str] = None
+    designation: Optional[str] = None
     company_name: Optional[str] = None
 
 
