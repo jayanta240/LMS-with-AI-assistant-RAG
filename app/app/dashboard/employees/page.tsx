@@ -93,7 +93,33 @@ export default function EmployeesPage() {
   // CREATE EMPLOYEE FORM
   // ==========================================================
 
-  const [name, setName] =
+  type CreateStep = 1 | 2 | 3;
+
+  const [createStep, setCreateStep] =
+    useState<CreateStep>(1);
+
+  const [employeeId, setEmployeeId] =
+    useState("");
+
+  const [firstName, setFirstName] =
+    useState("");
+
+  const [middleName, setMiddleName] =
+    useState("");
+
+  const [lastName, setLastName] =
+    useState("");
+
+  const [gender, setGender] =
+    useState("");
+
+  const [dateOfBirth, setDateOfBirth] =
+    useState("");
+
+  const [profilePhoto, setProfilePhoto] =
+    useState<File | null>(null);
+
+  const [profilePhotoPreview, setProfilePhotoPreview] =
     useState("");
 
   const [email, setEmail] =
@@ -102,11 +128,47 @@ export default function EmployeesPage() {
   const [password, setPassword] =
     useState("");
 
-  const [departmentId, setDepartmentId] =
+  const [confirmPassword, setConfirmPassword] =
     useState("");
+
+  const [autoGeneratePassword, setAutoGeneratePassword] =
+    useState(true);
 
   const [showPassword, setShowPassword] =
     useState(false);
+
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
+
+  const [mobileNumber, setMobileNumber] =
+    useState("");
+
+  const [employmentType, setEmploymentType] =
+    useState("");
+
+  const [employmentStatus, setEmploymentStatus] =
+    useState("");
+
+  const [dateOfJoining, setDateOfJoining] =
+    useState("");
+
+  const [dateOfConfirmation, setDateOfConfirmation] =
+    useState("");
+
+  const [dateOfExit, setDateOfExit] =
+    useState("");
+
+  const [designation, setDesignation] =
+    useState("");
+
+  const [departmentId, setDepartmentId] =
+    useState("");
+
+  const [departmentHeadId, setDepartmentHeadId] =
+    useState("");
+
+  const [departmentHeads, setDepartmentHeads] =
+    useState<any[]>([]);
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
