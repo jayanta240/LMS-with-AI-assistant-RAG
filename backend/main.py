@@ -3462,6 +3462,7 @@ async def delete_company_admin_api(
 
 @app.get("/api/department-heads")
 async def get_department_heads_api(
+    department_id: Optional[int] = None,
     current_user=Depends(get_current_user)
 ):
 
@@ -3485,7 +3486,13 @@ async def get_department_heads_api(
             "created_at": row[8],
         }
         for row in rows
-        if row[3] == "department_head"
+        if (
+            row[3] == "department_head"
+            and (
+                department_id is None
+                or row[6] == department_id
+            )
+        )
     ]
 
 
@@ -3611,11 +3618,11 @@ async def assign_course_api(
                 detail="Courses can only be assigned to employees."
             )
 
-        if user[6] != current_user["department_id"]:
+        if user[22] != current_user["user_id"]:
 
             raise HTTPException(
                 status_code=403,
-                detail="Cannot assign courses outside your department."
+                detail="Cannot assign courses to an employee who is not assigned to you."
             )
 
     # ---------------------------------
@@ -3769,7 +3776,7 @@ async def get_user_courses_api(
     # Department Head
     elif current_user["role"] == "department_head":
 
-        if user[6] != current_user["department_id"]:
+        if user[22] != current_user["user_id"]:
 
             raise HTTPException(
                 status_code=403,
@@ -4470,7 +4477,7 @@ async def course_progress(
 
         user = get_user_by_id(user_id)
 
-        if user[6] != current_user["department_id"]:
+        if user[22] != current_user["user_id"]:
 
             raise HTTPException(
                 status_code=403,
@@ -4507,7 +4514,7 @@ async def completed_lessons(
 
         user = get_user_by_id(user_id)
 
-        if user[6] != current_user["department_id"]:
+        if user[22] != current_user["user_id"]:
 
             raise HTTPException(
                 status_code=403,
