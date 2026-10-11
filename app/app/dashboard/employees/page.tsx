@@ -19,6 +19,8 @@ import { getCurrentUser } from "@/lib/current-user";
 import {
   BriefcaseBusiness,
   CheckCircle2,
+  Eye,
+  EyeOff,
   GraduationCap,
   Mail,
   Plus,
