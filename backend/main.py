@@ -2810,7 +2810,7 @@ async def create_employee_profile(
             detail="Password must contain at least 8 characters."
         )
 
-    mobile_digits = re.sub(r"\\D", "", mobile_number)
+    mobile_digits = re.sub(r"\D", "", mobile_number)
     if len(mobile_digits) < 7 or len(mobile_digits) > 15:
         raise HTTPException(
             status_code=400,
