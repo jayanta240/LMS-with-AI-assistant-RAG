@@ -279,7 +279,11 @@ def get_dashboard_metrics(
                 user_filters.append("u.role = 'employee'")
 
             elif role == "department_head":
-                if department_id is not None:
+                if user_id is not None:
+                    user_filters.append("u.department_head_id = %s")
+                    user_params.append(user_id)
+                    user_filters.append("u.role = 'employee'")
+                elif department_id is not None:
                     user_filters.append("u.department_id = %s")
                     user_params.append(department_id)
                     user_filters.append("u.role = 'employee'")
@@ -377,7 +381,10 @@ def get_dashboard_metrics(
                     enrollment_filters.append("c.company_id = %s")
                     enrollment_params.append(company_id)
 
-            if role == "department_head" and department_id is not None:
+            if role == "department_head" and user_id is not None:
+                enrollment_filters.append("u.department_head_id = %s")
+                enrollment_params.append(user_id)
+            elif role == "department_head" and department_id is not None:
                 enrollment_filters.append("u.department_id = %s")
                 enrollment_params.append(department_id)
 
@@ -495,7 +502,17 @@ def get_dashboard_metrics(
                     learning_filters.append("lt.company_id = %s")
                     learning_params.append(company_id)
 
-            if role == "department_head" and department_id is not None:
+            if role == "department_head" and user_id is not None:
+                learning_filters.append("""
+                    EXISTS (
+                        SELECT 1
+                        FROM users u
+                        WHERE u.id = lt.user_id
+                          AND u.department_head_id = %s
+                    )
+                """)
+                learning_params.append(user_id)
+            elif role == "department_head" and department_id is not None:
                 learning_filters.append("""
                     EXISTS (
                         SELECT 1
@@ -542,7 +559,17 @@ def get_dashboard_metrics(
                     ai_filters.append("a.company_id = %s")
                     ai_params.append(company_id)
 
-            if role == "department_head" and department_id is not None:
+            if role == "department_head" and user_id is not None:
+                ai_filters.append("""
+                    EXISTS (
+                        SELECT 1
+                        FROM users u
+                        WHERE u.id = a.user_id
+                          AND u.department_head_id = %s
+                    )
+                """)
+                ai_params.append(user_id)
+            elif role == "department_head" and department_id is not None:
                 ai_filters.append("""
                     EXISTS (
                         SELECT 1
