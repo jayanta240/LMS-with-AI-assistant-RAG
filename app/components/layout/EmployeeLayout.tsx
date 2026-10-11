@@ -41,6 +41,12 @@ export default function EmployeeLayout({
   const [companyName, setCompanyName] =
     React.useState("");
 
+  const [profilePhotoUrl, setProfilePhotoUrl] =
+    React.useState("");
+
+  const [profilePhotoError, setProfilePhotoError] =
+    React.useState(false);
+
   const [mobileOpen, setMobileOpen] =
     React.useState(false);
 
@@ -61,6 +67,14 @@ export default function EmployeeLayout({
         "company_name"
       ) || ""
     );
+
+    setProfilePhotoUrl(
+      localStorage.getItem(
+        "profile_photo_url"
+      ) || ""
+    );
+
+    setProfilePhotoError(false);
   }, []);
 
 
@@ -421,7 +435,16 @@ export default function EmployeeLayout({
                   "var(--brand-primary-text)",
               }}
             >
-              {initials || "L"}
+              {profilePhotoUrl && !profilePhotoError ? (
+                <img
+                  src={profilePhotoUrl}
+                  alt={userName}
+                  className="h-full w-full rounded-full object-cover"
+                  onError={() => setProfilePhotoError(true)}
+                />
+              ) : (
+                initials || "L"
+              )}
             </div>
 
 
@@ -540,7 +563,16 @@ export default function EmployeeLayout({
                     "var(--brand-primary-text)",
                 }}
               >
-                {initials || "L"}
+                {profilePhotoUrl && !profilePhotoError ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt={userName}
+                    className="h-full w-full rounded-full object-cover"
+                    onError={() => setProfilePhotoError(true)}
+                  />
+                ) : (
+                  initials || "L"
+                )}
               </div>
 
 
