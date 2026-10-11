@@ -14,6 +14,7 @@ def create_user(
     role="employee",
     company_id=None,
     department_id=None,
+    department_head_id=None,
     employee_id=None,
     first_name=None,
     middle_name=None,
@@ -44,6 +45,7 @@ def create_user(
                     department_id,
                     created_at,
                     employee_id,
+                    department_head_id,
                     first_name,
                     middle_name,
                     last_name,
@@ -59,7 +61,7 @@ def create_user(
                     designation
                 )
                 VALUES (
-                    %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s
                 )
@@ -74,6 +76,7 @@ def create_user(
                 datetime.now(),
                 employee_id,
                 first_name,
+                department_head_id,
                 middle_name,
                 last_name,
                 gender,
@@ -197,7 +200,8 @@ def get_all_users(company_id=None):
                         u.department_id,
                         d.department_name,
 
-                        u.created_at
+                        u.created_at,
+                        u.department_head_id
 
                     FROM users u
 
@@ -227,7 +231,8 @@ def get_all_users(company_id=None):
                         u.department_id,
                         d.department_name,
 
-                        u.created_at
+                        u.created_at,
+                        u.department_head_id
 
                     FROM users u
 
