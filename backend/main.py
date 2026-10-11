@@ -2485,7 +2485,8 @@ async def register_user(
         password_hash=password_hash,
         role=data.role,
         company_id=data.company_id,
-        department_id=data.department_id
+        department_id=data.department_id,
+        department_head_id=data.department_head_id
     )
 
     if data.company_id:
