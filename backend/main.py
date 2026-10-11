@@ -2445,6 +2445,52 @@ async def register_user(
         # Never trust frontend
         data.company_id = current_user["company_id"]
 
+        if data.role == "employee":
+            if not data.department_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Department is required."
+                )
+
+            if not data.department_head_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Department Head is required."
+                )
+
+            department_rows = get_departments(
+                data.company_id
+            )
+
+            if not any(
+                row[0] == data.department_id
+                for row in department_rows
+            ):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Selected department does not belong to your company."
+                )
+
+            head = get_user_by_id(
+                data.department_head_id
+            )
+
+            if not head:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Selected Department Head was not found."
+                )
+
+            if (
+                head[4] != "department_head"
+                or head[5] != data.company_id
+                or head[6] != data.department_id
+            ):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Selected Department Head is not assigned to this department."
+                )
+
     # ---------------------------------
     # DEPARTMENT HEAD
     # Can create Employees only
@@ -2462,6 +2508,7 @@ async def register_user(
         data.company_id = current_user["company_id"]
 
         data.department_id = current_user["department_id"]
+        data.department_head_id = current_user["user_id"]
 
     # ---------------------------------
     # EMPLOYEE
