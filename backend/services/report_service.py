@@ -1,4 +1,5 @@
 from datetime import datetime
+from html import escape
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -132,7 +133,7 @@ def build_report_pdf(
 
     story = [
         Paragraph("Learning Management System Report", styles["ReportTitle"]),
-        Paragraph(f"<b>Scope:</b> {scope_label}", styles["Normal"]),
+        Paragraph(f"<b>Scope:</b> {escape(scope_label)}", styles["Normal"]),
         Paragraph(
             f"<b>Generated:</b> {datetime.now().strftime('%d %B %Y, %I:%M %p')}",
             styles["Normal"],
@@ -142,7 +143,7 @@ def build_report_pdf(
     ]
 
     summary_items = [
-        ("Users / Employees", metrics.get("users", 0)),
+        ("Users" if metrics_role == "super_admin" and company_id is None else "Employees", metrics.get("users", 0)),
         ("Active Users (30 days)", metrics.get("active_users", 0)),
         ("Courses", metrics.get("courses", 0)),
         ("Lessons", metrics.get("lessons", 0)),
