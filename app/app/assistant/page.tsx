@@ -1148,11 +1148,10 @@ ${diagnosis.solution}
 
             <div className="mt-5 space-y-3">
 
+              {/* =================================================
+                  COMPANY
+                 ================================================= */}
               {role !== "department_head" && (
-                {/* =================================================
-                    COMPANY
-                   ================================================= */}
-  
                 <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
   
                   <input
