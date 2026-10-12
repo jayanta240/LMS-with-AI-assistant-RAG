@@ -61,6 +61,7 @@ type Employee = {
   department_head_id?: number;
   company_id?: number;
   progress?: number;
+  profile_photo_url?: string | null;
 };
 
 
@@ -1859,7 +1860,8 @@ export default function EmployeesPage() {
 
                             <div className="flex items-center gap-3">
 
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-yellow-100 to-amber-200 text-sm font-bold text-slate-800">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-yellow-100 to-amber-200 text-sm font-bold text-slate-800">
+                                {user.profile_photo_url ? <img src={user.profile_photo_url} alt={user.name} className="h-full w-full object-cover" /> : (
 
                                 {user.name
                                   ?.split(" ")
@@ -1871,7 +1873,7 @@ export default function EmployeesPage() {
                                   )
                                   .join("")
                                   .toUpperCase() ||
-                                  "U"}
+                                  "U"})}
 
                               </div>
 
