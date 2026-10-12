@@ -287,7 +287,10 @@ def get_courses(company_id=None):
                         description,
                         thumbnail_url,
                         created_at,
-                        company_id
+                        company_id,
+                        category, sub_category, level, course_code, language,
+                        duration, course_type, visibility, tags, learning_outcomes,
+                        release_date, expiry_date, status
                     FROM courses
                     ORDER BY id DESC
                 """)
@@ -301,7 +304,10 @@ def get_courses(company_id=None):
                         description,
                         thumbnail_url,
                         created_at,
-                        company_id
+                        company_id,
+                        category, sub_category, level, course_code, language,
+                        duration, course_type, visibility, tags, learning_outcomes,
+                        release_date, expiry_date, status
                     FROM courses
                     WHERE company_id = %s
                     ORDER BY id DESC
@@ -333,7 +339,10 @@ def get_course(
                         description,
                         thumbnail_url,
                         created_at,
-                        company_id
+                        company_id,
+                        category, sub_category, level, course_code, language,
+                        duration, course_type, visibility, tags, learning_outcomes,
+                        release_date, expiry_date, status
                     FROM courses
                     WHERE id = %s
                 """, (course_id,))
@@ -347,7 +356,10 @@ def get_course(
                         description,
                         thumbnail_url,
                         created_at,
-                        company_id
+                        company_id,
+                        category, sub_category, level, course_code, language,
+                        duration, course_type, visibility, tags, learning_outcomes,
+                        release_date, expiry_date, status
                     FROM courses
                     WHERE id = %s
                       AND company_id = %s
