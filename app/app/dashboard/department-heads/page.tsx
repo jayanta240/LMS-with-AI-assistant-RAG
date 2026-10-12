@@ -13,6 +13,7 @@ import {
 
 import { getCurrentUser } from "@/lib/current-user";
 import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
+import BulkRegistrationPanel from "@/components/users/BulkRegistrationPanel";
 
 import {
   BriefcaseBusiness,
@@ -104,6 +105,16 @@ export default function DepartmentHeadsPage() {
 
   }, [companyId]);
 
+
+  useEffect(() => {
+    const refreshAfterBulk = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.kind !== "department_head") return;
+      getDepartmentHeads().then((data) => setDepartmentHeads(Array.isArray(data) ? data : [])).catch(console.error);
+    };
+    window.addEventListener("lms-bulk-registration-complete", refreshAfterBulk);
+    return () => window.removeEventListener("lms-bulk-registration-complete", refreshAfterBulk);
+  }, []);
 
   async function loadData(id: number) {
 
@@ -412,6 +423,8 @@ export default function DepartmentHeadsPage() {
 
         </div>
 
+
+        <BulkRegistrationPanel kind="department_head" />
 
         {/* ==================================================
             CREATE PANEL
