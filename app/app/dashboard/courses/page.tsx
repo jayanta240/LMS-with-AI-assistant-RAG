@@ -284,7 +284,7 @@ export default function CoursesPage() {
                 </p>
 
                 <p className="mt-2 text-2xl font-bold text-slate-900">
-                  {courses.length}
+                  {courses.filter((course) => (course.status || "published") === "published").length}
                 </p>
 
               </div>
