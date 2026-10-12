@@ -265,13 +265,29 @@ export default function DashboardPage() {
             PAGE HEADER
            ===================================================== */}
 
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-white via-white to-amber-50/70 px-5 py-5 shadow-sm sm:px-6 xl:flex-row xl:items-center xl:justify-between">
 
           <div>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">
+              CPUTEK LMS · Overview
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               {dashboardTitle}
             </h1>
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+              {role === "super_admin"
+                ? "Monitor platform activity, companies, and learning performance across your organization."
+                : role === "company_admin"
+                  ? "Track your company’s learning activity, courses, and team progress."
+                  : role === "department_head"
+                    ? "Review your department’s learning activity and course progress."
+                    : "Pick up where you left off and keep your learning progress moving."}
+            </p>
+          </div>
 
+          <div className="flex shrink-0 items-center gap-2 self-start rounded-xl border border-amber-100 bg-white/90 px-3 py-2 text-xs font-medium text-slate-600 shadow-sm xl:self-center">
+            <Activity size={15} className="text-amber-500" />
+            <span>Live platform metrics</span>
           </div>
         </div>
 
