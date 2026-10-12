@@ -903,9 +903,7 @@ export default function DepartmentHeadsPage() {
                   >
 
                     <td className="px-4 py-4">
-                      <p className="font-semibold text-slate-900">
-                        {head.name || "Unnamed"}
-                      </p>
+                      <div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-100 text-xs font-bold text-amber-700">{head.profile_photo_url ? <img src={head.profile_photo_url} alt={head.name} className="h-full w-full object-cover" /> : (head.name || "DH").split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div><p className="font-semibold text-slate-900">{head.name || "Unnamed"}</p></div>
                     </td>
 
                     <td className="px-4 py-4">
