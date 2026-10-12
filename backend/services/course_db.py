@@ -36,7 +36,8 @@ def init_course_db():
                     learning_outcomes TEXT NOT NULL DEFAULT '[]',
                     release_date TEXT,
                     expiry_date TEXT,
-                    status TEXT NOT NULL DEFAULT 'published'
+                    status TEXT NOT NULL DEFAULT 'published',
+                    department_id INTEGER
                 )
             """)
 
@@ -54,7 +55,8 @@ def init_course_db():
                 ("learning_outcomes", "TEXT NOT NULL DEFAULT '[]'"),
                 ("release_date", "TEXT"),
                 ("expiry_date", "TEXT"),
-                ("status", "TEXT NOT NULL DEFAULT 'draft'"),
+                ("status", "TEXT NOT NULL DEFAULT 'published'"),
+                ("department_id", "INTEGER"),
             ]:
                 cursor.execute(
                     f"ALTER TABLE courses ADD COLUMN IF NOT EXISTS {column} {definition}"
@@ -184,6 +186,7 @@ def create_course(
     release_date=None,
     expiry_date=None,
     status="draft",
+    department_id=None,
 ):
     """
     Create a course belonging to exactly one company.
@@ -212,10 +215,10 @@ def create_course(
                     company_id, title, description, thumbnail_url, created_at,
                     category, sub_category, level, course_code, language, duration,
                     course_type, visibility, tags, learning_outcomes,
-                    release_date, expiry_date, status
+                    release_date, expiry_date, status, department_id
                 )
                 VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
                 RETURNING id
             """, (
@@ -223,7 +226,7 @@ def create_course(
                 category, sub_category, level, course_code, language, duration,
                 course_type, visibility,
                 json.dumps(tags or []), json.dumps(learning_outcomes or []),
-                release_date, expiry_date, status,
+                release_date, expiry_date, status, department_id,
             ))
 
             row = cursor.fetchone()
@@ -268,106 +271,54 @@ def get_all_courses():
             return cursor.fetchall()
 
 
-def get_courses(company_id=None):
+def get_courses(company_id=None, department_id=None):
+    """Return courses, optionally scoped to a company and department."""
+    select_sql = """
+        SELECT id, title, description, thumbnail_url, created_at, company_id,
+               category, sub_category, level, course_code, language, duration,
+               course_type, visibility, tags, learning_outcomes, release_date,
+               expiry_date, status, department_id
+        FROM courses
     """
-    Return courses belonging to one company.
-
-    If company_id is None, return all courses.
-    """
+    conditions = []
+    params = []
+    if company_id is not None:
+        conditions.append("company_id = %s")
+        params.append(company_id)
+    if department_id is not None:
+        conditions.append("department_id = %s")
+        params.append(department_id)
+    if conditions:
+        select_sql += " WHERE " + " AND ".join(conditions)
+    select_sql += " ORDER BY id DESC"
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-
-            if company_id is None:
-
-                cursor.execute("""
-                    SELECT
-                        id,
-                        title,
-                        description,
-                        thumbnail_url,
-                        created_at,
-                        company_id,
-                        category, sub_category, level, course_code, language,
-                        duration, course_type, visibility, tags, learning_outcomes,
-                        release_date, expiry_date, status
-                    FROM courses
-                    ORDER BY id DESC
-                """)
-
-            else:
-
-                cursor.execute("""
-                    SELECT
-                        id,
-                        title,
-                        description,
-                        thumbnail_url,
-                        created_at,
-                        company_id,
-                        category, sub_category, level, course_code, language,
-                        duration, course_type, visibility, tags, learning_outcomes,
-                        release_date, expiry_date, status
-                    FROM courses
-                    WHERE company_id = %s
-                    ORDER BY id DESC
-                """, (company_id,))
-
+            cursor.execute(select_sql, tuple(params))
             return cursor.fetchall()
 
 
-def get_course(
-    course_id,
-    company_id=None
-):
+def get_course(course_id, company_id=None, department_id=None):
+    """Fetch one course, enforcing any supplied company/department scope."""
+    query = """
+        SELECT id, title, description, thumbnail_url, created_at, company_id,
+               category, sub_category, level, course_code, language, duration,
+               course_type, visibility, tags, learning_outcomes, release_date,
+               expiry_date, status, department_id
+        FROM courses
+        WHERE id = %s
     """
-    Fetch a single course.
-
-    When company_id is supplied, the course must belong
-    to that company.
-    """
+    params = [course_id]
+    if company_id is not None:
+        query += " AND company_id = %s"
+        params.append(company_id)
+    if department_id is not None:
+        query += " AND department_id = %s"
+        params.append(department_id)
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-
-            if company_id is None:
-
-                cursor.execute("""
-                    SELECT
-                        id,
-                        title,
-                        description,
-                        thumbnail_url,
-                        created_at,
-                        company_id,
-                        category, sub_category, level, course_code, language,
-                        duration, course_type, visibility, tags, learning_outcomes,
-                        release_date, expiry_date, status
-                    FROM courses
-                    WHERE id = %s
-                """, (course_id,))
-
-            else:
-
-                cursor.execute("""
-                    SELECT
-                        id,
-                        title,
-                        description,
-                        thumbnail_url,
-                        created_at,
-                        company_id,
-                        category, sub_category, level, course_code, language,
-                        duration, course_type, visibility, tags, learning_outcomes,
-                        release_date, expiry_date, status
-                    FROM courses
-                    WHERE id = %s
-                      AND company_id = %s
-                """, (
-                    course_id,
-                    company_id,
-                ))
-
+            cursor.execute(query, tuple(params))
             return cursor.fetchone()
 
 
