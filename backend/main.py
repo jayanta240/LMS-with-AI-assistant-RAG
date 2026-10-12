@@ -3990,6 +3990,96 @@ async def company_certificates(
         "success": True,
         "certificates": certificates,
     }
+@app.get("/api/reports/download")
+def download_report(
+    scope: str = "default",
+    company_id: Optional[int] = None,
+    department_id: Optional[int] = None,
+    current_user=Depends(get_current_user),
+):
+    """Download a PDF report with role-enforced company/department boundaries."""
+    role = current_user.get("role")
+    report_company_id = None
+    report_department_id = None
+    metrics_role = role
+    scope_label = ""
+
+    if role == "super_admin":
+        if scope == "all":
+            report_company_id = None
+            report_department_id = None
+            metrics_role = "super_admin"
+            scope_label = "All Companies"
+        elif scope == "company":
+            if company_id is None:
+                raise HTTPException(status_code=400, detail="company_id is required for a company report.")
+            company = get_company(company_id)
+            if not company:
+                raise HTTPException(status_code=404, detail="Company not found.")
+            report_company_id = company_id
+            metrics_role = "company_admin"
+            scope_label = f"Company - {company[1]}"
+        else:
+            raise HTTPException(status_code=400, detail="Super Admin can download all-company or individual-company reports.")
+
+    elif role == "company_admin":
+        report_company_id = current_user.get("company_id")
+        if report_company_id is None:
+            raise HTTPException(status_code=400, detail="Your account is not associated with a company.")
+        if scope == "company":
+            metrics_role = "company_admin"
+            scope_label = "Whole Company"
+        elif scope == "department":
+            if department_id is None:
+                raise HTTPException(status_code=400, detail="department_id is required for a department report.")
+            matching_department = next(
+                (row for row in get_departments(report_company_id) if row[0] == department_id),
+                None,
+            )
+            if not matching_department:
+                raise HTTPException(status_code=404, detail="Department not found in your company.")
+            report_department_id = department_id
+            metrics_role = "department_head"
+            scope_label = f"Department - {matching_department[2]}"
+        else:
+            raise HTTPException(status_code=400, detail="Company Admin can download company or department reports.")
+
+    elif role == "department_head":
+        if scope != "department":
+            raise HTTPException(status_code=403, detail="Department Heads can download only their own department report.")
+        report_company_id = current_user.get("company_id")
+        report_department_id = current_user.get("department_id")
+        if report_company_id is None or report_department_id is None:
+            raise HTTPException(status_code=400, detail="Your account is not assigned to a company and department.")
+        matching_department = next(
+            (row for row in get_departments(report_company_id) if row[0] == report_department_id),
+            None,
+        )
+        if not matching_department:
+            raise HTTPException(status_code=404, detail="Your assigned department was not found.")
+        metrics_role = "department_head"
+        scope_label = f"Department - {matching_department[2]}"
+    else:
+        raise HTTPException(status_code=403, detail="You do not have permission to download reports.")
+
+    from services.report_service import build_report_pdf
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+
+    pdf_bytes = build_report_pdf(
+        scope_label=scope_label,
+        metrics_role=metrics_role,
+        company_id=report_company_id,
+        department_id=report_department_id,
+    )
+    filename_slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", scope_label).strip("-").lower() or "lms-report"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename_slug}-report.pdf"'},
+    )
+
+
 @app.get("/api/dashboard/stats")
 def dashboard_stats(
     current_user=Depends(get_current_user)
