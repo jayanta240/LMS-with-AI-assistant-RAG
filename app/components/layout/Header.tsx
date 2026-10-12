@@ -220,6 +220,11 @@ export default function Header({
   }, []);
 
 
+  function openProfile() {
+    const storedRole = localStorage.getItem("role") || "";
+    router.push(storedRole === "employee" ? "/profile" : "/dashboard/profile");
+  }
+
   const initials = userName
     .split(" ")
     .filter(Boolean)
@@ -489,7 +494,7 @@ export default function Header({
 
           <button
             type="button"
-            onClick={() => router.push("/dashboard/profile")}
+            onClick={openProfile}
             aria-label="Open profile"
             className="
               flex
