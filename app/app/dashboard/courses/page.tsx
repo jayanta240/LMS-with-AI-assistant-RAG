@@ -506,7 +506,7 @@ export default function CoursesPage() {
                     <div className="absolute left-4 top-4">
 
                       <span className={`rounded-full border border-white/30 px-2.5 py-1 text-[11px] font-semibold capitalize text-white shadow-sm backdrop-blur ${course.status === "published" ? "bg-emerald-600/90" : "bg-slate-950/65"}`}>
-                        Published
+                        {(course.status || "published").replace("_", " ")}
                       </span>
 
                     </div>
