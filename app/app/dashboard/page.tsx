@@ -255,6 +255,14 @@ export default function DashboardPage() {
     stats.ai_messages ?? 0;
 
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <PageLoadingSkeleton title="Loading dashboard metrics" variant="dashboard" />
+      </DashboardLayout>
+    );
+  }
+
   return (
 
     <DashboardLayout>
@@ -297,11 +305,7 @@ export default function DashboardPage() {
             TOP METRICS
            ===================================================== */}
 
-        {loading ? (
-          <PageLoadingSkeleton title="Loading dashboard metrics" variant="dashboard" />
-        ) : null}
-
-        <div className={loading ? "hidden" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-5"}>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
           <MetricCard
             title={
