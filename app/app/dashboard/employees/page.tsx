@@ -15,6 +15,7 @@ import {
 } from "@/lib/course-api";
 
 import { getCurrentUser } from "@/lib/current-user";
+import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
 
 import {
   BriefcaseBusiness,
@@ -1735,15 +1736,7 @@ export default function EmployeesPage() {
 
           {loading ? (
 
-            <div className="px-6 py-14 text-center">
-
-              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-amber-500" />
-
-              <p className="mt-4 text-sm text-slate-500">
-                Loading employees...
-              </p>
-
-            </div>
+<div className="p-5"><PageLoadingSkeleton title="Loading employees" variant="table" rows={6} /></div>
 
           ) : filteredUsers.length === 0 ? (
 
