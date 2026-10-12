@@ -4175,6 +4175,19 @@ async def complete_lesson(
         )
 
 
+    if current_user.get("role") == "employee":
+        visibility = course[13] or "private"
+        course_company_id = course[5]
+        course_department_id = course[19] if len(course) > 19 else None
+        if course_department_id is not None and visibility != "public" and current_user.get("department_id") != course_department_id:
+            raise HTTPException(status_code=403, detail="This course is restricted to its assigned department.")
+        if visibility == "private" and data.course_id not in get_user_course_ids(user_id):
+            raise HTTPException(status_code=403, detail="This private course is not assigned to you.")
+        if visibility == "organization" and company_id != course_company_id:
+            raise HTTPException(status_code=403, detail="This course is only available within its organization.")
+        if visibility not in {"private", "organization", "public"}:
+            raise HTTPException(status_code=403, detail="Course visibility is not configured correctly.")
+
     course_title = (
         course[1]
         if len(course) > 1
