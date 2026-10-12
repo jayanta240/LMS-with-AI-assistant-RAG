@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { clearApiCache } from "@/lib/course-api";
 import { Download, FileSpreadsheet, Upload, X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 type FailedRow = { row: number; email?: string; reason: string };
@@ -77,6 +78,7 @@ export default function BulkRegistrationPanel({ kind }: { kind: "employee" | "de
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.detail || "Bulk registration failed.");
       setResult(data);
+      clearApiCache();
       setFile(null);
       const input = document.getElementById(`bulk-${kind}-file`) as HTMLInputElement | null;
       if (input) input.value = "";
