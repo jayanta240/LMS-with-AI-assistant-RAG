@@ -1306,112 +1306,114 @@ ${diagnosis.solution}
               </div>
 
 
-              {/* =================================================
-                  COURSE
-                 ================================================= */}
-
-              <div className="rounded-xl border border-slate-200 p-4">
-
-                <label className="flex cursor-pointer items-center gap-3">
-
-                  <input
-                    type="radio"
-                    name="uploadVisibility"
-                    value="course"
-                    checked={
-                      uploadVisibility ===
-                      "course"
-                    }
-                    onChange={() => {
-
-                      setUploadVisibility(
+              {role !== "department_head" && (
+                {/* =================================================
+                    COURSE
+                   ================================================= */}
+  
+                <div className="rounded-xl border border-slate-200 p-4">
+  
+                  <label className="flex cursor-pointer items-center gap-3">
+  
+                    <input
+                      type="radio"
+                      name="uploadVisibility"
+                      value="course"
+                      checked={
+                        uploadVisibility ===
                         "course"
-                      );
-
-                      setSelectedDepartmentId(
-                        undefined
-                      );
-
-                    }}
-                  />
-
-                  <div>
-
-                    <div className="text-sm font-semibold text-slate-800">
-                      Course Enrollees
+                      }
+                      onChange={() => {
+  
+                        setUploadVisibility(
+                          "course"
+                        );
+  
+                        setSelectedDepartmentId(
+                          undefined
+                        );
+  
+                      }}
+                    />
+  
+                    <div>
+  
+                      <div className="text-sm font-semibold text-slate-800">
+                        Course Enrollees
+                      </div>
+  
+                      <div className="mt-0.5 text-xs text-slate-500">
+                        Only employees enrolled in the selected course can access it.
+                      </div>
+  
                     </div>
-
-                    <div className="mt-0.5 text-xs text-slate-500">
-                      Only employees enrolled in the selected course can access it.
+  
+                  </label>
+  
+  
+                  {uploadVisibility ===
+                    "course" && (
+  
+                    <div className="mt-4">
+  
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+                        Select Course
+                      </label>
+  
+                      <select
+                        value={
+                          selectedCourseId ??
+                          ""
+                        }
+                        onChange={(e) =>
+                          setSelectedCourseId(
+                            e.target.value
+                              ? Number(
+                                  e.target.value
+                                )
+                              : undefined
+                          )
+                        }
+                        disabled={
+                          optionsLoading
+                        }
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
+                      >
+  
+                        <option value="">
+                          {optionsLoading
+                            ? "Loading courses..."
+                            : "Select a course"}
+                        </option>
+  
+  
+                        {courses.map(
+                          (course) => (
+  
+                            <option
+                              key={
+                                course.id
+                              }
+                              value={
+                                course.id
+                              }
+                            >
+                              {
+                                course.title
+                              }
+                            </option>
+  
+                          )
+                        )}
+  
+                      </select>
+  
                     </div>
-
-                  </div>
-
-                </label>
-
-
-                {uploadVisibility ===
-                  "course" && (
-
-                  <div className="mt-4">
-
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                      Select Course
-                    </label>
-
-                    <select
-                      value={
-                        selectedCourseId ??
-                        ""
-                      }
-                      onChange={(e) =>
-                        setSelectedCourseId(
-                          e.target.value
-                            ? Number(
-                                e.target.value
-                              )
-                            : undefined
-                        )
-                      }
-                      disabled={
-                        optionsLoading
-                      }
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
-                    >
-
-                      <option value="">
-                        {optionsLoading
-                          ? "Loading courses..."
-                          : "Select a course"}
-                      </option>
-
-
-                      {courses.map(
-                        (course) => (
-
-                          <option
-                            key={
-                              course.id
-                            }
-                            value={
-                              course.id
-                            }
-                          >
-                            {
-                              course.title
-                            }
-                          </option>
-
-                        )
-                      )}
-
-                    </select>
-
-                  </div>
-
-                )}
-
-              </div>
+  
+                  )}
+  
+                </div>
+              )}
 
             </div>
 
