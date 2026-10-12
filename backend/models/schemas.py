@@ -44,6 +44,19 @@ class CourseCreate(BaseModel):
     title: str
     description: str
     thumbnail_url: str = ""
+    category: Optional[str] = None
+    sub_category: Optional[str] = None
+    level: Optional[str] = None
+    course_code: Optional[str] = None
+    language: Optional[str] = None
+    duration: Optional[str] = None
+    course_type: str = "online"
+    visibility: str = "private"
+    tags: List[str] = []
+    learning_outcomes: List[str] = []
+    release_date: Optional[str] = None
+    expiry_date: Optional[str] = None
+    status: str = "draft"
 
 
 class CourseResponse(BaseModel):
