@@ -2108,7 +2108,13 @@ async def get_courses_api(
                 detail="Company information is missing."
             )
 
-        rows = get_courses(company_id)
+        if role == "department_head":
+            department_id = current_user.get("department_id")
+            if department_id is None:
+                raise HTTPException(status_code=403, detail="Department information is missing.")
+            rows = get_courses(company_id, department_id=department_id)
+        else:
+            rows = get_courses(company_id)
 
     else:
         raise HTTPException(
@@ -2150,21 +2156,22 @@ async def create_course_api(
     role = current_user["role"]
     company_id = current_user.get("company_id")
 
-    # Courses can be created only inside an assigned company.
-    if role not in [
-        "company_admin",
-        "department_head"
-    ]:
-        raise HTTPException(
-            status_code=403,
-            detail="Only Company Admins and Department Heads can create courses."
-        )
+    # Company admins manage company courses; department heads are restricted
+    # to the department assigned to their authenticated account.
+    if role not in ["company_admin", "department_head"]:
+        raise HTTPException(status_code=403, detail="Permission denied.")
 
     if company_id is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Your account is not associated with a company."
-        )
+        raise HTTPException(status_code=403, detail="Your account is not associated with a company.")
+
+    department_id = None
+    if role == "department_head":
+        department_id = current_user.get("department_id")
+        if department_id is None:
+            raise HTTPException(status_code=403, detail="Department information is missing.")
+
+    if data.visibility not in ["private", "organization", "public"]:
+        raise HTTPException(status_code=400, detail="Invalid course visibility.")
 
     course_id = create_course(
         company_id=company_id,
@@ -2184,6 +2191,7 @@ async def create_course_api(
         release_date=data.release_date,
         expiry_date=data.expiry_date,
         status=data.status,
+        department_id=department_id,
     )
 
     notify_company_admins(
@@ -2208,36 +2216,37 @@ async def get_course_api(
     company_id = current_user.get("company_id")
     user_id = current_user.get("user_id")
 
-    # Super Admin
     if role == "super_admin":
         row = get_course(course_id)
-
-    # Employee: course must be assigned to this employee.
     elif role == "employee":
-        allowed_course_ids = get_user_course_ids(user_id)
-
-        if course_id not in allowed_course_ids:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not enrolled in this course."
-            )
-
         row = get_course(course_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Course not found.")
 
-    # Company Admin / Department Head:
-    # course must belong to their company.
+        visibility = row[13] or "private"
+        course_company_id = row[5]
+        course_department_id = row[19] if len(row) > 19 else None
+        user_department_id = current_user.get("department_id")
+
+        if course_department_id is not None and visibility != "public" and user_department_id != course_department_id:
+            raise HTTPException(status_code=403, detail="This course is restricted to its assigned department.")
+
+        if visibility == "private" and course_id not in get_user_course_ids(user_id):
+            raise HTTPException(status_code=403, detail="This private course is not assigned to you.")
+        if visibility == "organization" and current_user.get("company_id") != course_company_id:
+            raise HTTPException(status_code=403, detail="This course is only available within its organization.")
+        if visibility not in ["private", "organization", "public"]:
+            raise HTTPException(status_code=403, detail="Course visibility is not configured correctly.")
     elif role in ["company_admin", "department_head"]:
-
         if company_id is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Company information is missing."
-            )
-
-        row = get_course(
-            course_id,
-            company_id=company_id
-        )
+            raise HTTPException(status_code=403, detail="Company information is missing.")
+        if role == "department_head":
+            department_id = current_user.get("department_id")
+            if department_id is None:
+                raise HTTPException(status_code=403, detail="Department information is missing.")
+            row = get_course(course_id, company_id=company_id, department_id=department_id)
+        else:
+            row = get_course(course_id, company_id=company_id)
 
     else:
         raise HTTPException(
@@ -2271,6 +2280,7 @@ async def get_course_api(
         "release_date": row[16],
         "expiry_date": row[17],
         "status": row[18],
+        "department_id": row[19] if len(row) > 19 else None,
     }
 
 @app.post("/api/lessons")
@@ -3811,15 +3821,23 @@ async def update_course_api(
     current_user=Depends(get_current_user)
 ):
 
-    if current_user["role"] not in [
-        "super_admin",
-        "company_admin"
-    ]:
+    role = current_user["role"]
+    company_id = current_user.get("company_id")
+    department_id = current_user.get("department_id") if role == "department_head" else None
 
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied."
-        )
+    if role not in ["super_admin", "company_admin", "department_head"]:
+        raise HTTPException(status_code=403, detail="Permission denied.")
+
+    if role == "department_head" and department_id is None:
+        raise HTTPException(status_code=403, detail="Department information is missing.")
+
+    scoped_course = get_course(
+        course_id,
+        company_id=company_id if role != "super_admin" else None,
+        department_id=department_id,
+    )
+    if not scoped_course:
+        raise HTTPException(status_code=404, detail="Course not found in your permitted scope.")
 
     update_course(
         course_id=course_id,
@@ -3847,28 +3865,26 @@ async def delete_course_api(
     current_user=Depends(get_current_user)
 ):
 
-    if current_user["role"] not in [
-        "super_admin",
-        "company_admin"
-    ]:
+    role = current_user["role"]
+    company_id = current_user.get("company_id")
+    department_id = current_user.get("department_id") if role == "department_head" else None
 
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied."
-        )
+    if role not in ["super_admin", "company_admin", "department_head"]:
+        raise HTTPException(status_code=403, detail="Permission denied.")
+    if role == "department_head" and department_id is None:
+        raise HTTPException(status_code=403, detail="Department information is missing.")
 
     course = get_course(
         course_id,
-        company_id=current_user.get("company_id")
-        if current_user["role"] == "company_admin"
-        else None
+        company_id=company_id if role != "super_admin" else None,
+        department_id=department_id,
     )
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found in your permitted scope.")
 
     delete_course(
         course_id,
-        company_id=current_user.get("company_id")
-        if current_user["role"] == "company_admin"
-        else None
+        company_id=company_id if role != "super_admin" else None
     )
 
     if current_user.get("company_id"):
