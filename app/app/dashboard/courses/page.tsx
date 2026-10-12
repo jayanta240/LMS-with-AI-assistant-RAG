@@ -33,6 +33,11 @@ type Course = {
   description: string;
   thumbnail_url?: string;
   created_at?: string;
+  category?: string | null;
+  level?: string | null;
+  duration?: string | null;
+  course_type?: string;
+  status?: string;
 };
 
 
@@ -500,7 +505,7 @@ export default function CoursesPage() {
 
                     <div className="absolute left-4 top-4">
 
-                      <span className="rounded-full border border-white/30 bg-slate-950/65 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm backdrop-blur">
+                      <span className={`rounded-full border border-white/30 px-2.5 py-1 text-[11px] font-semibold capitalize text-white shadow-sm backdrop-blur ${course.status === "published" ? "bg-emerald-600/90" : "bg-slate-950/65"}`}>
                         Published
                       </span>
 
@@ -527,7 +532,7 @@ export default function CoursesPage() {
 
                         <p className="mt-1 text-xs font-medium text-slate-400">
 
-                          Training Course
+                          {[course.category, course.level].filter(Boolean).join(" • ") || (course.course_type || "online").replace("_", " ")}
 
                         </p>
 
@@ -563,8 +568,7 @@ export default function CoursesPage() {
 
                         <BookOpen size={13} />
 
-                        Course
-
+                        {course.duration || "Course"}
                       </span>
 
                     </div>
