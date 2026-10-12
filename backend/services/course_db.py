@@ -36,7 +36,7 @@ def init_course_db():
                     learning_outcomes TEXT NOT NULL DEFAULT '[]',
                     release_date TEXT,
                     expiry_date TEXT,
-                    status TEXT NOT NULL DEFAULT 'draft'
+                    status TEXT NOT NULL DEFAULT 'published'
                 )
             """)
 
