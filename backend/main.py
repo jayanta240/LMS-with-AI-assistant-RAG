@@ -37,6 +37,7 @@ from services.image_service import upload_issue_image
 import shutil
 import cloudinary.uploader
 import re
+from services.postgres_db import get_db_connection
 from services.user_db import (
     create_user,
     get_user_by_email,
@@ -294,6 +295,27 @@ def global_search(
             current_user
         )
     }
+
+
+@app.post("/api/profile/photo")
+async def update_own_profile_photo(profile_photo: UploadFile = File(...), current_user=Depends(get_current_user)):
+    if profile_photo.content_type not in {"image/jpeg", "image/png", "image/jpg"}: raise HTTPException(status_code=400, detail="Profile photo must be JPG or PNG.")
+    contents = await profile_photo.read()
+    if not contents: raise HTTPException(status_code=400, detail="Profile photo cannot be empty.")
+    if len(contents) > 5 * 1024 * 1024: raise HTTPException(status_code=400, detail="Profile photo must be smaller than 5 MB.")
+    try:
+        result = cloudinary.uploader.upload(contents, folder="lms/profile_photos", resource_type="image")
+        url = result.get("secure_url", "")
+        if not url: raise ValueError("Cloudinary did not return a profile photo URL.")
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE users SET profile_photo_url = %s WHERE id = %s RETURNING id", (url, current_user["user_id"]))
+                if not cursor.fetchone(): raise HTTPException(status_code=404, detail="User account not found.")
+        return {"success": True, "profile_photo_url": url}
+    except HTTPException: raise
+    except Exception:
+        _perf_logger.exception("Profile photo update failed")
+        raise HTTPException(status_code=500, detail="Could not update profile photo.")
 
 
 @app.get("/")
@@ -2729,6 +2751,7 @@ async def get_users_api(
             "department_id": row[6],
             "department": row[7],
             "department_head_id": row[9],
+            "profile_photo_url": row[10] if len(row) > 10 else None,
 
             "created_at": row[8],
             "progress": get_user_progress(row[0]),
@@ -3558,6 +3581,7 @@ async def get_department_heads_api(
             "email": row[2],
             "department_id": row[6],
             "department": row[7] or "No department",
+            "profile_photo_url": row[10] if len(row) > 10 else None,
             "created_at": row[8],
         }
         for row in rows
