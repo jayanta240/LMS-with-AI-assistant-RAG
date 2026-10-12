@@ -194,6 +194,8 @@ export default function Header({
     setCompanyName(storedCompany);
     setProfilePhotoUrl(storedPhoto);
     setProfilePhotoError(false);
+    const syncProfilePhoto = () => { setProfilePhotoUrl(localStorage.getItem("profile_photo_url") || ""); setProfilePhotoError(false); };
+    window.addEventListener("lms-profile-photo-updated", syncProfilePhoto);
 
     switch (storedRole) {
       case "super_admin":
@@ -485,7 +487,10 @@ export default function Header({
 
           {/* Avatar */}
 
-          <div
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/profile")}
+            aria-label="Open profile"
             className="
               flex
               h-11
@@ -517,16 +522,16 @@ export default function Header({
             ) : (
               initials || "U"
             )}
-          </div>
+          </button>
 
 
           {/* User information */}
 
           <div className="hidden leading-tight lg:block">
 
-            <p className="text-sm font-semibold text-slate-900">
+            <button type="button" onClick={() => router.push("/dashboard/profile")} className="text-left text-sm font-semibold text-slate-900 hover:underline">
               {userName}
-            </p>
+            </button>
 
             <p className="text-[12px] text-slate-500">
               {role}
