@@ -547,14 +547,14 @@ export default function EmployeeLayout({
 
             <div className="flex items-center gap-2 border-l border-slate-200 pl-2 sm:gap-3 sm:pl-4">
 
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+              <button
+                type="button"
+                onClick={() => router.push("/profile")}
+                aria-label="Open profile and change photo"
+                className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-bold"
                 style={{
-                  backgroundColor:
-                    "var(--brand-primary)",
-
-                  color:
-                    "var(--brand-primary-text)",
+                  backgroundColor: "var(--brand-primary)",
+                  color: "var(--brand-primary-text)",
                 }}
               >
                 {profilePhotoUrl && !profilePhotoError ? (
@@ -567,21 +567,22 @@ export default function EmployeeLayout({
                 ) : (
                   initials || "L"
                 )}
-              </div>
+              </button>
 
 
-              <div className="hidden min-w-0 lg:block">
-
-                <p className="max-w-[140px] truncate text-[13px] font-semibold text-slate-900">
+              <button
+                type="button"
+                onClick={() => router.push("/profile")}
+                aria-label="Open profile"
+                className="hidden min-w-0 text-left lg:block"
+              >
+                <span className="block max-w-[140px] truncate text-[13px] font-semibold text-slate-900 hover:underline">
                   {userName}
-                </p>
-
-
-                <p className="max-w-[140px] truncate text-[11px] text-slate-500">
+                </span>
+                <span className="block max-w-[140px] truncate text-[11px] text-slate-500">
                   {displayCompanyName}
-                </p>
-
-              </div>
+                </span>
+              </button>
 
             </div>
 
