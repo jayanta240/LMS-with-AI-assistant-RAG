@@ -16,6 +16,9 @@ import {
   Trash2,
   ChevronRight,
   FileText,
+  LayoutGrid,
+  List,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import {
@@ -45,6 +48,12 @@ export default function CoursesPage() {
 
   const [search, setSearch] =
     useState("");
+
+  const [activeTab, setActiveTab] =
+    useState<"all" | "recent" | "az">("all");
+
+  const [viewMode, setViewMode] =
+    useState<"grid" | "list">("grid");
 
 
   // ==========================================================
@@ -138,27 +147,26 @@ export default function CoursesPage() {
 
   const filteredCourses =
     useMemo(() => {
-
-      const query =
-        search
-          .trim()
-          .toLowerCase();
-
-      if (!query) {
-        return courses;
-      }
-
-      return courses.filter(
-        (course) =>
-          course.title
-            ?.toLowerCase()
-            .includes(query) ||
-          course.description
-            ?.toLowerCase()
-            .includes(query)
+      const query = search.trim().toLowerCase();
+      let result = courses.filter((course) =>
+        !query ||
+        course.title?.toLowerCase().includes(query) ||
+        course.description?.toLowerCase().includes(query)
       );
 
-    }, [courses, search]);
+      if (activeTab === "recent") {
+        result = [...result].sort((a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime()
+        );
+      } else if (activeTab === "az") {
+        result = [...result].sort((a, b) =>
+          a.title.localeCompare(b.title)
+        );
+      }
+
+      return result;
+    }, [courses, search, activeTab]);
 
 
   return (
@@ -201,6 +209,32 @@ export default function CoursesPage() {
 
         </div>
 
+
+        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-4 pt-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Course views">
+            {([
+              ["all", "Course Library"],
+              ["recent", "Recently Added"],
+              ["az", "A–Z"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === key}
+                onClick={() => setActiveTab(key)}
+                className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === key ? "border-amber-400 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 pb-3 sm:pb-0">
+            <span className="mr-2 text-sm text-slate-500">{filteredCourses.length} courses</span>
+            <button type="button" aria-label="Grid view" onClick={() => setViewMode("grid")} className={`rounded-lg border p-2 ${viewMode === "grid" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-500"}`}><LayoutGrid size={17} /></button>
+            <button type="button" aria-label="List view" onClick={() => setViewMode("list")} className={`rounded-lg border p-2 ${viewMode === "list" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-500"}`}><List size={17} /></button>
+          </div>
+        </div>
 
         {/* ==================================================
             COURSE STATS
@@ -416,7 +450,7 @@ export default function CoursesPage() {
 
         ) : (
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className={viewMode === "grid" ? "grid gap-6 md:grid-cols-2 xl:grid-cols-4" : "grid gap-3 grid-cols-1"}>
 
             {filteredCourses.map(
               (course) => (
@@ -442,7 +476,7 @@ export default function CoursesPage() {
                       THUMBNAIL
                      ================================================== */}
 
-                  <div className="relative h-44 overflow-hidden bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900">
+                  <div className={viewMode === "grid" ? "relative h-40 overflow-hidden bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900" : "relative h-28 overflow-hidden bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 sm:h-36"}>
 
                     {course.thumbnail_url ? (
 
