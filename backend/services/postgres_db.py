@@ -51,10 +51,17 @@ DB_POOL_MAX = int(
 )
 
 
+# TCP keepalives help the operating system detect dead remote peers
+# without an application-level SELECT 1 on every connection checkout.
 db_pool = ThreadedConnectionPool(
     minconn=DB_POOL_MIN,
     maxconn=DB_POOL_MAX,
     dsn=DATABASE_URL,
+    keepalives=1,
+    keepalives_idle=int(os.getenv("DB_KEEPALIVES_IDLE", "30")),
+    keepalives_interval=int(os.getenv("DB_KEEPALIVES_INTERVAL", "10")),
+    keepalives_count=int(os.getenv("DB_KEEPALIVES_COUNT", "3")),
+    connect_timeout=int(os.getenv("DB_CONNECT_TIMEOUT", "10")),
 )
 
 
@@ -64,59 +71,30 @@ db_pool = ThreadedConnectionPool(
 
 def _get_healthy_connection():
     """
-    Get a live connection from the pool.
+    Checkout a pooled connection without issuing a network round trip.
 
-    A pooled connection can look open locally even when the
-    remote PostgreSQL server has already closed the socket.
-    Run a lightweight SELECT 1 before returning it.
-
-    Dead connections are discarded and replaced with a fresh
-    connection.
+    The previous SELECT 1 on every checkout added a full Neon network
+    round trip to every database operation. TCP keepalives help detect
+    dead peers, and actual database operations will surface stale socket
+    errors. Broken connections are discarded by get_db_connection().
     """
-
     for attempt in range(2):
-
         connection = None
-
         try:
             connection = db_pool.getconn()
-
-            # Local psycopg2 closed-state check.
             if connection.closed:
-                db_pool.putconn(
-                    connection,
-                    close=True,
-                )
+                db_pool.putconn(connection, close=True)
                 connection = None
                 continue
-
-            # Remote health check.
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-
-            # The health check starts/uses a transaction in
-            # psycopg2. Return the connection in a clean state.
-            connection.rollback()
-
             return connection
-
         except (psycopg2.Error, OSError):
-
             if connection is not None:
                 try:
-                    db_pool.putconn(
-                        connection,
-                        close=True,
-                    )
+                    db_pool.putconn(connection, close=True)
                 except Exception:
                     pass
-
-            connection = None
-
-            # Retry once with a completely fresh connection.
             if attempt == 0:
                 continue
-
             raise
 
 
