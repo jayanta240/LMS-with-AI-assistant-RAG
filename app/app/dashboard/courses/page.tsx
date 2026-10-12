@@ -11,14 +11,12 @@ import {
   CalendarDays,
   Clock3,
   GraduationCap,
-  Plus,
   Search,
   Trash2,
   ChevronRight,
   FileText,
   LayoutGrid,
   List,
-  SlidersHorizontal,
 } from "lucide-react";
 
 import {
