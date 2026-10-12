@@ -1155,16 +1155,19 @@ async def upload(
     from services.video_processor import process_video
     from services.document_processor import process_document
 
-    # =================================================
-    # ONLY COMPANY ADMIN CAN UPLOAD
-    # =================================================
+    # Company admins can upload company/department/course knowledge.
+    # Department heads may upload only to their own department.
+    role = current_user.get("role")
+    if role not in {"company_admin", "department_head"}:
+        raise HTTPException(status_code=403, detail="Only Company Admins and Department Heads can upload assistant content.")
 
-    if current_user["role"] != "company_admin":
-
-        raise HTTPException(
-            status_code=403,
-            detail="Only company administrators can upload assistant content."
-        )
+    if role == "department_head":
+        assigned_department_id = current_user.get("department_id")
+        if assigned_department_id is None:
+            raise HTTPException(status_code=403, detail="Department information is missing.")
+        visibility = "department"
+        department_id = assigned_department_id
+        course_id = None
 
     # =================================================
     # GET COMPANY / USER FROM AUTHENTICATED USER
@@ -1284,6 +1287,9 @@ async def upload(
             course_id,
             company_id=company_id
         )
+
+        if role == "department_head" and course and (len(course) <= 19 or course[19] != current_user.get("department_id")):
+            raise HTTPException(status_code=403, detail="You can upload only to courses in your assigned department.")
 
         if not course:
 
@@ -2145,6 +2151,7 @@ async def get_courses_api(
             "release_date": row[16],
             "expiry_date": row[17],
             "status": row[18],
+            "department_id": row[19] if len(row) > 19 else None,
         })
 
     return courses
@@ -2343,51 +2350,47 @@ async def get_course_lessons_api(
     course_id: int,
     current_user=Depends(get_current_user)
 ):
-    role = current_user["role"]
+    role = current_user.get("role")
     company_id = current_user.get("company_id")
     user_id = current_user.get("user_id")
+    department_id = current_user.get("department_id")
 
-    # Super Admin
     if role == "super_admin":
-        rows = get_lessons(course_id)
-
-    # Employee
+        course = get_course(course_id)
     elif role == "employee":
-
-        allowed_course_ids = get_user_course_ids(user_id)
-
-        if course_id not in allowed_course_ids:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not enrolled in this course."
-            )
-
-        rows = get_lessons(course_id)
-
-    # Company Admin / Department Head
-    elif role in ["company_admin", "department_head"]:
-
+        course = get_course(course_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found.")
+        visibility = course[13] or "private"
+        course_department_id = course[19] if len(course) > 19 else None
+        if course_department_id is not None and visibility != "public" and department_id != course_department_id:
+            raise HTTPException(status_code=403, detail="This course is restricted to its assigned department.")
+        if visibility == "private" and course_id not in get_user_course_ids(user_id):
+            raise HTTPException(status_code=403, detail="This private course is not assigned to you.")
+        if visibility == "organization" and company_id != course[5]:
+            raise HTTPException(status_code=403, detail="This course is only available within its organization.")
+        if visibility not in {"private", "organization", "public"}:
+            raise HTTPException(status_code=403, detail="Course visibility is not configured correctly.")
+    elif role == "company_admin":
         if company_id is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Company information is missing."
-            )
-
-        rows = get_lessons(
-            course_id,
-            company_id=company_id
-        )
-
+            raise HTTPException(status_code=403, detail="Company information is missing.")
+        course = get_course(course_id, company_id=company_id)
+    elif role == "department_head":
+        if company_id is None or department_id is None:
+            raise HTTPException(status_code=403, detail="Department information is missing.")
+        course = get_course(course_id, company_id=company_id, department_id=department_id)
     else:
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied."
-        )
+        raise HTTPException(status_code=403, detail="Permission denied.")
 
-    lessons = []
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found in your permitted scope.")
 
-    for row in rows:
-        lessons.append({
+    rows = get_lessons(
+        course_id,
+        company_id=company_id if role in {"company_admin", "department_head"} else None
+    )
+    return [
+        {
             "id": row[0],
             "course_id": row[1],
             "title": row[2],
@@ -2395,9 +2398,11 @@ async def get_course_lessons_api(
             "content_url": row[4],
             "lesson_order": row[5],
             "created_at": row[6],
-        })
+        }
+        for row in rows
+    ]
 
-    return lessons
+
 @app.post("/api/auth/register")
 async def register_user(
     data: UserRegister,
