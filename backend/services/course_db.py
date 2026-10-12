@@ -1,5 +1,6 @@
 from datetime import datetime
 from uuid import uuid4
+import json
 
 from services.postgres_db import get_db_connection
 
@@ -22,9 +23,42 @@ def init_course_db():
                     description TEXT DEFAULT '',
                     thumbnail_url TEXT DEFAULT '',
                     created_at TIMESTAMP NOT NULL,
-                    company_id INTEGER NOT NULL
+                    company_id INTEGER NOT NULL,
+                    category TEXT,
+                    sub_category TEXT,
+                    level TEXT,
+                    course_code TEXT,
+                    language TEXT,
+                    duration TEXT,
+                    course_type TEXT NOT NULL DEFAULT 'online',
+                    visibility TEXT NOT NULL DEFAULT 'private',
+                    tags TEXT NOT NULL DEFAULT '[]',
+                    learning_outcomes TEXT NOT NULL DEFAULT '[]',
+                    release_date TEXT,
+                    expiry_date TEXT,
+                    status TEXT NOT NULL DEFAULT 'draft'
                 )
             """)
+
+            # Backward-compatible course-builder metadata migration.
+            for column, definition in [
+                ("category", "TEXT"),
+                ("sub_category", "TEXT"),
+                ("level", "TEXT"),
+                ("course_code", "TEXT"),
+                ("language", "TEXT"),
+                ("duration", "TEXT"),
+                ("course_type", "TEXT NOT NULL DEFAULT 'online'"),
+                ("visibility", "TEXT NOT NULL DEFAULT 'private'"),
+                ("tags", "TEXT NOT NULL DEFAULT '[]'"),
+                ("learning_outcomes", "TEXT NOT NULL DEFAULT '[]'"),
+                ("release_date", "TEXT"),
+                ("expiry_date", "TEXT"),
+                ("status", "TEXT NOT NULL DEFAULT 'draft'"),
+            ]:
+                cursor.execute(
+                    f"ALTER TABLE courses ADD COLUMN IF NOT EXISTS {column} {definition}"
+                )
 
             # Existing database protection
             # The Neon migration has already added this column.
@@ -136,7 +170,20 @@ def create_course(
     company_id,
     title,
     description,
-    thumbnail_url=""
+    thumbnail_url="",
+    category=None,
+    sub_category=None,
+    level=None,
+    course_code=None,
+    language=None,
+    duration=None,
+    course_type="online",
+    visibility="private",
+    tags=None,
+    learning_outcomes=None,
+    release_date=None,
+    expiry_date=None,
+    status="draft",
 ):
     """
     Create a course belonging to exactly one company.
@@ -162,20 +209,21 @@ def create_course(
 
             cursor.execute("""
                 INSERT INTO courses (
-                    company_id,
-                    title,
-                    description,
-                    thumbnail_url,
-                    created_at
+                    company_id, title, description, thumbnail_url, created_at,
+                    category, sub_category, level, course_code, language, duration,
+                    course_type, visibility, tags, learning_outcomes,
+                    release_date, expiry_date, status
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
                 RETURNING id
             """, (
-                company_id,
-                title,
-                description,
-                thumbnail_url,
-                datetime.now(),
+                company_id, title, description, thumbnail_url, datetime.now(),
+                category, sub_category, level, course_code, language, duration,
+                course_type, visibility,
+                json.dumps(tags or []), json.dumps(learning_outcomes or []),
+                release_date, expiry_date, status,
             ))
 
             row = cursor.fetchone()
