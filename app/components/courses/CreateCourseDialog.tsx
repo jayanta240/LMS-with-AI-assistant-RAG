@@ -107,7 +107,7 @@ export default function CreateCourseDialog({ onCreated }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-3 backdrop-blur-sm sm:p-6">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/40 p-3 backdrop-blur-sm sm:p-6">
           <div className="my-3 w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:my-6">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-amber-50 via-white to-white px-5 py-5 sm:px-8">
               <div>
