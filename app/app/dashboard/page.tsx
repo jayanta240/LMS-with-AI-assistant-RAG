@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { getDashboardStats } from "@/lib/course-api";
+import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
 
 
 type DashboardStats = {
@@ -296,7 +297,11 @@ export default function DashboardPage() {
             TOP METRICS
            ===================================================== */}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {loading ? (
+          <PageLoadingSkeleton title="Loading dashboard metrics" variant="dashboard" />
+        ) : null}
+
+        <div className={loading ? "hidden" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-5"}>
 
           <MetricCard
             title={
