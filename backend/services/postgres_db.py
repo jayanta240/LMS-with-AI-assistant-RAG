@@ -1,4 +1,6 @@
 import os
+import time
+import logging
 from contextlib import contextmanager
 
 import psycopg2
@@ -11,6 +13,10 @@ from dotenv import load_dotenv
 # ============================================================
 
 load_dotenv()
+
+_perf_logger = logging.getLogger("lms.performance")
+_SLOW_DB_CHECKOUT_MS = float(os.getenv("LMS_PERF_DB_CHECKOUT_MS", "100"))
+_SLOW_DB_LEASE_MS = float(os.getenv("LMS_PERF_DB_LEASE_MS", "500"))
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -122,11 +128,21 @@ def _get_healthy_connection():
 def get_db_connection():
 
     connection = None
+    checkout_started = time.perf_counter()
+    lease_started = None
 
     try:
 
         # Always acquire a verified live connection.
         connection = _get_healthy_connection()
+        checkout_ms = (time.perf_counter() - checkout_started) * 1000
+        lease_started = time.perf_counter()
+
+        if checkout_ms >= _SLOW_DB_CHECKOUT_MS:
+            _perf_logger.warning(
+                "slow_db_checkout duration_ms=%.1f",
+                checkout_ms,
+            )
 
         yield connection
 
@@ -135,6 +151,15 @@ def get_db_connection():
             connection.commit()
 
     except Exception:
+
+        # Only emit timings; never log SQL, credentials, or payloads.
+        if lease_started is None:
+            checkout_ms = (time.perf_counter() - checkout_started) * 1000
+            if checkout_ms >= _SLOW_DB_CHECKOUT_MS:
+                _perf_logger.warning(
+                    "slow_db_checkout_failed duration_ms=%.1f",
+                    checkout_ms,
+                )
 
         # Roll back only while the connection is still alive.
         # Calling rollback() on a dead connection causes a
@@ -148,6 +173,14 @@ def get_db_connection():
         raise
 
     finally:
+
+        if lease_started is not None:
+            lease_ms = (time.perf_counter() - lease_started) * 1000
+            if lease_ms >= _SLOW_DB_LEASE_MS:
+                _perf_logger.warning(
+                    "long_db_connection_lease duration_ms=%.1f",
+                    lease_ms,
+                )
 
         if connection is not None:
 
