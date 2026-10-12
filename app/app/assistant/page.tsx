@@ -413,17 +413,22 @@ ${diagnosis.solution}
         getCourses(),
       ]);
 
-      setDepartments(
-        Array.isArray(departmentData)
-          ? departmentData
-          : []
-      );
+      const storedRole = localStorage.getItem("role") || "";
+      const assignedDepartmentId = Number(localStorage.getItem("department_id"));
 
-      setCourses(
-        Array.isArray(courseData)
-          ? courseData
-          : []
-      );
+      const availableDepartments = Array.isArray(departmentData)
+        ? storedRole === "department_head"
+          ? departmentData.filter((department: any) => Number(department.id) === assignedDepartmentId)
+          : departmentData
+        : [];
+
+      setDepartments(availableDepartments);
+      setCourses(Array.isArray(courseData) ? courseData : []);
+
+      if (storedRole === "department_head" && assignedDepartmentId) {
+        setSelectedDepartmentId(assignedDepartmentId);
+        setUploadVisibility("department");
+      }
 
     } catch (error) {
       console.error(
@@ -453,12 +458,14 @@ ${diagnosis.solution}
   async function openUploadSettings() {
     setUploadMessage("");
 
-    setUploadVisibility(
-      "company"
-    );
+    const storedRole = localStorage.getItem("role") || "";
+    const assignedDepartmentId = Number(localStorage.getItem("department_id"));
 
+    setUploadVisibility(storedRole === "department_head" ? "department" : "company");
     setSelectedDepartmentId(
-      undefined
+      storedRole === "department_head" && assignedDepartmentId
+        ? assignedDepartmentId
+        : undefined
     );
 
     setSelectedCourseId(
@@ -680,12 +687,13 @@ ${diagnosis.solution}
       // RESET VISIBILITY
       // -----------------------------------------------------
 
-      setUploadVisibility(
-        "company"
-      );
-
+      const storedRole = localStorage.getItem("role") || "";
+      const assignedDepartmentId = Number(localStorage.getItem("department_id"));
+      setUploadVisibility(storedRole === "department_head" ? "department" : "company");
       setSelectedDepartmentId(
-        undefined
+        storedRole === "department_head" && assignedDepartmentId
+          ? assignedDepartmentId
+          : undefined
       );
 
       setSelectedCourseId(
@@ -1048,7 +1056,7 @@ ${diagnosis.solution}
                 UPLOAD KNOWLEDGE
                ------------------------------------------------- */}
 
-            {role === "company_admin" && (
+            {(role === "company_admin" || role === "department_head") && (
 
               <button
                 type="button"
@@ -1080,7 +1088,7 @@ ${diagnosis.solution}
 
                 {uploading
                   ? "Uploading..."
-                  : "Upload Knowledge"}
+                  : "Upload Files"}
 
               </button>
             )}
@@ -1107,7 +1115,7 @@ ${diagnosis.solution}
               <div>
 
                 <h3 className="text-sm font-semibold text-slate-900">
-                  Upload Knowledge
+                  Upload Files
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
@@ -1140,51 +1148,55 @@ ${diagnosis.solution}
 
             <div className="mt-5 space-y-3">
 
-              {/* =================================================
-                  COMPANY
-                 ================================================= */}
-
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
-
-                <input
-                  type="radio"
-                  name="uploadVisibility"
-                  value="company"
-                  checked={
-                    uploadVisibility ===
-                    "company"
-                  }
-                  onChange={() => {
-
-                    setUploadVisibility(
+              {role !== "department_head" && (
+                {/* =================================================
+                    COMPANY
+                   ================================================= */}
+  
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
+  
+                  <input
+                    type="radio"
+                    name="uploadVisibility"
+                    value="company"
+                    checked={
+                      uploadVisibility ===
                       "company"
-                    );
-
-                    setSelectedDepartmentId(
-                      undefined
-                    );
-
-                    setSelectedCourseId(
-                      undefined
-                    );
-
-                  }}
-                />
-
-                <div>
-
-                  <div className="text-sm font-semibold text-slate-800">
-                    Entire Company
+                    }
+                    onChange={() => {
+  
+                      setUploadVisibility(
+                        "company"
+                      );
+  
+                      setSelectedDepartmentId(
+                        undefined
+                      );
+  
+                      setSelectedCourseId(
+                        undefined
+                      );
+  
+                    }}
+                  />
+  
+                  <div>
+  
+                    <div className="text-sm font-semibold text-slate-800">
+                      Entire Company
+                    </div>
+  
+                    <div className="mt-0.5 text-xs text-slate-500">
+                      Everyone in your company can access this content.
+                    </div>
+  
                   </div>
-
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    Everyone in your company can access this content.
-                  </div>
-
-                </div>
-
-              </label>
-
+  
+                </label>
+  
+  
+  
+              )}
 
               {/* =================================================
                   DEPARTMENT
@@ -1236,7 +1248,7 @@ ${diagnosis.solution}
                   <div className="mt-4">
 
                     <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                      Select Department
+                      {role === "department_head" ? "Your Department" : "Select Department"}
                     </label>
 
                     <select
@@ -1253,9 +1265,7 @@ ${diagnosis.solution}
                             : undefined
                         )
                       }
-                      disabled={
-                        optionsLoading
-                      }
+                      disabled={optionsLoading || role === "department_head"}
                       className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
                     >
 
