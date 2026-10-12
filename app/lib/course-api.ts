@@ -378,7 +378,8 @@ export async function getCourse(
 export async function createCourse(
   title: string,
   description: string,
-  thumbnailUrl = ""
+  thumbnailUrl = "",
+  metadata: Record<string, unknown> = {}
 ) {
 
   const res =
@@ -392,6 +393,7 @@ export async function createCourse(
           title,
           description,
           thumbnail_url: thumbnailUrl,
+          ...metadata,
         }),
       }
     );
