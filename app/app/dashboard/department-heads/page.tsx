@@ -43,6 +43,7 @@ type DepartmentHead = {
   email: string;
   department_id: number | null;
   department: string;
+  profile_photo_url?: string | null;
 };
 
 
