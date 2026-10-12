@@ -16,6 +16,7 @@ import {
 
 import { getCurrentUser } from "@/lib/current-user";
 import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
+import BulkRegistrationPanel from "@/components/users/BulkRegistrationPanel";
 
 import {
   BriefcaseBusiness,
@@ -293,6 +294,19 @@ export default function EmployeesPage() {
 
   }, [companyId]);
 
+
+  useEffect(() => {
+    const refreshAfterBulk = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.kind !== "employee") return;
+      getUsers().then((data) => setUsers(Array.isArray(data) ? data : [])).catch(console.error);
+      if (currentUser.role === "company_admin") {
+        getDepartmentHeads().then((data) => setDepartmentHeads(Array.isArray(data) ? data : [])).catch(console.error);
+      }
+    };
+    window.addEventListener("lms-bulk-registration-complete", refreshAfterBulk);
+    return () => window.removeEventListener("lms-bulk-registration-complete", refreshAfterBulk);
+  }, [currentUser.role]);
 
   async function loadAll() {
 
@@ -944,6 +958,8 @@ export default function EmployeesPage() {
 
         </div>
 
+
+        <BulkRegistrationPanel kind="employee" />
 
         {/* ==================================================
             SUMMARY CARDS
