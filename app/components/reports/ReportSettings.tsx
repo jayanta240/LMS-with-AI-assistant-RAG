@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, FileSpreadsheet, Building2, Users } from "lucide-react";
+import { Download, FileSpreadsheet, Building2, Users, ChevronDown, ChevronUp } from "lucide-react";
 import { getCompanies, getDepartments } from "@/lib/course-api";
 
 type Company = { id: number; company_name: string };
@@ -21,6 +21,7 @@ export default function ReportSettings({ role }: { role: string }) {
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     setUserCompanyId(Number(localStorage.getItem("company_id") || 0));
@@ -101,107 +102,26 @@ export default function ReportSettings({ role }: { role: string }) {
   if (!["super_admin", "company_admin", "department_head"].includes(role)) return null;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-            <FileSpreadsheet size={22} />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Report Settings</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Download employee, course assignment, completion, and learning-time data as a CSV report.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={downloadReport}
-          disabled={downloading || (role === "company_admin" && scope === "department" && loadingOptions)}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Download size={16} />
-          {downloading ? "Preparing report..." : "Download CSV"}
-        </button>
-      </div>
-
-      {role === "super_admin" && (
-        <div className="mt-5 max-w-xl">
-          <label htmlFor="report-company" className="mb-2 block text-sm font-medium text-slate-700">
-            Company
-          </label>
-          <select
-            id="report-company"
-            value={companyId}
-            onChange={(event) => setCompanyId(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-          >
-            <option value="">All companies</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>{company.company_name}</option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs text-slate-500">Choose a company or leave “All companies” selected for the platform-wide report.</p>
+    <section className="rounded-xl border border-slate-200 bg-white">
+      <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50">
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><FileSpreadsheet size={18} /></span>
+          <span className="min-w-0"><span className="block text-sm font-semibold text-slate-900">Learning Report</span><span className="block text-xs text-slate-500">Export learning activity as CSV</span></span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2 text-sm font-semibold text-amber-600">Report options {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+      </button>
+      {expanded && (
+        <div className="space-y-4 border-t border-slate-100 p-4">
+          {role === "super_admin" && <div><label htmlFor="report-company" className="mb-1.5 block text-sm font-medium text-slate-700">Company</label><select id="report-company" value={companyId} onChange={(event) => setCompanyId(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-400"><option value="">All companies</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.company_name}</option>)}</select></div>}
+          {role === "company_admin" && <div className="space-y-3"><p className="text-sm font-medium text-slate-700">Report scope</p><div className="grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={() => setScope("company")} aria-pressed={scope === "company"} className={`flex items-center gap-2 rounded-lg border p-3 text-left transition ${scope === "company" ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-slate-300"}`}><Building2 size={18} className="shrink-0 text-amber-600" /><span><span className="block text-sm font-semibold text-slate-800">Whole Company</span><span className="block text-xs text-slate-500">All departments</span></span></button>
+            <button type="button" onClick={() => setScope("department")} aria-pressed={scope === "department"} className={`flex items-center gap-2 rounded-lg border p-3 text-left transition ${scope === "department" ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-slate-300"}`}><Users size={18} className="shrink-0 text-amber-600" /><span><span className="block text-sm font-semibold text-slate-800">Department-wise</span><span className="block text-xs text-slate-500">Choose a department</span></span></button>
+          </div>{scope === "department" && <div><label htmlFor="report-department" className="mb-1.5 block text-sm font-medium text-slate-700">Department</label><select id="report-department" value={departmentId} onChange={(event) => setDepartmentId(event.target.value)} disabled={loadingOptions || departments.length === 0} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-400 disabled:opacity-60">{departments.length === 0 && <option value="">{loadingOptions ? "Loading departments..." : "No departments available"}</option>}{departments.map((department) => <option key={department.id} value={department.id}>{department.department_name}</option>)}</select></div>}</div>}
+          {role === "department_head" && <p className="text-sm text-slate-600">The report will include only your assigned department.</p>}
+          {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          <div className="flex justify-end"><button type="button" onClick={downloadReport} disabled={downloading || (role === "company_admin" && scope === "department" && loadingOptions)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"><Download size={16} />{downloading ? "Preparing report..." : "Download CSV"}</button></div>
         </div>
       )}
-
-      {role === "company_admin" && (
-        <div className="mt-5 space-y-4">
-          <p className="text-sm font-medium text-slate-700">Report scope</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setScope("company")}
-              aria-pressed={scope === "company"}
-              className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${scope === "company" ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-slate-300"}`}
-            >
-              <Building2 size={20} className="shrink-0 text-amber-600" />
-              <span>
-                <span className="block text-sm font-semibold text-slate-800">Whole Company</span>
-                <span className="mt-1 block text-xs text-slate-500">All departments in your company</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setScope("department")}
-              aria-pressed={scope === "department"}
-              className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${scope === "department" ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-slate-300"}`}
-            >
-              <Users size={20} className="shrink-0 text-amber-600" />
-              <span>
-                <span className="block text-sm font-semibold text-slate-800">Department-wise</span>
-                <span className="mt-1 block text-xs text-slate-500">Choose one department</span>
-              </span>
-            </button>
-          </div>
-          {scope === "department" && (
-            <div className="max-w-xl">
-              <label htmlFor="report-department" className="mb-2 block text-sm font-medium text-slate-700">Department</label>
-              <select
-                id="report-department"
-                value={departmentId}
-                onChange={(event) => setDepartmentId(event.target.value)}
-                disabled={loadingOptions || departments.length === 0}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 disabled:opacity-60"
-              >
-                {departments.length === 0 && <option value="">{loadingOptions ? "Loading departments..." : "No departments available"}</option>}
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>{department.department_name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-      )}
-
-      {role === "department_head" && (
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-800">Your assigned department</p>
-          <p className="mt-1 text-sm text-slate-500">The report is automatically limited to your department. No department selector is needed.</p>
-        </div>
-      )}
-
-      {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
     </section>
   );
 }
