@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import PageHeader from "@/components/common/PageHeader";
+import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
 import { assignCourse } from "@/lib/course-api";
 import {
   getUsers,
@@ -30,6 +31,8 @@ export default function UsersPage() {
   const [courses, setCourses] =
     useState<Course[]>([]);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
 
     loadData();
@@ -37,13 +40,18 @@ export default function UsersPage() {
   }, []);
 
   async function loadData() {
-
-    const u = await getUsers();
-    const c = await getCourses();
-
-    setUsers(u);
-    setCourses(c);
-
+    setLoading(true);
+    try {
+      const [u, c] = await Promise.all([getUsers(), getCourses()]);
+      setUsers(Array.isArray(u) ? u : []);
+      setCourses(Array.isArray(c) ? c : []);
+    } catch (error) {
+      console.error("Failed to load users and courses:", error);
+      setUsers([]);
+      setCourses([]);
+    } finally {
+      setLoading(false);
+    }
   }
   async function handleAssign(
   userId: number,
@@ -70,6 +78,9 @@ export default function UsersPage() {
         description="Manage employees and assign courses."
       />
 
+      {loading ? (
+        <PageLoadingSkeleton title="Loading users and course assignments" variant="table" rows={6} />
+      ) : (
       <div className="overflow-hidden rounded-2xl border bg-white shadow">
 
         <table className="w-full">
@@ -160,6 +171,7 @@ export default function UsersPage() {
         </table>
 
       </div>
+      )}
 
     </DashboardLayout>
 
