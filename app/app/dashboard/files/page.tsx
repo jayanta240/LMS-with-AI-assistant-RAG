@@ -14,6 +14,7 @@ import {
   getFiles,
   deleteFile,
 } from "@/lib/course-api";
+import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
 
 type FileItem = {
   id: number;
@@ -153,11 +154,7 @@ This removes the file record from the database and its associated stored knowled
 
         {loading ? (
 
-          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
-            <p className="text-sm text-slate-500">
-              Loading files...
-            </p>
-          </div>
+<PageLoadingSkeleton title="Loading knowledge files" variant="cards" rows={6} />
 
         ) : files.length === 0 ? (
 
