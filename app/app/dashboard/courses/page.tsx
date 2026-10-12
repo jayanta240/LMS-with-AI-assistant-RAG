@@ -58,6 +58,12 @@ export default function CoursesPage() {
   const [viewMode, setViewMode] =
     useState<"grid" | "list">("grid");
 
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    setRole(localStorage.getItem("role") || "");
+  }, []);
+
 
   // ==========================================================
   // LOAD COURSES
@@ -202,13 +208,11 @@ export default function CoursesPage() {
           </div>
 
 
-          <div className="flex items-center gap-3">
-
-            <CreateCourseDialog
-              onCreated={loadCourses}
-            />
-
-          </div>
+          {(role === "company_admin" || role === "department_head") && (
+            <div className="flex items-center gap-3">
+              <CreateCourseDialog onCreated={loadCourses} />
+            </div>
+          )}
 
         </div>
 
@@ -605,34 +609,16 @@ export default function CoursesPage() {
                       </Link>
 
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDelete(
-                            course.id,
-                            course.title
-                          )
-                        }
-                        className="
-                          inline-flex
-                          items-center
-                          gap-1.5
-                          rounded-lg
-                          px-3
-                          py-2
-                          text-xs
-                          font-semibold
-                          text-red-500
-                          transition
-                          hover:bg-red-50
-                        "
-                      >
-
-                        <Trash2 size={14} />
-
-                        Delete
-
-                      </button>
+                      {(role === "super_admin" || role === "company_admin" || role === "department_head") && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(course.id, course.title)}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </button>
+                      )}
 
                     </div>
 
