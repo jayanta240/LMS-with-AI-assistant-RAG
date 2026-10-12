@@ -63,6 +63,9 @@ export default function CoursesPage() {
   const [viewMode, setViewMode] =
     useState<"grid" | "list">("grid");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
+
   const [role, setRole] = useState("");
 
   useEffect(() => {
@@ -194,6 +197,16 @@ export default function CoursesPage() {
 
       return result;
     }, [courses, search, activeTab, categoryFilter, levelFilter, typeFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / pageSize));
+  const paginatedCourses = useMemo(
+    () => filteredCourses.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredCourses, currentPage]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, categoryFilter, levelFilter, typeFilter, statusFilter, activeTab]);
 
 
   return (
@@ -463,7 +476,7 @@ export default function CoursesPage() {
 
           <div className={viewMode === "grid" ? "grid gap-6 md:grid-cols-2 xl:grid-cols-4" : "grid gap-3 grid-cols-1"}>
 
-            {filteredCourses.map(
+            {paginatedCourses.map(
               (course) => (
 
                 <div
@@ -635,6 +648,23 @@ export default function CoursesPage() {
 
           </div>
 
+        )}
+
+        {!loading && filteredCourses.length > 0 && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-500">
+              Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredCourses.length)} of {filteredCourses.length} courses
+            </p>
+            <div className="flex items-center justify-end gap-1">
+              <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous page">‹</button>
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                <button key={page} type="button" onClick={() => setCurrentPage(page)} aria-current={currentPage === page ? "page" : undefined} className={`min-w-9 rounded-lg border px-3 py-2 text-sm font-medium transition ${currentPage === page ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                  {page}
+                </button>
+              ))}
+              <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next page">›</button>
+            </div>
+          </div>
         )}
 
       </div>
