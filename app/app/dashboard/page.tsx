@@ -25,6 +25,7 @@ import {
 
 import { getDashboardStats } from "@/lib/course-api";
 import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
+import ReportSettings from "@/components/reports/ReportSettings";
 
 
 type DashboardStats = {
@@ -300,6 +301,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
+
+        <ReportSettings role={role} />
 
         {/* =====================================================
             TOP METRICS
