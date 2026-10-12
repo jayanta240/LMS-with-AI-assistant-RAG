@@ -21,9 +21,16 @@ import {
   FileText,
   FolderOpen,
   ChevronRight,
+  Download,
+  Loader2,
 } from "lucide-react";
 
-import { getDashboardStats } from "@/lib/course-api";
+import {
+  getDashboardStats,
+  getCompanies,
+  getDepartments,
+  downloadReport,
+} from "@/lib/course-api";
 
 
 type DashboardStats = {
@@ -155,6 +162,12 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({});
 
   const [loading, setLoading] = useState(true);
+  const [companyOptions, setCompanyOptions] = useState<any[]>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<any[]>([]);
+  const [selectedReportCompany, setSelectedReportCompany] = useState("all");
+  const [selectedReportDepartment, setSelectedReportDepartment] = useState("company");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
 
 
   const dashboardTitle =
@@ -179,6 +192,58 @@ export default function DashboardPage() {
     setRole(storedRole);
 
   }, []);
+
+  /* ==========================================================
+     LOAD REPORT TARGETS
+     ========================================================== */
+
+  useEffect(() => {
+    if (!role || role === "employee") return;
+
+    if (role === "super_admin") {
+      getCompanies()
+        .then((items) => setCompanyOptions(Array.isArray(items) ? items : []))
+        .catch((error) => console.error("Failed to load report companies:", error));
+    }
+
+    if (role === "company_admin") {
+      const storedCompanyId = Number(localStorage.getItem("company_id"));
+      if (!Number.isFinite(storedCompanyId) || storedCompanyId <= 0) return;
+
+      getDepartments(storedCompanyId)
+        .then((items) => setDepartmentOptions(Array.isArray(items) ? items : []))
+        .catch((error) => console.error("Failed to load report departments:", error));
+    }
+  }, [role]);
+
+  const handleReportDownload = async () => {
+    setReportError("");
+    setReportLoading(true);
+
+    try {
+      if (role === "super_admin") {
+        if (selectedReportCompany === "all") {
+          await downloadReport("all");
+        } else {
+          await downloadReport("company", Number(selectedReportCompany));
+        }
+      } else if (role === "company_admin") {
+        if (selectedReportDepartment === "company") {
+          await downloadReport("company");
+        } else {
+          await downloadReport("department", undefined, Number(selectedReportDepartment));
+        }
+      } else if (role === "department_head") {
+        await downloadReport("department");
+      }
+    } catch (error) {
+      setReportError(
+        error instanceof Error ? error.message : "Could not download the report."
+      );
+    } finally {
+      setReportLoading(false);
+    }
+  };
 
 
   /* ==========================================================
@@ -277,9 +342,82 @@ export default function DashboardPage() {
         </div>
 
 
+        {role !== "employee" && role !== "" && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <FileText size={21} />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Download Reports</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Download a PDF summary with dashboard metrics, department overview, and employee details for your permitted scope.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                {role === "super_admin" && (
+                  <select
+                    value={selectedReportCompany}
+                    onChange={(event) => setSelectedReportCompany(event.target.value)}
+                    className="min-w-56 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    aria-label="Choose report company"
+                  >
+                    <option value="all">All companies</option>
+                    {companyOptions.map((company) => (
+                      <option key={company.id} value={String(company.id)}>
+                        {company.company_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {role === "company_admin" && (
+                  <select
+                    value={selectedReportDepartment}
+                    onChange={(event) => setSelectedReportDepartment(event.target.value)}
+                    className="min-w-56 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    aria-label="Choose company or department report"
+                  >
+                    <option value="company">Whole company</option>
+                    {departmentOptions.map((department) => (
+                      <option key={department.id} value={String(department.id)}>
+                        {department.department_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {role === "department_head" && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700">
+                    My assigned department
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleReportDownload}
+                  disabled={reportLoading}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reportLoading ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+                  {reportLoading ? "Preparing PDF..." : "Download PDF"}
+                </button>
+              </div>
+            </div>
+            {reportError && (
+              <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {reportError}
+              </p>
+            )}
+          </section>
+        )}
+
         {/* =====================================================
             TOP METRICS
-           ===================================================== */}
+           ===================================================== */
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
