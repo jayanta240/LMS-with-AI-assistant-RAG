@@ -1,9 +1,11 @@
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List,Optional
 from services.auth_dependency import get_current_user
 from config import settings
 import os
+import time
+import logging
 import uuid
 from qdrant_client.models import (
     Filter,
@@ -155,6 +157,34 @@ from services.file_db import (
     get_file_url_by_company_and_filename
 )
 app = FastAPI()
+
+# Lightweight diagnostics: log only slow API requests. Never log query
+# strings, request bodies, authorization headers, or personal data.
+_perf_logger = logging.getLogger("lms.performance")
+_SLOW_REQUEST_MS = float(os.getenv("LMS_PERF_SLOW_REQUEST_MS", "250"))
+
+
+@app.middleware("http")
+async def log_slow_api_requests(request: Request, call_next):
+    started = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        path = request.url.path
+        if path.startswith("/api/") and elapsed_ms >= _SLOW_REQUEST_MS:
+            route = request.scope.get("route")
+            route_path = getattr(route, "path", path)
+            _perf_logger.warning(
+                "slow_api_request method=%s route=%s status=%s duration_ms=%.1f",
+                request.method,
+                route_path,
+                status_code,
+                elapsed_ms,
+            )
 init_db()
 init_course_db()
 init_notification_db()
