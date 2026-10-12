@@ -120,9 +120,27 @@ export default function CreateCourseDialog({ onCreated }: Props) {
               </button>
             </div>
 
+            <div className="border-b border-slate-100 px-5 py-4 sm:px-8">
+              <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Course creation sections">
+                {([
+                  ["1", "Basic Information", "course-basic"],
+                  ["2", "Content Structure", "course-content"],
+                  ["3", "Additional Settings", "course-settings"],
+                  ["4", "Review & Publish", "course-publish"],
+                ] as const).map(([number, label, target], index) => (
+                  <li key={target}>
+                    <button type="button" onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="group flex w-full items-center gap-2 text-left">
+                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${index === 0 ? "border-amber-400 bg-amber-400 text-white" : "border-slate-200 bg-slate-50 text-slate-500 group-hover:border-amber-300"}`}>{number}</span>
+                      <span className={`text-xs font-semibold sm:text-sm ${index === 0 ? "text-amber-700" : "text-slate-500 group-hover:text-slate-800"}`}>{label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
             <div className="grid gap-5 p-5 sm:p-8 lg:grid-cols-[minmax(0,1fr)_290px]">
               <div className="space-y-6">
-                <section className="rounded-2xl border border-slate-200 p-4 sm:p-5">
+                <section id="course-basic" className="scroll-mt-6 rounded-2xl border border-slate-200 p-4 sm:p-5">
                   <div className="mb-5">
                     <h3 className="font-semibold text-slate-900">1. Basic Information</h3>
                     <p className="mt-1 text-xs text-slate-500">The essentials learners will see in the course library.</p>
@@ -149,8 +167,8 @@ export default function CreateCourseDialog({ onCreated }: Props) {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-slate-200 p-4 sm:p-5">
-                  <h3 className="font-semibold text-slate-900">2. Learning Outcomes & Tags</h3>
+                <section id="course-content" className="scroll-mt-6 rounded-2xl border border-slate-200 p-4 sm:p-5">
+                  <h3 className="font-semibold text-slate-900">2. Content Structure · Learning Outcomes & Tags</h3>
                   <p className="mt-1 text-xs text-slate-500">Add clear outcomes, one per line, and searchable tags separated by commas.</p>
                   <div className="mt-4">
                     <FieldLabel>What will learners learn?</FieldLabel>
@@ -159,8 +177,8 @@ export default function CreateCourseDialog({ onCreated }: Props) {
                   <div className="mt-4"><FieldLabel>Tags</FieldLabel><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Workplace Safety, Compliance, Training" disabled={creating} className={fieldClass} /></div>
                 </section>
 
-                <section className="rounded-2xl border border-slate-200 p-4 sm:p-5">
-                  <h3 className="font-semibold text-slate-900">3. Thumbnail & Preview</h3>
+                <section id="course-settings" className="scroll-mt-6 rounded-2xl border border-slate-200 p-4 sm:p-5">
+                  <h3 className="font-semibold text-slate-900">3. Additional Settings · Thumbnail & Preview</h3>
                   <p className="mt-1 text-xs text-slate-500">Paste a publicly accessible image URL for the course card.</p>
                   <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_180px]">
                     <div><FieldLabel>Thumbnail URL</FieldLabel><input value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} placeholder="https://example.com/course.jpg" disabled={creating} className={fieldClass} /><p className="mt-2 text-xs text-slate-400">Image uploads can be added in a later iteration.</p></div>
@@ -196,8 +214,8 @@ export default function CreateCourseDialog({ onCreated }: Props) {
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-slate-200 p-4">
-                  <h3 className="font-semibold text-slate-900">Publish Settings</h3>
+                <section id="course-publish" className="scroll-mt-6 rounded-2xl border border-slate-200 p-4">
+                  <h3 className="font-semibold text-slate-900">4. Review & Publish · Publish Settings</h3>
                   <div className="mt-4"><FieldLabel>Initial Status</FieldLabel><select value={status} onChange={(e) => setStatus(e.target.value)} disabled={creating} className={fieldClass}><option value="draft">Save as Draft</option><option value="published">Publish Course</option></select></div>
                   <div className="mt-4"><FieldLabel>Release Date</FieldLabel><input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} disabled={creating} className={fieldClass} /></div>
                   <label className="mt-4 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={expiryEnabled} onChange={(e) => setExpiryEnabled(e.target.checked)} disabled={creating} className="accent-amber-500" />Set expiry date</label>
