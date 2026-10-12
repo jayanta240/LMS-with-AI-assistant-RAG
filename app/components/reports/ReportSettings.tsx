@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Download, FileSpreadsheet, Building2, Users } from "lucide-react";
 import { getCompanies, getDepartments } from "@/lib/course-api";
-import { getCurrentUser } from "@/lib/current-user";
 
 type Company = { id: number; company_name: string };
 type Department = { id: number; department_name: string };
@@ -13,8 +12,7 @@ const API_BASE =
   (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000");
 
 export default function ReportSettings({ role }: { role: string }) {
-  const currentUser = getCurrentUser();
-  const userCompanyId = Number(currentUser.companyId || 0);
+  const [userCompanyId, setUserCompanyId] = useState(0);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [companyId, setCompanyId] = useState("");
@@ -25,14 +23,15 @@ export default function ReportSettings({ role }: { role: string }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    setUserCompanyId(Number(localStorage.getItem("company_id") || 0));
+  }, []);
+
+  useEffect(() => {
     if (role !== "super_admin") return;
     getCompanies()
       .then((data) => setCompanies(Array.isArray(data) ? data : []))
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load companies."));
   }, [role]);
-
-  const activeCompanyId =
-    role === "super_admin" ? companyId : String(userCompanyId || "");
 
   useEffect(() => {
     if (role !== "company_admin" || scope !== "department" || !userCompanyId) {
