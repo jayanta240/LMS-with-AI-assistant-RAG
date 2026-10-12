@@ -2126,6 +2126,19 @@ async def get_courses_api(
             "thumbnail_url": row[3],
             "created_at": row[4],
             "company_id": row[5],
+            "category": row[6],
+            "sub_category": row[7],
+            "level": row[8],
+            "course_code": row[9],
+            "language": row[10],
+            "duration": row[11],
+            "course_type": row[12],
+            "visibility": row[13],
+            "tags": __import__("json").loads(row[14] or "[]"),
+            "learning_outcomes": __import__("json").loads(row[15] or "[]"),
+            "release_date": row[16],
+            "expiry_date": row[17],
+            "status": row[18],
         })
 
     return courses
@@ -2157,7 +2170,20 @@ async def create_course_api(
         company_id=company_id,
         title=data.title,
         description=data.description,
-        thumbnail_url=data.thumbnail_url or ""
+        thumbnail_url=data.thumbnail_url or "",
+        category=data.category,
+        sub_category=data.sub_category,
+        level=data.level,
+        course_code=data.course_code,
+        language=data.language,
+        duration=data.duration,
+        course_type=data.course_type,
+        visibility=data.visibility,
+        tags=data.tags,
+        learning_outcomes=data.learning_outcomes,
+        release_date=data.release_date,
+        expiry_date=data.expiry_date,
+        status=data.status,
     )
 
     notify_company_admins(
@@ -2232,6 +2258,19 @@ async def get_course_api(
         "thumbnail_url": row[3],
         "created_at": row[4],
         "company_id": row[5],
+        "category": row[6],
+        "sub_category": row[7],
+        "level": row[8],
+        "course_code": row[9],
+        "language": row[10],
+        "duration": row[11],
+        "course_type": row[12],
+        "visibility": row[13],
+        "tags": __import__("json").loads(row[14] or "[]"),
+        "learning_outcomes": __import__("json").loads(row[15] or "[]"),
+        "release_date": row[16],
+        "expiry_date": row[17],
+        "status": row[18],
     }
 
 @app.post("/api/lessons")
