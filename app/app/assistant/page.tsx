@@ -1305,11 +1305,10 @@ ${diagnosis.solution}
               </div>
 
 
+              {/* =================================================
+                  COURSE
+                 ================================================= */}
               {role !== "department_head" && (
-                {/* =================================================
-                    COURSE
-                   ================================================= */}
-  
                 <div className="rounded-xl border border-slate-200 p-4">
   
                   <label className="flex cursor-pointer items-center gap-3">
