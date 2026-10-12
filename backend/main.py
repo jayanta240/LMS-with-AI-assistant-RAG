@@ -2313,6 +2313,18 @@ async def create_lesson_api(
             detail="Company information is missing."
         )
 
+    if role == "department_head":
+        department_id = current_user.get("department_id")
+        if department_id is None:
+            raise HTTPException(status_code=403, detail="Department information is missing.")
+        scoped_course = get_course(
+            data.course_id,
+            company_id=company_id,
+            department_id=department_id,
+        )
+        if not scoped_course:
+            raise HTTPException(status_code=404, detail="Course not found in your department.")
+
     try:
         lesson_id = create_lesson(
             course_id=data.course_id,
