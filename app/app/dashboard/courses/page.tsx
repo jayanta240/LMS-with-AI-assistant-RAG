@@ -502,7 +502,7 @@ export default function CoursesPage() {
 
                     <div className="absolute left-4 top-4">
 
-                      <span className="rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+                      <span className="rounded-full border border-white/30 bg-slate-950/65 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm backdrop-blur">
                         Published
                       </span>
 
