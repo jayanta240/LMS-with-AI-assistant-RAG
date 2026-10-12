@@ -247,7 +247,20 @@ def get_all_courses():
                     description,
                     thumbnail_url,
                     created_at,
-                    company_id
+                    company_id,
+                    category,
+                    sub_category,
+                    level,
+                    course_code,
+                    language,
+                    duration,
+                    course_type,
+                    visibility,
+                    tags,
+                    learning_outcomes,
+                    release_date,
+                    expiry_date,
+                    status
                 FROM courses
                 ORDER BY id DESC
             """)
