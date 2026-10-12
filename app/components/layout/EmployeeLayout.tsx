@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   BookOpen,
   Bot,
-  UserCircle,
   LogOut,
   GraduationCap,
   CalendarDays,
@@ -118,11 +117,6 @@ export default function EmployeeLayout({
       name: "AI Assistant",
       href: "/assistant",
       icon: Bot,
-    },
-    {
-      name: "Profile",
-      href: "/profile",
-      icon: UserCircle,
     },
   ];
 
