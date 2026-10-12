@@ -377,7 +377,8 @@ export async function getCourse(
 
 export async function createCourse(
   title: string,
-  description: string
+  description: string,
+  thumbnailUrl = ""
 ) {
 
   const res =
@@ -390,7 +391,7 @@ export async function createCourse(
         body: JSON.stringify({
           title,
           description,
-          thumbnail_url: "",
+          thumbnail_url: thumbnailUrl,
         }),
       }
     );
