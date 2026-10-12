@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 
@@ -52,8 +52,8 @@ class CourseCreate(BaseModel):
     duration: Optional[str] = None
     course_type: str = "online"
     visibility: str = "private"
-    tags: List[str] = []
-    learning_outcomes: List[str] = []
+    tags: List[str] = Field(default_factory=list)
+    learning_outcomes: List[str] = Field(default_factory=list)
     release_date: Optional[str] = None
     expiry_date: Optional[str] = None
     status: str = "draft"
