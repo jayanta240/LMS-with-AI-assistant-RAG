@@ -21,6 +21,7 @@ import {
 } from "@/lib/course-api";
 
 import { getCurrentUser } from "@/lib/current-user";
+import PageLoadingSkeleton from "@/components/common/PageLoadingSkeleton";
 
 
 type Department = {
@@ -586,15 +587,7 @@ export default function DepartmentsPage() {
 
         {loading ? (
 
-          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
-
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-amber-500" />
-
-            <p className="mt-4 text-sm text-slate-500">
-              Loading departments...
-            </p>
-
-          </div>
+<PageLoadingSkeleton title="Loading departments" variant="cards" rows={6} />
 
         ) : filteredDepartments.length === 0 ? (
 
