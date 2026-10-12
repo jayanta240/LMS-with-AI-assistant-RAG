@@ -302,8 +302,6 @@ export default function DashboardPage() {
         </div>
 
 
-        <ReportSettings role={role} />
-
         {/* =====================================================
             TOP METRICS
            ===================================================== */}
@@ -665,6 +663,10 @@ export default function DashboardPage() {
                   })}%
                 </p>
 
+              </div>
+
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <ReportSettings role={role} />
               </div>
 
             </div>
