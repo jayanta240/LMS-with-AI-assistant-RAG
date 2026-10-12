@@ -250,7 +250,8 @@ def get_all_users(company_id=None):
                         d.department_name,
 
                         u.created_at,
-                        u.department_head_id
+                        u.department_head_id,
+                        u.profile_photo_url
 
                     FROM users u
 
