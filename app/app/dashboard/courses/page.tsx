@@ -52,6 +52,11 @@ export default function CoursesPage() {
   const [search, setSearch] =
     useState("");
 
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const [activeTab, setActiveTab] =
     useState<"all" | "recent" | "az">("all");
 
@@ -154,13 +159,26 @@ export default function CoursesPage() {
   // SEARCH
   // ==========================================================
 
+  const categories = useMemo(
+    () => Array.from(new Set(courses.map((course) => course.category).filter(Boolean))) as string[],
+    [courses]
+  );
+  const levels = useMemo(
+    () => Array.from(new Set(courses.map((course) => course.level).filter(Boolean))) as string[],
+    [courses]
+  );
   const filteredCourses =
     useMemo(() => {
       const query = search.trim().toLowerCase();
       let result = courses.filter((course) =>
-        !query ||
-        course.title?.toLowerCase().includes(query) ||
-        course.description?.toLowerCase().includes(query)
+        (!query ||
+          course.title?.toLowerCase().includes(query) ||
+          course.description?.toLowerCase().includes(query) ||
+          course.category?.toLowerCase().includes(query)) &&
+        (categoryFilter === "all" || course.category === categoryFilter) &&
+        (levelFilter === "all" || course.level === levelFilter) &&
+        (typeFilter === "all" || (course.course_type || "online") === typeFilter) &&
+        (statusFilter === "all" || (course.status || "published") === statusFilter)
       );
 
       if (activeTab === "recent") {
@@ -175,7 +193,7 @@ export default function CoursesPage() {
       }
 
       return result;
-    }, [courses, search, activeTab]);
+    }, [courses, search, activeTab, categoryFilter, levelFilter, typeFilter, statusFilter]);
 
 
   return (
@@ -364,57 +382,43 @@ export default function CoursesPage() {
             SEARCH / FILTER TOOLBAR
            ================================================== */}
 
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-
-          <div className="relative w-full lg:max-w-lg">
-
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-            <input
-              value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
-              placeholder="Search courses..."
-              className="
-                h-11
-                w-full
-                rounded-xl
-                border
-                border-slate-200
-                bg-slate-50
-                pl-10
-                pr-4
-                text-sm
-                text-slate-700
-                outline-none
-                transition
-                focus:border-amber-400
-                focus:bg-white
-                focus:ring-2
-                focus:ring-amber-100
-              "
-            />
-
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.5fr)_repeat(4,minmax(130px,1fr))_auto]">
+            <div className="relative">
+              <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search courses..."
+                aria-label="Search courses"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+            </div>
+            <select aria-label="Filter by category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-amber-400">
+              <option value="all">All categories</option>
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+            <select aria-label="Filter by level" value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-amber-400">
+              <option value="all">All levels</option>
+              {levels.map((level) => <option key={level} value={level}>{level}</option>)}
+            </select>
+            <select aria-label="Filter by course type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-amber-400">
+              <option value="all">All course types</option>
+              <option value="online">Online</option>
+              <option value="instructor_led">Instructor led</option>
+              <option value="blended">Blended</option>
+            </select>
+            <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-amber-400">
+              <option value="all">All statuses</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+            <div className="flex items-center justify-between gap-2 md:col-span-2 xl:col-span-1">
+              <span className="whitespace-nowrap text-sm text-slate-500">{filteredCourses.length} courses</span>
+              <button type="button" onClick={() => { setSearch(""); setCategoryFilter("all"); setLevelFilter("all"); setTypeFilter("all"); setStatusFilter("all"); }} className="rounded-lg px-2 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50">Reset</button>
+            </div>
           </div>
-
-
-          <div className="flex items-center gap-3">
-
-            <span className="rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-slate-500">
-
-              {filteredCourses.length} course
-              {filteredCourses.length === 1
-                ? ""
-                : "s"}
-
-            </span>
-
-          </div>
-
         </div>
 
 
