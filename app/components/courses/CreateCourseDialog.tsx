@@ -77,12 +77,20 @@ export default function CreateCourseDialog({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm">
 
-          <div className="my-6 w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">\n\n            <div className="border-b border-slate-100 bg-gradient-to-r from-amber-50 to-white px-6 py-5 sm:px-8">\n              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">Course builder · Step 1 of 1</p>\n              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Add New Course</h2>\n              <p className="mt-1 text-sm text-slate-500">Set up the core course information. You can add lessons after creating the course.</p>\n            </div>\n\n            <div className="p-6 sm:p-8">
+          <div className="my-6 w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+
+            <div className="border-b border-slate-100 bg-gradient-to-r from-amber-50 to-white px-6 py-5 sm:px-8">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">Course builder · Step 1 of 1</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Add New Course</h2>
+              <p className="mt-1 text-sm text-slate-500">Set up the core course information. You can add lessons after creating the course.</p>
+            </div>
+
+            <div className="p-6 sm:p-8">
 
             <div className="mb-6 flex items-start justify-between gap-4">
-              <h2 className="text-2xl font-bold text-slate-900">
-                Create Course
-              </h2>
+              <h3 className="text-base font-semibold text-slate-900">
+                Course Information
+              </h3>
 
               <button
                 type="button"
@@ -105,7 +113,8 @@ export default function CreateCourseDialog({
               onChange={(e) =>
                 setTitle(e.target.value)
               }
-              aria-label="Course title"\n              placeholder="Course title *"
+              aria-label="Course title"
+              placeholder="Course title *"
               disabled={creating}
               className="mb-4 w-full rounded-xl border border-slate-200 bg-white p-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-amber-400 focus:ring-4 focus:ring-amber-50 disabled:bg-slate-50"
             />
@@ -115,7 +124,8 @@ export default function CreateCourseDialog({
               onChange={(e) =>
                 setDescription(e.target.value)
               }
-              aria-label="Course description"\n              placeholder="Course description *"
+              aria-label="Course description"
+              placeholder="Course description *"
               rows={5}
               disabled={creating}
               className="mb-5 w-full rounded-xl border border-slate-200 bg-white p-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-amber-400 focus:ring-4 focus:ring-amber-50 disabled:bg-slate-50"
