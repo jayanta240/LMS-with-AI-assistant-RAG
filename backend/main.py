@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPExcep
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List,Optional
 from services.auth_dependency import get_current_user
+from report_routes import router as report_router
 from config import settings
 import os
 import time
@@ -157,6 +158,7 @@ from services.file_db import (
     get_file_url_by_company_and_filename
 )
 app = FastAPI()
+app.include_router(report_router)
 
 # Lightweight diagnostics: log only slow API requests. Never log query
 # strings, request bodies, authorization headers, or personal data.
