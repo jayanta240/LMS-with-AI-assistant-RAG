@@ -263,7 +263,8 @@ def get_all_courses():
                     learning_outcomes,
                     release_date,
                     expiry_date,
-                    status
+                    status,
+                    department_id
                 FROM courses
                 ORDER BY id DESC
             """)
