@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List,Optional
+from pydantic import BaseModel, Field
 from services.auth_dependency import get_current_user
 from report_routes import router as report_router
 from bulk_registration_routes import router as bulk_registration_router
@@ -58,6 +59,11 @@ from services.auth_service import (
     verify_password,
     create_access_token,
     decode_token
+)
+from services.password_reset_service import (
+    init_password_reset_db,
+    request_password_reset,
+    reset_password_with_otp,
 )
 
 from models.schemas import (
@@ -232,6 +238,7 @@ app.add_middleware(
 def startup():
     print("🗄️ Ensuring user schema is up to date...")
     init_user_db()
+    init_password_reset_db()
     print("🚀 Initializing Qdrant...")
     init_qdrant()
 
@@ -2609,6 +2616,56 @@ async def register_user(
         "success": True,
         "user_id": user_id
     }
+
+class PasswordResetRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+
+class PasswordResetConfirm(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    otp: str = Field(pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+@app.post("/api/auth/forgot-password")
+async def forgot_password(data: PasswordResetRequest):
+    email = data.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+
+    try:
+        request_password_reset(email)
+    except Exception:
+        # Do not disclose whether an email belongs to an account.
+        _perf_logger.exception("Password reset request could not be completed.")
+
+    return {
+        "success": True,
+        "message": "If an account exists for that email, a password reset OTP has been sent. Check your inbox and spam folder."
+    }
+
+
+@app.post("/api/auth/reset-password")
+async def reset_password(data: PasswordResetConfirm):
+    email = data.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+    if not data.otp.isdigit() or len(data.otp) != 6:
+        raise HTTPException(status_code=400, detail="Enter the 6-digit OTP.")
+    if data.new_password.isspace() or len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+
+    try:
+        changed = reset_password_with_otp(email, data.otp, data.new_password)
+    except Exception:
+        _perf_logger.exception("Password reset failed.")
+        raise HTTPException(status_code=500, detail="Could not reset the password right now. Please try again.")
+
+    if not changed:
+        raise HTTPException(status_code=400, detail="The OTP is invalid or expired. Request a new OTP and try again.")
+
+    return {"success": True, "message": "Password reset successfully. You can now sign in with your new password."}
+
 
 @app.post("/api/auth/login")
 async def login_user(
