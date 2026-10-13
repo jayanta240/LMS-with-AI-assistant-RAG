@@ -13,8 +13,10 @@ export default function AuthGuard({
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // The login page must remain publicly accessible.
-    if (pathname === "/login") {
+    // Authentication and password recovery pages must be publicly accessible.
+    // Users who forgot their password will not have a valid session token.
+    const publicRoutes = ["/login", "/forgot-password"];
+    if (publicRoutes.includes(pathname)) {
       setChecking(false);
       return;
     }
@@ -31,7 +33,8 @@ export default function AuthGuard({
 
   // Do not mount protected pages until authentication has been checked.
   // This also prevents protected pages from firing their API calls first.
-  if (checking || pathname !== "/login" && !localStorage.getItem("token")) {
+  const publicRoutes = ["/login", "/forgot-password"];
+  if (checking || (!publicRoutes.includes(pathname) && !localStorage.getItem("token"))) {
     return null;
   }
 
