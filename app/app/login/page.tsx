@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import {
   ArrowRight,
@@ -454,6 +455,15 @@ export default function LoginPage() {
 
                   </div>
 
+                </div>
+
+                <div className="flex justify-end">
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm font-semibold text-slate-600 transition hover:text-slate-950 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
 
                 {/* Login button */}
