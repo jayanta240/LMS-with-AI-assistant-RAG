@@ -46,11 +46,6 @@ const superAdminMenu: MenuItem[] = [
     icon: Building2,
   },
   {
-    name: "Company Admins",
-    href: "/dashboard/company-admins",
-    icon: Shield,
-  },
-  {
     name: "Courses",
     href: "/dashboard/courses",
     icon: GraduationCap,
@@ -78,6 +73,11 @@ const companyMenu: MenuItem[] = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    name: "Company Admins",
+    href: "/dashboard/company-admins",
+    icon: Shield,
   },
   {
     name: "Employees",
