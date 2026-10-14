@@ -1006,51 +1006,21 @@ export async function getCompanies() {
 }
 
 
-export async function createCompany(
-  data: {
-    company_name: string;
-    company_email: string;
-    company_phone: string;
-    company_address: string;
-  }
-) {
-
-  const res =
-    await fetch(
-      `${BASE}/api/companies`,
-      {
-        method: "POST",
-        headers:
-          authHeaders(),
-        body: JSON.stringify(
-          data
-        ),
-      }
-    );
-
-
-  const result =
-    await res.json();
-
-
+export async function createCompany(data: Record<string, unknown>) {
+  const res = await fetch(`${BASE}/api/companies`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  const result = await res.json();
   if (!res.ok) {
-
-    throw new Error(
-      result?.detail ||
-      result?.message ||
-      "Failed to create company"
-    );
+    throw new Error(result?.detail || result?.message || "Failed to create company");
   }
-
-
-  invalidateCache(
-    "companies"
-  );
-
-
+  invalidateCache("companies");
+  invalidateCache("departments");
+  invalidateCache("dashboard-stats");
   return result;
 }
-
 
 export async function deleteCompany(
   id: number
