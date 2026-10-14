@@ -23,6 +23,7 @@ from services.enrollment_db import (
 )
 from services.company_db import (
     create_company,
+    create_company_registration,
     get_companies,
     get_company_count,
     get_company,
@@ -5024,37 +5025,49 @@ async def create_company_api(
     data: CompanyCreate,
     current_user=Depends(get_current_user)
 ):
-
     if current_user["role"] != "super_admin":
-
         raise HTTPException(
             status_code=403,
             detail="Only Super Admin can create companies."
         )
 
+    payload = data.dict()
+    payload["company_name"] = payload["company_name"].strip()
+    payload["industry_type"] = payload["industry_type"].strip()
+    payload["admin_email"] = payload["admin_email"].strip().lower()
+    payload["contact_email"] = payload["contact_email"].strip().lower()
+
+    if not payload["company_name"] or not payload["industry_type"]:
+        raise HTTPException(status_code=422, detail="Company Name and Industry Type are required.")
+    if not payload["admin_name"].strip() or not payload["admin_email"] or not payload["admin_password"]:
+        raise HTTPException(status_code=422, detail="Initial Company Admin name, email, and password are required.")
+    if len(payload["admin_password"]) < 8:
+        raise HTTPException(status_code=422, detail="Company Admin password must be at least 8 characters.")
+    if payload["expiry_date"] < payload["start_date"]:
+        raise HTTPException(status_code=422, detail="Expiry Date cannot be before Start Date.")
+
     try:
-        company_id = create_company(
-            company_name=data.company_name,
-            company_email=data.company_email,
-            company_phone=data.company_phone,
-            company_address=data.company_address
+        company_id, admin_id = create_company_registration(
+            payload,
+            hash_password(payload["admin_password"]),
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=409,
-            detail=str(exc)
-        )
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        logging.exception("Company registration failed.")
+        raise HTTPException(status_code=500, detail="Company registration failed. No company or admin account was saved.")
 
     notify_super_admins(
         title="New company created",
-        message=f"{data.company_name} was added to the platform.",
+        message=f"{payload['company_name']} was added to the platform.",
         notification_type="company",
         link="/dashboard/companies",
     )
 
     return {
         "success": True,
-        "company_id": company_id
+        "company_id": company_id,
+        "company_admin_id": admin_id,
     }
 
 @app.get("/api/companies")
