@@ -84,6 +84,7 @@ function generatePassword() {
 
 export default function CompanyAdminsPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [currentRole, setCurrentRole] = useState("");
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -160,9 +161,22 @@ export default function CompanyAdminsPage() {
   async function loadData() {
     try {
       setLoadingAdmins(true);
+      const storedRole = localStorage.getItem("role") || "";
+      const storedCompanyId = localStorage.getItem("company_id") || "";
+      setCurrentRole(storedRole);
+
+      if (storedRole === "company_admin" && storedCompanyId) {
+        setCompanyId(storedCompanyId);
+        try {
+          const nextId = await getNextEmployeeId(Number(storedCompanyId));
+          setEmployeeId(nextId?.employee_id || "");
+        } catch (error) {
+          console.error("Failed to generate Employee ID:", error);
+        }
+      }
 
       const [companiesData, adminsData] = await Promise.all([
-        getCompanies(),
+        storedRole === "super_admin" ? getCompanies() : Promise.resolve([]),
         getCompanyAdmins(),
       ]);
 
@@ -561,25 +575,32 @@ export default function CompanyAdminsPage() {
                   </div>
 
                   <div className="grid gap-5 md:grid-cols-2">
-                    <Field label="Company" required>
-                      <select
-                        value={companyId}
-                        onChange={(event) =>
-                          handleCompanyChange(event.target.value)
-                        }
-                        className={inputClass}
-                      >
-                        <option value="">Select Company</option>
-                        {companies.map((company) => (
-                          <option
-                            key={company.id}
-                            value={company.id}
-                          >
-                            {company.company_name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
+                    {currentRole === "super_admin" ? (
+                      <Field label="Company" required>
+                        <select
+                          value={companyId}
+                          onChange={(event) =>
+                            handleCompanyChange(event.target.value)
+                          }
+                          className={inputClass}
+                        >
+                          <option value="">Select Company</option>
+                          {companies.map((company) => (
+                            <option key={company.id} value={company.id}>
+                              {company.company_name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    ) : (
+                      <Field label="Company">
+                        <input
+                          value={localStorage.getItem("company_name") || "Your company"}
+                          readOnly
+                          className={inputClass + " bg-slate-50"}
+                        />
+                      </Field>
+                    )}
 
                     <Field
                       label="Employee ID"
