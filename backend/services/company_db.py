@@ -56,6 +56,143 @@ def ensure_branding_columns():
 ensure_branding_columns()
 
 
+
+# ============================================================
+# COMPANY REGISTRATION METADATA MIGRATION
+# ============================================================
+
+def ensure_company_registration_columns():
+    columns = {
+        "industry_type": "TEXT DEFAULT ''",
+        "company_type": "TEXT",
+        "gst_number": "TEXT",
+        "cin_number": "TEXT",
+        "company_description": "TEXT",
+        "contact_person_name": "TEXT DEFAULT ''",
+        "contact_designation": "TEXT DEFAULT ''",
+        "contact_email": "TEXT DEFAULT ''",
+        "contact_mobile": "TEXT DEFAULT ''",
+        "address_line_1": "TEXT DEFAULT ''",
+        "address_line_2": "TEXT",
+        "city": "TEXT DEFAULT ''",
+        "state": "TEXT DEFAULT ''",
+        "country": "TEXT DEFAULT ''",
+        "pin_code": "TEXT DEFAULT ''",
+        "plan_name": "TEXT DEFAULT ''",
+        "license_type": "TEXT DEFAULT ''",
+        "subscription_start_date": "DATE",
+        "subscription_expiry_date": "DATE",
+        "trial": "BOOLEAN NOT NULL DEFAULT FALSE",
+        "max_active_users": "INTEGER NOT NULL DEFAULT 1",
+        "max_courses": "INTEGER",
+        "storage_limit": "TEXT",
+        "billing_cycle": "TEXT",
+    }
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            for column_name, definition in columns.items():
+                cursor.execute(
+                    """
+                    ALTER TABLE companies
+                    ADD COLUMN IF NOT EXISTS {} {}
+                    """.format(column_name, definition)
+                )
+
+
+ensure_company_registration_columns()
+
+
+def create_company_registration(data, admin_password_hash):
+    """Create the company and its first Company Admin atomically."""
+    company_name = data["company_name"].strip()
+    admin_email = data["admin_email"].strip().lower()
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id FROM companies WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s)) LIMIT 1",
+                (company_name,),
+            )
+            if cursor.fetchone():
+                raise ValueError('Company "{}" already exists.'.format(company_name))
+
+            cursor.execute(
+                "SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) LIMIT 1",
+                (admin_email,),
+            )
+            if cursor.fetchone():
+                raise ValueError("A user with this Company Admin email already exists.")
+
+            company_address = ", ".join(
+                value.strip() for value in (
+                    data["address_line_1"],
+                    data.get("address_line_2") or "",
+                    data["city"],
+                    data["state"],
+                    data["country"],
+                    data["pin_code"],
+                ) if value and value.strip()
+            )
+            cursor.execute(
+                """
+                INSERT INTO companies (
+                    company_name, company_email, company_phone, company_address,
+                    status, created_at, logo_url, logo_public_id,
+                    primary_color, secondary_color, accent_color,
+                    industry_type, company_type, gst_number, cin_number,
+                    company_description, contact_person_name, contact_designation,
+                    contact_email, contact_mobile, address_line_1, address_line_2,
+                    city, state, country, pin_code, plan_name, license_type,
+                    subscription_start_date, subscription_expiry_date, trial,
+                    max_active_users, max_courses, storage_limit, billing_cycle
+                )
+                VALUES (
+                    %s, %s, %s, %s, 'active', %s, '', '',
+                    '#FBBF24', '#0F172A', '#F59E0B',
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                RETURNING id
+                """,
+                (
+                    company_name, data["contact_email"].strip().lower(),
+                    data["contact_mobile"].strip(), company_address, datetime.now(),
+                    data["industry_type"].strip(), data.get("company_type") or None,
+                    data.get("gst_number") or None, data.get("cin_number") or None,
+                    data.get("company_description") or None,
+                    data["contact_person_name"].strip(), data["contact_designation"].strip(),
+                    data["contact_email"].strip().lower(), data["contact_mobile"].strip(),
+                    data["address_line_1"].strip(), data.get("address_line_2") or None,
+                    data["city"].strip(), data["state"].strip(), data["country"].strip(),
+                    data["pin_code"].strip(), data["plan_name"].strip(),
+                    data["license_type"].strip(), data["start_date"], data["expiry_date"],
+                    bool(data.get("trial", False)), data["max_active_users"],
+                    data.get("max_courses"), data.get("storage_limit") or None,
+                    data.get("billing_cycle") or None,
+                ),
+            )
+            company_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                """
+                INSERT INTO users (
+                    name, email, password_hash, role, company_id, department_id,
+                    created_at, employee_id, department_head_id, mobile_number, designation
+                )
+                VALUES (%s, %s, %s, 'company_admin', %s, NULL, %s, NULL, NULL, %s, %s)
+                RETURNING id
+                """,
+                (
+                    data["admin_name"].strip(), admin_email, admin_password_hash,
+                    company_id, datetime.now(), (data.get("admin_mobile") or "").strip() or None,
+                    data["contact_designation"].strip(),
+                ),
+            )
+            admin_id = cursor.fetchone()[0]
+
+            return company_id, admin_id
+
+
 # ============================================================
 # CREATE COMPANY
 # ============================================================
