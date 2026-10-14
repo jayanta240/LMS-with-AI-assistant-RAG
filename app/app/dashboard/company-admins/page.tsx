@@ -85,6 +85,7 @@ function generatePassword() {
 export default function CompanyAdminsPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [currentRole, setCurrentRole] = useState("");
+  const [currentCompanyName, setCurrentCompanyName] = useState("Your company");
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -164,6 +165,7 @@ export default function CompanyAdminsPage() {
       const storedRole = localStorage.getItem("role") || "";
       const storedCompanyId = localStorage.getItem("company_id") || "";
       setCurrentRole(storedRole);
+      setCurrentCompanyName(localStorage.getItem("company_name") || "Your company");
 
       if (storedRole === "company_admin" && storedCompanyId) {
         setCompanyId(storedCompanyId);
@@ -595,7 +597,7 @@ export default function CompanyAdminsPage() {
                     ) : (
                       <Field label="Company">
                         <input
-                          value={localStorage.getItem("company_name") || "Your company"}
+                          value={currentCompanyName}
                           readOnly
                           className={inputClass + " bg-slate-50"}
                         />
