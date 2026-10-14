@@ -121,14 +121,39 @@ class UserResponse(BaseModel):
     role: str   
 
 class CompanyCreate(BaseModel):
-
     company_name: str
+    industry_type: str
+    company_type: Optional[str] = None
+    gst_number: Optional[str] = None
+    cin_number: Optional[str] = None
+    company_description: Optional[str] = None
 
-    company_email: str
+    contact_person_name: str
+    contact_designation: str
+    contact_email: str
+    contact_mobile: str
 
-    company_phone: str
+    admin_name: str
+    admin_email: str
+    admin_password: str
+    admin_mobile: Optional[str] = None
 
-    company_address: str
+    address_line_1: str
+    address_line_2: Optional[str] = None
+    city: str
+    state: str
+    country: str
+    pin_code: str
+
+    plan_name: str
+    license_type: str
+    start_date: str
+    expiry_date: str
+    trial: bool = False
+    max_active_users: int = Field(..., ge=1)
+    max_courses: Optional[int] = Field(default=None, ge=0)
+    storage_limit: Optional[str] = None
+    billing_cycle: Optional[str] = None
 
 
 class CompanyUpdate(BaseModel):
