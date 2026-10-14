@@ -3248,13 +3248,17 @@ async def create_company_admin_profile(
     profile_photo: Optional[UploadFile] = File(None),
     current_user=Depends(get_current_user),
 ):
-    if current_user["role"] != "super_admin":
+    role = current_user.get("role")
+    if role == "company_admin":
+        # Company Admins can create additional admins only within their own company.
+        company_id = current_user.get("company_id")
+    elif role != "super_admin":
         raise HTTPException(
             status_code=403,
-            detail="Only Super Admin can create Company Admins."
+            detail="Only Super Admin or Company Admin can create Company Admins."
         )
 
-    if company_id <= 0:
+    if not company_id or company_id <= 0:
         raise HTTPException(
             status_code=400,
             detail="A valid company must be selected."
@@ -3520,13 +3524,17 @@ async def create_company_admin_profile(
 async def get_company_admins_api(
     current_user=Depends(get_current_user)
 ):
-    if current_user["role"] != "super_admin":
+    role = current_user.get("role")
+    if role not in {"super_admin", "company_admin"}:
         raise HTTPException(
             status_code=403,
-            detail="Only Super Admin can view Company Admins."
+            detail="Only Super Admin or Company Admin can view Company Admins."
         )
 
     rows = get_company_admin_profiles()
+    if role == "company_admin":
+        company_id = current_user.get("company_id")
+        rows = [row for row in rows if row[4] == company_id]
 
     return [
         {
@@ -3549,11 +3557,17 @@ async def delete_company_admin_api(
     current_user=Depends(get_current_user)
 ):
 
-    if current_user["role"] != "super_admin":
-
+    role = current_user.get("role")
+    if role not in {"super_admin", "company_admin"}:
         raise HTTPException(
             status_code=403,
-            detail="Only Super Admin can delete Company Admins."
+            detail="Only Super Admin or Company Admin can delete Company Admins."
+        )
+
+    if role == "company_admin" and user_id == current_user.get("user_id"):
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot delete your own account."
         )
 
     target_user = get_user_by_id(user_id)
@@ -3570,6 +3584,12 @@ async def delete_company_admin_api(
         raise HTTPException(
             status_code=400,
             detail="Selected user is not a Company Admin."
+        )
+
+    if role == "company_admin" and target_user[5] != current_user.get("company_id"):
+        raise HTTPException(
+            status_code=403,
+            detail="You can only manage Company Admins in your own company."
         )
 
     try:
