@@ -137,7 +137,7 @@ export default function DepartmentsPage() {
     setDetailsLoading(true);
     const [usersResult, headsResult, coursesResult] = await Promise.allSettled([
       getUsers(),
-      getDepartmentHeads(),
+      currentUser.role === "company_admin" ? getDepartmentHeads() : Promise.resolve([]),
       getCourses(),
     ]);
 
@@ -747,7 +747,7 @@ export default function DepartmentsPage() {
 
 
                   {/* Hover details for Company Admin */}
-                  <div className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.25rem)] z-30 hidden rounded-xl border border-amber-200 bg-white p-4 text-left shadow-xl group-hover:block group-focus-within:block">
+                  {currentUser.role === "company_admin" && <div className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.25rem)] z-30 hidden rounded-xl border border-amber-200 bg-white p-4 text-left shadow-xl group-hover:block group-focus-within:block">
                     <p className="mb-3 text-sm font-semibold text-slate-900">Department Details</p>
                     {detailsLoading ? (
                       <p className="text-xs text-slate-500">Loading department details...</p>
@@ -811,7 +811,7 @@ export default function DepartmentsPage() {
                         </div>
                       </div>
                     )}
-                  </div>
+                  </div>}
 
                   {/* Footer */}
 
