@@ -18,6 +18,9 @@ import {
   getDepartments,
   createDepartment,
   deleteDepartment,
+  getUsers,
+  getDepartmentHeads,
+  getCourses,
 } from "@/lib/course-api";
 
 import { getCurrentUser } from "@/lib/current-user";
@@ -28,6 +31,27 @@ type Department = {
   id: number;
   company_id: number;
   department_name: string;
+};
+
+type DepartmentEmployee = {
+  id: number;
+  name: string;
+  email: string;
+  department_id: number | null;
+};
+
+type DepartmentHead = {
+  id: number;
+  name: string;
+  email: string;
+  department_id: number | null;
+  department?: string;
+};
+
+type DepartmentCourse = {
+  id: number;
+  title: string;
+  department_id?: number | null;
 };
 
 
@@ -55,6 +79,11 @@ export default function DepartmentsPage() {
   const [saving, setSaving] =
     useState(false);
 
+  const [employees, setEmployees] = useState<DepartmentEmployee[]>([]);
+  const [departmentHeads, setDepartmentHeads] = useState<DepartmentHead[]>([]);
+  const [courses, setCourses] = useState<DepartmentCourse[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
 
   // ==========================================================
   // LOAD DEPARTMENTS
@@ -63,7 +92,8 @@ export default function DepartmentsPage() {
   useEffect(() => {
 
     if (companyId) {
-      loadDepartments(companyId);
+      void loadDepartments(companyId);
+      void loadDepartmentDetails();
     } else {
       setLoading(false);
     }
@@ -102,6 +132,38 @@ export default function DepartmentsPage() {
     }
 
   }
+
+  async function loadDepartmentDetails() {
+    setDetailsLoading(true);
+    const [usersResult, headsResult, coursesResult] = await Promise.allSettled([
+      getUsers(),
+      getDepartmentHeads(),
+      getCourses(),
+    ]);
+
+    if (usersResult.status === "fulfilled") {
+      setEmployees(Array.isArray(usersResult.value) ? usersResult.value : []);
+    } else {
+      console.error("Failed to load department employee details:", usersResult.reason);
+      setEmployees([]);
+    }
+
+    if (headsResult.status === "fulfilled") {
+      setDepartmentHeads(Array.isArray(headsResult.value) ? headsResult.value : []);
+    } else {
+      console.error("Failed to load department head details:", headsResult.reason);
+      setDepartmentHeads([]);
+    }
+
+    if (coursesResult.status === "fulfilled") {
+      setCourses(Array.isArray(coursesResult.value) ? coursesResult.value : []);
+    } else {
+      console.error("Failed to load department course details:", coursesResult.reason);
+      setCourses([]);
+    }
+    setDetailsLoading(false);
+  }
+
 
 
   // ==========================================================
@@ -620,7 +682,7 @@ export default function DepartmentsPage() {
                 <div
                   key={department.id}
                   className="
-                    group
+                    group relative
                     rounded-2xl
                     border
                     border-slate-200
@@ -683,6 +745,73 @@ export default function DepartmentsPage() {
 
                   </div>
 
+
+                  {/* Hover details for Company Admin */}
+                  <div className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.25rem)] z-30 hidden rounded-xl border border-amber-200 bg-white p-4 text-left shadow-xl group-hover:block group-focus-within:block">
+                    <p className="mb-3 text-sm font-semibold text-slate-900">Department Details</p>
+                    {detailsLoading ? (
+                      <p className="text-xs text-slate-500">Loading department details...</p>
+                    ) : (
+                      <div className="space-y-3 text-xs text-slate-600">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-slate-400">Employees</p>
+                            <p className="mt-1 text-base font-semibold text-slate-900">
+                              {employees.filter((employee) => employee.department_id === department.id).length}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 p-2">
+                            <p className="text-slate-400">Department Heads</p>
+                            <p className="mt-1 text-base font-semibold text-slate-900">
+                              {departmentHeads.filter((head) => head.department_id === department.id).length}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="mb-1 font-semibold text-slate-700">Assigned Department Head(s)</p>
+                          {departmentHeads.filter((head) => head.department_id === department.id).length ? (
+                            <ul className="space-y-1">
+                              {departmentHeads.filter((head) => head.department_id === department.id).slice(0, 4).map((head) => (
+                                <li key={head.id} className="break-words">
+                                  <span className="font-medium text-slate-800">{head.name}</span>
+                                  <span className="block text-slate-400">{head.email}</span>
+                                </li>
+                              ))}
+                              {departmentHeads.filter((head) => head.department_id === department.id).length > 4 && (
+                                <li className="text-slate-400">and {departmentHeads.filter((head) => head.department_id === department.id).length - 4} more</li>
+                              )}
+                            </ul>
+                          ) : <p className="text-slate-400">No department head assigned</p>}
+                        </div>
+                        <div>
+                          <p className="mb-1 font-semibold text-slate-700">Employees in this Department</p>
+                          {employees.filter((employee) => employee.department_id === department.id).length ? (
+                            <ul className="space-y-1">
+                              {employees.filter((employee) => employee.department_id === department.id).slice(0, 5).map((employee) => (
+                                <li key={employee.id} className="break-words">{employee.name} <span className="text-slate-400">({employee.email})</span></li>
+                              ))}
+                              {employees.filter((employee) => employee.department_id === department.id).length > 5 && (
+                                <li className="text-slate-400">and {employees.filter((employee) => employee.department_id === department.id).length - 5} more</li>
+                              )}
+                            </ul>
+                          ) : <p className="text-slate-400">No employees assigned</p>}
+                        </div>
+                        <div>
+                          <p className="mb-1 font-semibold text-slate-700">Department Courses</p>
+                          {courses.filter((course) => course.department_id === department.id).length ? (
+                            <ul className="space-y-1">
+                              {courses.filter((course) => course.department_id === department.id).slice(0, 4).map((course) => (
+                                <li key={course.id} className="break-words">{course.title}</li>
+                              ))}
+                              {courses.filter((course) => course.department_id === department.id).length > 4 && (
+                                <li className="text-slate-400">and {courses.filter((course) => course.department_id === department.id).length - 4} more</li>
+                              )}
+                            </ul>
+                          ) : <p className="text-slate-400">No department-specific courses assigned</p>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Footer */}
 
