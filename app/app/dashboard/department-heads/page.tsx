@@ -7,6 +7,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   getDepartments,
   getDepartmentHeads,
+  getUsers,
+  getCourses,
   deleteDepartmentHead,
   registerUser,
 } from "@/lib/course-api";
@@ -44,6 +46,23 @@ type DepartmentHead = {
   department_id: number | null;
   department: string;
   profile_photo_url?: string | null;
+  created_at?: string | null;
+};
+
+type ManagedEmployee = {
+  id: number;
+  name?: string;
+  email?: string;
+  department_id?: number | null;
+  department_head_id?: number | null;
+  progress?: number | { progress?: number; percentage?: number } | null;
+};
+
+type ManagedCourse = {
+  id: number;
+  title?: string;
+  department_id?: number | null;
+  status?: string | null;
 };
 
 
@@ -58,6 +77,10 @@ export default function DepartmentHeadsPage() {
 
   const [departmentHeads, setDepartmentHeads] =
     useState<DepartmentHead[]>([]);
+
+  const [employees, setEmployees] = useState<ManagedEmployee[]>([]);
+
+  const [courses, setCourses] = useState<ManagedCourse[]>([]);
 
   const [headsLoading, setHeadsLoading] =
     useState(true);
@@ -124,10 +147,12 @@ export default function DepartmentHeadsPage() {
       setLoading(true);
       setHeadsLoading(true);
 
-      const [departmentData, headData] =
+      const [departmentData, headData, employeeData, courseData] =
         await Promise.all([
           getDepartments(id),
           getDepartmentHeads(),
+          getUsers(),
+          getCourses(),
         ]);
 
       setDepartments(
@@ -142,6 +167,9 @@ export default function DepartmentHeadsPage() {
           : []
       );
 
+      setEmployees(Array.isArray(employeeData) ? employeeData : []);
+      setCourses(Array.isArray(courseData) ? courseData : []);
+
     } catch (error) {
 
       console.error(
@@ -151,6 +179,8 @@ export default function DepartmentHeadsPage() {
 
       setDepartments([]);
       setDepartmentHeads([]);
+      setEmployees([]);
+      setCourses([]);
 
     } finally {
 
@@ -899,11 +929,90 @@ export default function DepartmentHeadsPage() {
 
                   <tr
                     key={head.id}
-                    className="border-b border-slate-100 last:border-0"
+                    className="group border-b border-slate-100 last:border-0"
                   >
 
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-100 text-xs font-bold text-amber-700">{head.profile_photo_url ? <img src={head.profile_photo_url} alt={head.name} className="h-full w-full object-cover" /> : (head.name || "DH").split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div><p className="font-semibold text-slate-900">{head.name || "Unnamed"}</p></div>
+                    <td className="relative px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-100 text-xs font-bold text-amber-700">{head.profile_photo_url ? <img src={head.profile_photo_url} alt={head.name} className="h-full w-full object-cover" /> : (head.name || "DH").split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{head.name || "Unnamed"}</p>
+                          <p className="text-xs text-slate-400">Hover to view activity</p>
+                        </div>
+                      </div>
+                      {currentUser.role === "company_admin" && (
+                        <div className="invisible absolute left-4 top-16 z-30 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                          {(() => {
+                            const managedEmployees = employees.filter((employee) =>
+                              employee.department_head_id === head.id ||
+                              (head.department_id != null && employee.department_id === head.department_id)
+                            );
+                            const managedCourses = courses.filter((course) =>
+                              head.department_id != null && course.department_id === head.department_id
+                            );
+                            const progressValues = managedEmployees
+                              .map((employee) => {
+                                const value = typeof employee.progress === "number"
+                                  ? employee.progress
+                                  : employee.progress?.percentage ?? employee.progress?.progress;
+                                return typeof value === "number" && Number.isFinite(value)
+                                  ? Math.max(0, Math.min(100, value))
+                                  : null;
+                              })
+                              .filter((value): value is number => value !== null);
+                            const averageProgress = progressValues.length
+                              ? Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length)
+                              : null;
+                            return (
+                              <>
+                                <p className="text-sm font-semibold text-slate-900">{head.name}</p>
+                                <p className="mt-0.5 break-all text-xs text-slate-500">{head.email}</p>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <div className="rounded-lg bg-slate-50 p-2">
+                                    <p className="text-xs text-slate-500">Department</p>
+                                    <p className="mt-1 truncate text-sm font-semibold text-slate-800">{head.department || "Unassigned"}</p>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-50 p-2">
+                                    <p className="text-xs text-slate-500">Team members</p>
+                                    <p className="mt-1 text-lg font-bold text-slate-900">{managedEmployees.length}</p>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-50 p-2">
+                                    <p className="text-xs text-slate-500">Department courses</p>
+                                    <p className="mt-1 text-lg font-bold text-slate-900">{managedCourses.length}</p>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-50 p-2">
+                                    <p className="text-xs text-slate-500">Avg. team progress</p>
+                                    <p className="mt-1 text-lg font-bold text-slate-900">{averageProgress === null ? "N/A" : `${averageProgress}%`}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Department courses</p>
+                                  {managedCourses.length ? (
+                                    <ul className="mt-1 space-y-1">
+                                      {managedCourses.slice(0, 3).map((course) => (
+                                        <li key={course.id} className="truncate text-xs text-slate-700">• {course.title || "Untitled course"}{course.status ? ` · ${course.status}` : ""}</li>
+                                      ))}
+                                      {managedCourses.length > 3 && <li className="text-xs text-slate-500">and {managedCourses.length - 3} more</li>}
+                                    </ul>
+                                  ) : <p className="mt-1 text-xs text-slate-500">No department courses found.</p>}
+                                </div>
+                                <div className="mt-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Team members</p>
+                                  {managedEmployees.length ? (
+                                    <ul className="mt-1 space-y-1">
+                                      {managedEmployees.slice(0, 3).map((employee) => (
+                                        <li key={employee.id} className="truncate text-xs text-slate-700">{employee.name || employee.email || `Employee #${employee.id}`}</li>
+                                      ))}
+                                      {managedEmployees.length > 3 && <li className="text-xs text-slate-500">and {managedEmployees.length - 3} more</li>}
+                                    </ul>
+                                  ) : <p className="mt-1 text-xs text-slate-500">No employees currently assigned.</p>}
+                                </div>
+                                <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-400">Account created: {head.created_at ? new Date(head.created_at).toLocaleDateString() : "Not available"}</p>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-4 py-4">
