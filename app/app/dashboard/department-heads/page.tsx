@@ -29,6 +29,8 @@ import {
   Search,
   ShieldCheck,
   UserRound,
+  UserPlus,
+  FileSpreadsheet,
   X,
 } from "lucide-react";
 
@@ -105,6 +107,10 @@ export default function DepartmentHeadsPage() {
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
+
+  const [showRegistrationChoices, setShowRegistrationChoices] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [activeHeadDetails, setActiveHeadDetails] = useState<number | null>(null);
 
   const [loading, setLoading] =
     useState(true);
@@ -195,6 +201,12 @@ export default function DepartmentHeadsPage() {
   // ==========================================================
   // CREATE DEPARTMENT HEAD
   // ==========================================================
+
+  function openCreateForm() {
+    setShowRegistrationChoices(false);
+    setShowBulkUpload(false);
+    setShowCreateForm(true);
+  }
 
   async function handleCreate() {
 
@@ -425,9 +437,7 @@ export default function DepartmentHeadsPage() {
 
           <button
             type="button"
-            onClick={() =>
-              setShowCreateForm(true)
-            }
+            onClick={() => { setShowRegistrationChoices((value) => !value); setShowBulkUpload(false); }}
             className="
               inline-flex
               items-center
@@ -446,16 +456,28 @@ export default function DepartmentHeadsPage() {
             "
           >
 
-            <Plus size={18} />
+            <UserPlus size={18} />
 
-            Create Department Head
+            Add Department Head
 
           </button>
 
         </div>
 
 
-        <BulkRegistrationPanel kind="department_head" />
+        {showRegistrationChoices && (
+          <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2">
+            <button type="button" onClick={openCreateForm} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left transition hover:border-amber-400 hover:bg-amber-50/50">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><UserPlus size={20} /></span>
+              <span><span className="block text-sm font-semibold text-slate-900">Manual Registration</span><span className="mt-1 block text-xs text-slate-500">Register one department head using the form</span></span>
+            </button>
+            <button type="button" onClick={() => { setShowRegistrationChoices(false); setShowBulkUpload(true); }} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left transition hover:border-emerald-400 hover:bg-emerald-50/50">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><FileSpreadsheet size={20} /></span>
+              <span><span className="block text-sm font-semibold text-slate-900">Bulk Upload</span><span className="mt-1 block text-xs text-slate-500">Register multiple department heads using Excel</span></span>
+            </button>
+          </div>
+        )}
+        {showBulkUpload && <div className="space-y-3"><div className="flex justify-end"><button type="button" onClick={() => setShowBulkUpload(false)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Close bulk upload</button></div><BulkRegistrationPanel kind="department_head" /></div> }
 
         {/* ==================================================
             CREATE PANEL
@@ -937,11 +959,11 @@ export default function DepartmentHeadsPage() {
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-100 text-xs font-bold text-amber-700">{head.profile_photo_url ? <img src={head.profile_photo_url} alt={head.name} className="h-full w-full object-cover" /> : (head.name || "DH").split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</div>
                         <div>
                           <p className="font-semibold text-slate-900">{head.name || "Unnamed"}</p>
-                          <p className="text-xs text-slate-400">Hover to view activity</p>
+                          <button type="button" onClick={() => setActiveHeadDetails(head.id)} className="text-xs font-medium text-amber-700 hover:underline">View activity</button>
                         </div>
                       </div>
-                      {currentUser.role === "company_admin" && (
-                        <div className="invisible absolute left-4 top-16 z-30 w-80 rounded-xl border border-slate-200 bg-white p-4 text-left opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                      {currentUser.role === "company_admin" && activeHeadDetails === head.id && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4" onClick={() => setActiveHeadDetails(null)}><div role="dialog" aria-modal="true" aria-label={`${head.name} activity details`} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-base font-semibold text-slate-900">{head.name}</p><p className="mt-0.5 break-all text-xs text-slate-500">{head.email}</p></div><button type="button" onClick={() => setActiveHeadDetails(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close details"><X size={18} /></button></div>
                           {(() => {
                             const managedEmployees = employees.filter((employee) =>
                               employee.department_head_id === head.id ||
@@ -1011,6 +1033,7 @@ export default function DepartmentHeadsPage() {
                               </>
                             );
                           })()}
+                          </div>
                         </div>
                       )}
                     </td>
