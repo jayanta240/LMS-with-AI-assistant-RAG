@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -962,8 +963,8 @@ export default function DepartmentHeadsPage() {
                           <button type="button" onClick={() => setActiveHeadDetails(head.id)} className="text-xs font-medium text-amber-700 hover:underline">View activity</button>
                         </div>
                       </div>
-                      {currentUser.role === "company_admin" && activeHeadDetails === head.id && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4" onClick={() => setActiveHeadDetails(null)}><div role="dialog" aria-modal="true" aria-label={`${head.name} activity details`} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-base font-semibold text-slate-900">{head.name}</p><p className="mt-0.5 break-all text-xs text-slate-500">{head.email}</p></div><button type="button" onClick={() => setActiveHeadDetails(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close details"><X size={18} /></button></div>
+                      {currentUser.role === "company_admin" && activeHeadDetails === head.id && typeof document !== "undefined" && createPortal(
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-[2px]" onClick={() => setActiveHeadDetails(null)}><div role="dialog" aria-modal="true" aria-label={`${head.name} activity details`} className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-base font-semibold text-slate-900">{head.name}</p><p className="mt-0.5 break-all text-xs text-slate-500">{head.email}</p></div><button type="button" onClick={() => setActiveHeadDetails(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close details"><X size={18} /></button></div>
                           {(() => {
                             const managedEmployees = employees.filter((employee) =>
                               employee.department_head_id === head.id ||
@@ -1034,8 +1035,7 @@ export default function DepartmentHeadsPage() {
                             );
                           })()}
                           </div>
-                        </div>
-                      )}
+                        </div>, document.body)}
                     </td>
 
                     <td className="px-4 py-4">
