@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -812,7 +813,7 @@ export default function DepartmentsPage() {
                         </div>
                       </div>
                     )}
-                  </div></div>}
+                  </div></div>, document.body)}
 
                   {/* Footer */}
 
