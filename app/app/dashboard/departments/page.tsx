@@ -83,6 +83,7 @@ export default function DepartmentsPage() {
   const [departmentHeads, setDepartmentHeads] = useState<DepartmentHead[]>([]);
   const [courses, setCourses] = useState<DepartmentCourse[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [activeDepartmentDetails, setActiveDepartmentDetails] = useState<number | null>(null);
 
 
   // ==========================================================
@@ -747,7 +748,7 @@ export default function DepartmentsPage() {
 
 
                   {/* Hover details for Company Admin */}
-                  {currentUser.role === "company_admin" && <div className="pointer-events-none absolute left-3 right-3 top-[calc(100%-0.25rem)] z-30 hidden rounded-xl border border-amber-200 bg-white p-4 text-left shadow-xl group-hover:block group-focus-within:block">
+                  {currentUser.role === "company_admin" && activeDepartmentDetails === department.id && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/25 p-4" onClick={() => setActiveDepartmentDetails(null)}><div role="dialog" aria-modal="true" aria-label={`${department.department_name} details`} className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between gap-3"><p className="text-base font-semibold text-slate-900">{department.department_name} Details</p><button type="button" onClick={() => setActiveDepartmentDetails(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close details"><X size={18} /></button></div>
                     <p className="mb-3 text-sm font-semibold text-slate-900">Department Details</p>
                     {detailsLoading ? (
                       <p className="text-xs text-slate-500">Loading department details...</p>
@@ -811,15 +812,15 @@ export default function DepartmentsPage() {
                         </div>
                       </div>
                     )}
-                  </div>}
+                  </div></div>}
 
                   {/* Footer */}
 
                   <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
 
-                    <span className="text-xs text-slate-400">
+                    <div className="flex items-center gap-2"><span className="text-xs text-slate-400">
                       Ready for department head assignment
-                    </span>
+                    </span>{currentUser.role === "company_admin" && <button type="button" onClick={() => setActiveDepartmentDetails(department.id)} className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">View details</button>}</div>
 
 
                     <button
