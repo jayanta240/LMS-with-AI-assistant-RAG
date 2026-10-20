@@ -893,6 +893,40 @@ def chat(
     )
 
     # ============================================================
+    # STRICT DATABASE-ONLY MODE
+    # If retrieval did not find sufficiently relevant material, do
+    # not call the LLM with a general-knowledge fallback prompt.
+    # ============================================================
+
+    if not relevant_content_found or not context.strip():
+
+        answer = (
+            "No relevant information was found in the uploaded files "
+            "available to your company."
+        )
+
+        if lang != "en":
+            try:
+                answer = translate_back(answer, lang)
+            except Exception as translation_error:
+                print("⚠️ No-results translation failed:", translation_error)
+
+        session_data["messages"].append({
+            "role": "user",
+            "content": req.message
+        })
+        session_data["messages"].append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        return ChatResponse(
+            answer=answer,
+            sources=[]
+        )
+
+
+    # ============================================================
     # MODE
     # ============================================================
 
@@ -1009,36 +1043,15 @@ GUIDELINES:
 
     else:
 
+        # Defensive fallback: strict mode never asks the model to
+        # provide general knowledge when database context is absent.
         prompt = f"""
-You are an intelligent AI learning assistant.
-
+You are a database-grounded learning assistant.
 {language_instruction}
-
-IMPORTANT:
-
-The uploaded learning materials available to this company
-do NOT contain enough information about this topic.
-
-FIRST clearly mention:
-
-"⚠️ This topic was not found in the uploaded learning materials."
-
-THEN provide:
-
-"A quick general explanation:"
-
-AFTER THAT:
-
-- Explain using your own general knowledge.
-- Keep the explanation educational and simple.
-- Explain like a teacher.
-- Keep the answer concise but useful.
-- NEVER reveal or infer information from another company.
-- NEVER switch language unnecessarily.
-
-CONVERSATION HISTORY:
-{history_text}
-
+Answer only from uploaded content. If the context is insufficient,
+say that no relevant information was found. Do not use general knowledge.
+CONTEXT:
+{context}
 QUESTION:
 {english_query}
 """
