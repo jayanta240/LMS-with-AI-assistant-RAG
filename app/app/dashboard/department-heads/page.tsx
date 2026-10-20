@@ -1022,11 +1022,10 @@ export default function DepartmentHeadsPage() {
                                 <div className="mt-3">
                                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Team members</p>
                                   {managedEmployees.length ? (
-                                    <ul className="mt-1 space-y-1">
-                                      {managedEmployees.slice(0, 3).map((employee) => (
-                                        <li key={employee.id} className="truncate text-xs text-slate-700">{employee.name || employee.email || `Employee #${employee.id}`}</li>
+                                    <ul className="mt-1 max-h-40 space-y-1 overflow-y-auto pr-1">
+                                      {managedEmployees.map((employee) => (
+                                        <li key={employee.id} className="break-words text-xs text-slate-700">{employee.name || employee.email || `Employee #${employee.id}`}</li>
                                       ))}
-                                      {managedEmployees.length > 3 && <li className="text-xs text-slate-500">and {managedEmployees.length - 3} more</li>}
                                     </ul>
                                   ) : <p className="mt-1 text-xs text-slate-500">No employees currently assigned.</p>}
                                 </div>
