@@ -3225,13 +3225,21 @@ async def create_employee_profile(
             detail="Failed to create Employee."
         )
 
-    notify_company_admins(
-        company_id,
-        title="Employee created",
-        message=f"{employee_name} was added to your organization.",
-        notification_type="user",
-        link="/dashboard/employees",
-    )
+    # Notifications are a secondary side effect. If notification delivery fails,
+    # do not report a successfully persisted employee as a failed registration.
+    try:
+        notify_company_admins(
+            company_id,
+            title="Employee created",
+            message=f"{employee_name} was added to your organization.",
+            notification_type="user",
+            link="/dashboard/employees",
+        )
+    except Exception as notification_error:
+        print(
+            "⚠️ Employee was created, but the notification failed:",
+            notification_error,
+        )
 
     return {
         "success": True,
