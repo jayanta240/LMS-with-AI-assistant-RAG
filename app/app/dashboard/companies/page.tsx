@@ -50,6 +50,11 @@ export default function CompaniesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Registration>(initialForm);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const [bulkResult, setBulkResult] = useState<any>(null);
 
   useEffect(() => { void loadCompanies(); }, []);
 
@@ -126,6 +131,27 @@ export default function CompaniesPage() {
     } finally { setSaving(false); }
   }
 
+  async function uploadCompanies() {
+    if (!bulkFile) { setBulkError('Choose an Excel .xlsx file first.'); return; }
+    setBulkBusy(true); setBulkError(''); setBulkResult(null);
+    try {
+      const body = new FormData(); body.append('file', bulkFile);
+      const token = localStorage.getItem('token'); const base = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+      const response = await fetch(base + '/api/bulk-registration/companies', { method: 'POST', headers: token ? { Authorization: 'Bearer ' + token } : {}, body });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.detail || 'Company bulk upload failed.');
+      setBulkResult(data); setBulkFile(null); await loadCompanies();
+    } catch (error) { setBulkError(error instanceof Error ? error.message : 'Company bulk upload failed.'); }
+    finally { setBulkBusy(false); }
+  }
+  async function downloadCompanyTemplate() {
+    try {
+      const token = localStorage.getItem('token'); const base = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+      const response = await fetch(base + '/api/bulk-registration/template?role=company', { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+      if (!response.ok) throw new Error('Could not download template.');
+      const url = URL.createObjectURL(await response.blob()); const a = document.createElement('a'); a.href = url; a.download = 'company_bulk_upload_template.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (error) { setBulkError(error instanceof Error ? error.message : 'Could not download template.'); }
+  }
   async function handleDelete(id: number, companyName: string) {
     if (!window.confirm(`Delete "${companyName}"?\n\nThis action cannot be undone.`)) return;
     try { await deleteCompany(id); await loadCompanies(); }
@@ -174,11 +200,17 @@ export default function CompaniesPage() {
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Companies</h1>
             <p className="mt-1 text-sm text-slate-500">Create and manage the organizations using your learning platform.</p>
           </div>
-          <button type="button" onClick={() => { setForm(initialForm); setStep(0); setShowCreateForm(true); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">
-            <Plus size={18} /> Add Company
-          </button>
+          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setShowBulkUpload((v) => !v)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700"><Upload size={18}/> Bulk Upload</button><button type="button" onClick={() => { setForm(initialForm); setStep(0); setShowCreateForm(true); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"><Plus size={18}/> Add Company</button></div>
         </div>
 
+        {showBulkUpload && <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between"><div><h2 className="font-semibold text-slate-900">Bulk Upload Companies</h2><p className="mt-1 text-sm text-slate-500">Upload company and initial Company Admin details using Excel.</p></div><button type="button" onClick={() => setShowBulkUpload(false)}><X size={18}/></button></div>
+          <button type="button" onClick={downloadCompanyTemplate} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold"><Download size={16}/> Download .xlsx template</button>
+          <label htmlFor="bulk-company-file" className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-slate-300 p-6 text-sm"><FileSpreadsheet size={24}/><span className="mt-2">{bulkFile?.name || "Choose an Excel .xlsx file"}</span><input id="bulk-company-file" type="file" accept=".xlsx" className="sr-only" onChange={(e) => {setBulkFile(e.target.files?.[0] || null);setBulkResult(null);setBulkError("");}}/></label>
+          <button type="button" disabled={bulkBusy || !bulkFile} onClick={uploadCompanies} className="mt-3 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{bulkBusy ? "Registering companies..." : "Register Companies"}</button>
+          {bulkError && <p role="alert" className="mt-3 text-sm text-red-700">{bulkError}</p>}
+          {bulkResult && <div className="mt-4 rounded-xl border p-4"><p className="text-sm font-semibold text-emerald-700">Created: {bulkResult.created_count} · Failed: {bulkResult.failed_count}</p>{bulkResult.failed?.map((item: any, index: number) => <p key={item.row + "-" + index} className="mt-2 rounded bg-red-50 p-2 text-sm text-red-700">Excel row {item.row}: {item.reason}</p>)}</div>}
+        </section>}
         <div className="grid gap-4 md:grid-cols-3">
           {[
             { label: "Total Companies", count: companies.length, icon: <Building2 size={21} />, style: "bg-amber-50 text-amber-600" },
