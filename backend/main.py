@@ -5061,7 +5061,14 @@ async def create_company_api(
     payload["contact_email"] = payload["contact_email"].strip().lower()
 
     if not payload["company_name"] or not payload["industry_type"]:
-        raise HTTPException(status_code=422, detail="Company Name and Industry Type are required.")
+        raise HTTPException(status_code=422, detail="Company Name and Industry Type are required.")    gst_number = (payload.get("gst_number") or "").strip().upper()
+    cin_number = (payload.get("cin_number") or "").strip().upper()
+    if gst_number and not re.fullmatch(r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]", gst_number):
+        raise HTTPException(status_code=422, detail="GST Number must be a valid 15-character GSTIN.")
+    if cin_number and not re.fullmatch(r"[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}", cin_number):
+        raise HTTPException(status_code=422, detail="CIN Number must be a valid 21-character CIN.")
+    payload["gst_number"] = gst_number or None
+    payload["cin_number"] = cin_number or None
     if not payload["admin_name"].strip() or not payload["admin_email"] or not payload["admin_password"]:
         raise HTTPException(status_code=422, detail="Initial Company Admin name, email, and password are required.")
     if len(payload["admin_password"]) < 8:
