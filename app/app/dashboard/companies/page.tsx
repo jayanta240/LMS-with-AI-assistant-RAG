@@ -81,6 +81,12 @@ export default function CompaniesPage() {
         return false;
       }
     }
+    if (index === 0 && form.gst_number.trim() && !/^\\d{2}[A-Z]{5}\\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(form.gst_number.trim())) {
+      alert("GST Number must be a valid 15-character GSTIN."); return false;
+    }
+    if (index === 0 && form.cin_number.trim() && !/^[LU]\\d{5}[A-Z]{2}\\d{4}[A-Z]{3}\\d{6}$/i.test(form.cin_number.trim())) {
+      alert("CIN Number must be a valid 21-character CIN."); return false;
+    }
     if (index === 1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email.trim())) {
       alert("Enter a valid primary contact email."); return false;
     }
