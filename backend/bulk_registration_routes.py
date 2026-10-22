@@ -12,6 +12,7 @@ from services.auth_service import hash_password
 from services.department_db import get_departments
 from services.postgres_db import get_db_connection
 from services.user_db import create_user, get_user_by_email
+from services.company_db import create_company_registration
 
 router = APIRouter()
 
@@ -22,6 +23,19 @@ EMPLOYEE_HEADERS = [
     "designation", "department_name", "department_head_email",
 ]
 DEPARTMENT_HEAD_HEADERS = ["name", "email", "password", "department_name"]
+COMPANY_HEADERS = [
+    "company_name", "industry_type", "company_type", "gst_number", "cin_number",
+    "company_description", "contact_person_name", "contact_designation", "contact_email",
+    "contact_mobile", "admin_name", "admin_email", "admin_password", "admin_mobile",
+    "address_line_1", "address_line_2", "city", "state", "country", "pin_code",
+    "plan_name", "license_type", "start_date", "expiry_date", "trial",
+    "max_active_users", "max_courses", "storage_limit", "billing_cycle",
+]
+GSTIN_PATTERN = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$")
+CIN_PATTERN = re.compile(r"^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$")
+PLAN_NAMES = {"basic", "standard", "premium", "enterprise"}
+LICENSE_TYPES = {"named user", "concurrent user", "enterprise", "perpetual", "subscription"}
+BILLING_CYCLES = {"monthly", "quarterly", "half-yearly", "yearly", "one-time"}
 
 
 def _normalise_header(value):
@@ -85,7 +99,7 @@ async def _read_rows(file: UploadFile, allowed_roles):
 
 @router.get("/api/bulk-registration/template")
 def download_bulk_template(
-    role: str = Query(..., pattern="^(employee|department_head)$"),
+    role: str = Query(..., pattern="^(employee|department_head|company)$"),
     current_user=Depends(get_current_user),
 ):
     actor_role = current_user.get("role")
@@ -93,11 +107,13 @@ def download_bulk_template(
         raise HTTPException(status_code=403, detail="You cannot download the employee template.")
     if role == "department_head" and actor_role != "company_admin":
         raise HTTPException(status_code=403, detail="Only Company Admin can download the Department Head template.")
+    if role == "company" and actor_role != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Admin can download the company template.")
 
-    headers = EMPLOYEE_HEADERS if role == "employee" else DEPARTMENT_HEAD_HEADERS
+    headers = EMPLOYEE_HEADERS if role == "employee" else DEPARTMENT_HEAD_HEADERS if role == "department_head" else COMPANY_HEADERS
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Employees" if role == "employee" else "Department Heads"
+    sheet.title = "Companies" if role == "company" else "Employees" if role == "employee" else "Department Heads"
     sheet.append(headers)
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
@@ -291,3 +307,114 @@ async def bulk_register_department_heads(
             detail = getattr(exc, "detail", None) or str(exc) or "Registration failed."
             failed.append({"row": number, "email": email, "reason": str(detail)})
     return {"success": len(failed) == 0, "created_count": len(created), "failed_count": len(failed), "created": created, "failed": failed}
+
+
+@router.post("/api/bulk-registration/companies")
+async def bulk_register_companies(
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+):
+    if current_user.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only Super Admin can bulk-register companies.")
+
+    rows = await _read_rows(file, COMPANY_HEADERS)
+    created, failed = [], []
+    seen_company_names, seen_admin_emails, seen_contact_emails = set(), set(), set()
+
+    for row in rows:
+        number = row["_row_number"]
+        data = {key: row.get(key, "").strip() for key in COMPANY_HEADERS}
+        try:
+            required = [
+                "company_name", "industry_type", "contact_person_name", "contact_designation",
+                "contact_email", "contact_mobile", "admin_name", "admin_email", "admin_password",
+                "address_line_1", "city", "state", "country", "pin_code", "plan_name",
+                "license_type", "start_date", "expiry_date", "max_active_users",
+            ]
+            missing = [key for key in required if not data.get(key)]
+            if missing:
+                raise ValueError("Missing required fields: " + ", ".join(missing))
+            company_key = data["company_name"].casefold()
+            admin_email = data["admin_email"].casefold()
+            contact_email = data["contact_email"].casefold()
+            if company_key in seen_company_names:
+                raise ValueError("Duplicate company name in this Excel file.")
+            if admin_email in seen_admin_emails:
+                raise ValueError("Duplicate Company Admin email in this Excel file.")
+            if contact_email in seen_contact_emails:
+                raise ValueError("Duplicate primary contact email in this Excel file.")
+            seen_company_names.add(company_key)
+            seen_admin_emails.add(admin_email)
+            seen_contact_emails.add(contact_email)
+
+            email_pattern = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+            if not email_pattern.match(admin_email) or not email_pattern.match(contact_email):
+                raise ValueError("Enter valid contact and Company Admin email addresses.")
+            if len(data["admin_password"]) < 8:
+                raise ValueError("Company Admin password must contain at least 8 characters.")
+            if data["gst_number"] and not GSTIN_PATTERN.fullmatch(data["gst_number"].upper()):
+                raise ValueError("GST Number must be a valid 15-character GSTIN.")
+            if data["cin_number"] and not CIN_PATTERN.fullmatch(data["cin_number"].upper()):
+                raise ValueError("CIN Number must be a valid 21-character CIN.")
+            if data["plan_name"].casefold() not in PLAN_NAMES:
+                raise ValueError("Plan Name must be Basic, Standard, Premium, or Enterprise.")
+            if data["license_type"].casefold() not in LICENSE_TYPES:
+                raise ValueError("Invalid License Type.")
+            if data["billing_cycle"] and data["billing_cycle"].casefold() not in BILLING_CYCLES:
+                raise ValueError("Invalid Billing Cycle.")
+            start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
+            expiry_date = datetime.strptime(data["expiry_date"], "%Y-%m-%d").date()
+            if expiry_date < start_date:
+                raise ValueError("Expiry Date cannot be before Start Date.")
+            try:
+                max_active_users = int(data["max_active_users"])
+                if max_active_users < 1:
+                    raise ValueError()
+            except ValueError:
+                raise ValueError("Max Active Users must be a whole number greater than zero.")
+            max_courses = None
+            if data["max_courses"]:
+                try:
+                    max_courses = int(data["max_courses"])
+                    if max_courses < 0:
+                        raise ValueError()
+                except ValueError:
+                    raise ValueError("Max Courses must be a non-negative whole number.")
+            trial_value = data["trial"].casefold() in {"true", "yes", "1", "y"}
+            if data["trial"] and data["trial"].casefold() not in {"true", "yes", "1", "y", "false", "no", "0", "n"}:
+                raise ValueError("Trial must be TRUE or FALSE.")
+
+            data.update({
+                "contact_email": contact_email,
+                "admin_email": admin_email,
+                "gst_number": data["gst_number"].upper() or None,
+                "cin_number": data["cin_number"].upper() or None,
+                "plan_name": data["plan_name"].title(),
+                "license_type": data["license_type"],
+                "start_date": start_date,
+                "expiry_date": expiry_date,
+                "max_active_users": max_active_users,
+                "max_courses": max_courses,
+                "trial": trial_value,
+            })
+            company_id, admin_id = create_company_registration(
+                data, hash_password(data["admin_password"])
+            )
+            created.append({
+                "row": number,
+                "name": data["company_name"],
+                "email": admin_email,
+                "company_id": company_id,
+                "admin_id": admin_id,
+            })
+        except Exception as exc:
+            detail = getattr(exc, "detail", None) or str(exc) or "Registration failed."
+            failed.append({"row": number, "email": data.get("admin_email", ""), "reason": str(detail)})
+
+    return {
+        "success": len(failed) == 0,
+        "created_count": len(created),
+        "failed_count": len(failed),
+        "created": created,
+        "failed": failed,
+    }
