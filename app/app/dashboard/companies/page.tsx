@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Building2, Mail, Phone, MapPin, Plus, Trash2, Search, Users, CheckCircle2, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, Plus, Trash2, Search, Users, CheckCircle2, X, ChevronLeft, ChevronRight, Upload, Download, FileSpreadsheet, AlertCircle, Loader2 } from "lucide-react";
 import { getCompanies, createCompany, deleteCompany } from "@/lib/course-api";
 
 type Company = {
@@ -204,8 +204,8 @@ export default function CompaniesPage() {
                 {field("company_name", "Company Name", true, "text", "e.g. Wipro")}
                 {field("industry_type", "Industry Type", true, "text", "e.g. Information Technology")}
                 {field("company_type", "Company Type")}
-                {field("gst_number", "GST Number")}
-                {field("cin_number", "CIN Number")}
+                {field("gst_number", "GST Number", false, "text", "15-character GSTIN")}
+                {field("cin_number", "CIN Number", false, "text", "21-character CIN")}
                 <div className="md:col-span-2">{textarea("company_description", "Company Description")}</div>
               </>}
               {step === 1 && <>
@@ -225,12 +225,12 @@ export default function CompaniesPage() {
                 {field("address_line_1", "Address Line 1", true)}
                 {field("address_line_2", "Address Line 2")}
                 {field("city", "City", true)}
-                {field("state", "State", true)}
+                {selectField("state", "State", ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"], true)}
                 {field("country", "Country", true)}
                 {field("pin_code", "PIN Code", true)}
               </>}
               {step === 4 && <>
-                {field("plan_name", "Plan Name", true)}
+                {selectField("plan_name", "Plan Name", ["Basic", "Standard", "Premium", "Enterprise"], true)}
                 {selectField("license_type", "License Type", ["Named User", "Concurrent User", "Enterprise", "Perpetual", "Subscription"], true)}
                 {field("start_date", "Start Date", true, "date")}
                 {field("expiry_date", "Expiry Date", true, "date")}
