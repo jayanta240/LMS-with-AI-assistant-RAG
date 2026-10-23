@@ -125,7 +125,14 @@ def download_report(
         completed_lessons = int(row[8] or 0)
         completion = round((completed_lessons / total_lessons) * 100, 1) if total_lessons else 0
         learning_hours = round((int(row[9] or 0) / 3600), 2)
-        assigned_at = row[6].isoformat() if row[6] else ""
+        assigned_at_value = row[6]
+        if isinstance(assigned_at_value, datetime):
+            assigned_at = assigned_at_value.isoformat()
+        elif assigned_at_value:
+            # Some database drivers/configurations return timestamp columns as strings.
+            assigned_at = str(assigned_at_value)
+        else:
+            assigned_at = ""
         writer.writerow([
             row[0], row[1], row[2], row[3], row[4], row[5],
             assigned_at, total_lessons, completed_lessons, completion, learning_hours,
