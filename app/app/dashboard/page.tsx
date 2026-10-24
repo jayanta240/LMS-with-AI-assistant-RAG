@@ -107,10 +107,12 @@ function SectionCard({
   title,
   children,
   action,
+  headerAction,
 }: {
   title: string;
   children: React.ReactNode;
   action?: string;
+  headerAction?: React.ReactNode;
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -121,6 +123,7 @@ function SectionCard({
           {title}
         </h2>
 
+        {headerAction}
         {action && (
           <button
             type="button"
@@ -584,6 +587,7 @@ export default function DashboardPage() {
 
           <SectionCard
             title="Learning Analytics"
+            headerAction={<ReportSettings role={role} />}
           >
 
             <div className="grid grid-cols-2 gap-3">
@@ -663,10 +667,6 @@ export default function DashboardPage() {
                   })}%
                 </p>
 
-              </div>
-
-              <div className="mt-4 border-t border-slate-100 pt-4">
-                <ReportSettings role={role} />
               </div>
 
             </div>
