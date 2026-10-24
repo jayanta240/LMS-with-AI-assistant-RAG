@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, FileSpreadsheet, Building2, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Download, FileSpreadsheet, Building2, Users, ChevronDown } from "lucide-react";
 import { getCompanies, getDepartments } from "@/lib/course-api";
 
 type Company = { id: number; company_name: string };
@@ -42,6 +42,7 @@ export default function ReportSettings({ role }: { role: string }) {
     }
     let cancelled = false;
     setLoadingOptions(true);
+    setError("");
     getDepartments(userCompanyId)
       .then((data) => {
         if (!cancelled) {
@@ -73,7 +74,6 @@ export default function ReportSettings({ role }: { role: string }) {
         params.set("scope", scope);
         if (scope === "department") params.set("department_id", departmentId);
       }
-      // Department-head scope is derived entirely from the authenticated token.
       const token = localStorage.getItem("token");
       const response = await fetch(
         `${API_BASE}/api/reports/download?${params.toString()}`,
@@ -91,7 +91,8 @@ export default function ReportSettings({ role }: { role: string }) {
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExpanded(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Report download failed.");
     } finally {
@@ -102,26 +103,73 @@ export default function ReportSettings({ role }: { role: string }) {
   if (!["super_admin", "company_admin", "department_head"].includes(role)) return null;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
-      <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50">
-        <span className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><FileSpreadsheet size={18} /></span>
-          <span className="min-w-0"><span className="block text-sm font-semibold text-slate-900">Learning Report</span><span className="block text-xs text-slate-500">Export learning activity as CSV</span></span>
-        </span>
-        <span className="flex shrink-0 items-center gap-2 text-sm font-semibold text-amber-600">Report options {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => { setExpanded((value) => !value); setError(""); }}
+        aria-expanded={expanded}
+        aria-haspopup="dialog"
+        className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-amber-700 shadow-sm transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-300"
+      >
+        <FileSpreadsheet size={16} />
+        Report
+        <ChevronDown size={15} className={expanded ? "rotate-180 transition-transform" : "transition-transform"} />
       </button>
+
       {expanded && (
-        <div className="space-y-4 border-t border-slate-100 p-4">
-          {role === "super_admin" && <div><label htmlFor="report-company" className="mb-1.5 block text-sm font-medium text-slate-700">Company</label><select id="report-company" value={companyId} onChange={(event) => setCompanyId(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-400"><option value="">All companies</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.company_name}</option>)}</select></div>}
-          {role === "company_admin" && <div className="space-y-3"><p className="text-sm font-medium text-slate-700">Report scope</p><div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => setScope("company")} aria-pressed={scope === "company"} className={`flex items-center gap-2 rounded-lg border p-3 text-left transition ${scope === "company" ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-slate-300"}`}><Building2 size={18} className="shrink-0 text-amber-600" /><span><span className="block text-sm font-semibold text-slate-800">Whole Company</span><span className="block text-xs text-slate-500">All departments</span></span></button>
-            <button type="button" onClick={() => setScope("department")} aria-pressed={scope === "department"} className={`flex items-center gap-2 rounded-lg border p-3 text-left transition ${scope === "department" ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-slate-300"}`}><Users size={18} className="shrink-0 text-amber-600" /><span><span className="block text-sm font-semibold text-slate-800">Department-wise</span><span className="block text-xs text-slate-500">Choose a department</span></span></button>
-          </div>{scope === "department" && <div><label htmlFor="report-department" className="mb-1.5 block text-sm font-medium text-slate-700">Department</label><select id="report-department" value={departmentId} onChange={(event) => setDepartmentId(event.target.value)} disabled={loadingOptions || departments.length === 0} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-400 disabled:opacity-60">{departments.length === 0 && <option value="">{loadingOptions ? "Loading departments..." : "No departments available"}</option>}{departments.map((department) => <option key={department.id} value={department.id}>{department.department_name}</option>)}</select></div>}</div>}
-          {role === "department_head" && <p className="text-sm text-slate-600">The report will include only your assigned department.</p>}
-          {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-          <div className="flex justify-end"><button type="button" onClick={downloadReport} disabled={downloading || (role === "company_admin" && scope === "department" && loadingOptions)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"><Download size={16} />{downloading ? "Preparing report..." : "Download CSV"}</button></div>
-        </div>
+        <>
+          <button aria-label="Close report options" className="fixed inset-0 z-30 cursor-default" onClick={() => setExpanded(false)} />
+          <div role="dialog" aria-label="Report download options" className="absolute right-0 top-full z-40 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xl">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><FileSpreadsheet size={16} /></span>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Learning report</p>
+                <p className="text-xs text-slate-500">Download activity as CSV</p>
+              </div>
+            </div>
+
+            {role === "super_admin" && (
+              <div className="mb-3">
+                <label htmlFor="report-company" className="mb-1 block text-xs font-medium text-slate-600">Company</label>
+                <select id="report-company" value={companyId} onChange={(event) => setCompanyId(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-400">
+                  <option value="">All companies</option>
+                  {companies.map((company) => <option key={company.id} value={company.id}>{company.company_name}</option>)}
+                </select>
+              </div>
+            )}
+
+            {role === "company_admin" && (
+              <div className="mb-3">
+                <label htmlFor="report-scope" className="mb-1 block text-xs font-medium text-slate-600">Report scope</label>
+                <select id="report-scope" value={scope} onChange={(event) => setScope(event.target.value as "company" | "department")} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-400">
+                  <option value="company">Whole company</option>
+                  <option value="department">Department-wise</option>
+                </select>
+                {scope === "department" && (
+                  <div className="mt-3">
+                    <label htmlFor="report-department" className="mb-1 block text-xs font-medium text-slate-600">Department</label>
+                    <select id="report-department" value={departmentId} onChange={(event) => setDepartmentId(event.target.value)} disabled={loadingOptions || departments.length === 0} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-amber-400 disabled:opacity-60">
+                      {departments.length === 0 && <option value="">{loadingOptions ? "Loading departments..." : "No departments available"}</option>}
+                      {departments.map((department) => <option key={department.id} value={department.id}>{department.department_name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {role === "department_head" && (
+              <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"><Building2 size={14} className="mr-1 inline" />Report is limited to your assigned department.</p>
+            )}
+
+            {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
+
+            <button type="button" onClick={downloadReport} disabled={downloading || (role === "company_admin" && scope === "department" && (loadingOptions || !departmentId))} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60">
+              <Download size={16} />
+              {downloading ? "Preparing report..." : "Download CSV"}
+            </button>
+          </div>
+        </>
       )}
-    </section>
+    </div>
   );
 }
