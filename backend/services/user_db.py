@@ -342,13 +342,12 @@ def get_employees_with_progress(company_id=None, department_head_id=None):
                     u.profile_photo_url,
                     CASE
                         WHEN COUNT(DISTINCT l.id) = 0 THEN 0
-                        ELSE CAST(
-                            COUNT(DISTINCT CASE
+                        ELSE FLOOR(
+                                COUNT(DISTINCT CASE
                                 WHEN lp.completed = 1 THEN lp.lesson_id
                             END)::numeric
-                            / COUNT(DISTINCT l.id) * 100
-                            AS INTEGER
-                        )
+                                / COUNT(DISTINCT l.id) * 100
+                            )::INTEGER
                     END AS progress
                 FROM users u
                 LEFT JOIN companies c
