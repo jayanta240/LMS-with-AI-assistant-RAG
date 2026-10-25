@@ -45,6 +45,8 @@ from services.user_db import (
     get_user_by_email,
     get_user_by_id,
     get_all_users,
+    get_employees_with_progress,
+    get_department_heads_by_company,
     get_user_count,
     delete_user,
     delete_company_admin,
@@ -2760,79 +2762,54 @@ async def login_user(
 async def get_users_api(
     current_user=Depends(get_current_user)
 ):
+    role = current_user.get("role")
+    company_id = None
+    department_head_id = None
 
-    rows = get_all_users()
-
-    users = []
-
-    for row in rows:
-
-        # Employees page must contain employees only.
-        if row[3] != "employee":
-            continue
-
-        # -------------------------
-        # Super Admin
-        # -------------------------
-
-        if current_user["role"] == "super_admin":
-
-            pass
-
-        # -------------------------
-        # Company Admin
-        # -------------------------
-
-        elif current_user["role"] == "company_admin":
-
-            if row[4] != current_user["company_id"]:
-                continue
-
-        # -------------------------
-        # Department Head
-        # -------------------------
-
-        elif current_user["role"] == "department_head":
-
-            if row[9] != current_user["user_id"]:
-                continue
-
-        # -------------------------
-        # Employee
-        # -------------------------
-
-        else:
-
+    if role == "super_admin":
+        pass
+    elif role == "company_admin":
+        company_id = current_user.get("company_id")
+        if company_id is None:
             raise HTTPException(
                 status_code=403,
                 detail="Permission denied."
             )
+    elif role == "department_head":
+        department_head_id = current_user.get("user_id")
+        if department_head_id is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Permission denied."
+            )
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied."
+        )
 
-        users.append({
+    rows = get_employees_with_progress(
+        company_id=company_id,
+        department_head_id=department_head_id,
+    )
 
+    return [
+        {
             "id": row[0],
-
             "name": row[1],
-
             "email": row[2],
-
             "role": row[3],
-
             "company_id": row[4],
             "company": row[5],
-
             "department_id": row[6],
             "department": row[7],
+            "created_at": row[8],
             "department_head_id": row[9],
             "profile_photo_url": row[10] if len(row) > 10 else None,
-
-            "created_at": row[8],
-            "progress": get_user_progress(row[0]),
-            
-
-        })
-
-    return users
+            "progress": row[11] or 0,
+        }
+        for row in rows
+    ]
 
 @app.get("/api/company-admins/next-employee-id")
 async def get_next_employee_id(
@@ -3668,12 +3645,10 @@ async def get_department_heads_api(
             detail="Only Company Admin can view Department Heads."
         )
 
-    rows = get_all_users(
-        current_user["company_id"]
+    rows = get_department_heads_by_company(
+        current_user["company_id"],
+        department_id=department_id,
     )
-
-    if department_id is not None:
-        rows = [row for row in rows if row[6] == department_id]
 
     return [
         {
@@ -3686,9 +3661,7 @@ async def get_department_heads_api(
             "created_at": row[8],
         }
         for row in rows
-        if row[3] == "department_head"
     ]
-
 
 @app.delete("/api/department-heads/{user_id}")
 async def delete_department_head_api(
