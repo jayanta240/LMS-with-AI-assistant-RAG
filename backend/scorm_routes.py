@@ -543,8 +543,17 @@ def _issue_certificate_if_course_complete(user_id: int, course_id: int, company_
     course_title = course[1] or "Course"
     user_name = user[1] or "Learner"
     company_name = company[1] if company and len(company) > 1 and company[1] else "Company"
-    branding = get_company_branding(company_id)
-    if not isinstance(branding, dict):
+    branding_row = get_company_branding(company_id)
+    if isinstance(branding_row, dict):
+        branding = branding_row
+    elif branding_row:
+        branding = {
+            "logo_url": branding_row[2] or "",
+            "primary_color": branding_row[4] or "#FBBF24",
+            "secondary_color": branding_row[5] or "#0F172A",
+            "accent_color": branding_row[6] or "#F59E0B",
+        }
+    else:
         branding = {}
     logo_url = branding.get("logo_url") or ""
     primary_color = branding.get("primary_color") or "#FBBF24"
