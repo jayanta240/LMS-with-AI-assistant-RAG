@@ -857,7 +857,11 @@ def get_scorm_package_asset(package_id: str, asset_path: str, request: Request):
         ".html": "text/html", ".htm": "text/html", ".js": "application/javascript",
         ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml",
     }.get(suffix)
-    headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=60"}
+    headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, max-age=60",
+        "Referrer-Policy": "no-referrer",
+    }
     if suffix in {".html", ".htm"}:
         if target.stat().st_size > MAX_HTML_INJECTION_BYTES:
             raise HTTPException(status_code=413, detail="SCORM HTML document exceeds the injection size limit.")
