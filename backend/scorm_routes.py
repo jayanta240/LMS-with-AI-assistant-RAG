@@ -466,10 +466,18 @@ def launch_scorm_package(package_id: str, request: Request):
     launch_file = (root / PurePosixPath(package[1])).resolve()
     if not launch_file.is_relative_to(root) or not launch_file.is_file():
         raise HTTPException(status_code=404, detail="SCORM launch file is unavailable.")
+    # The SCO iframe is sandboxed without allow-same-origin, so browsers omit
+    # cookies from its opaque-origin subresource requests. Put the short-lived,
+    # package-scoped ticket in the content path so relative assets inherit it.
+    launch_path = PurePosixPath(package[1]).as_posix()
     return RedirectResponse(
-        url=f"/api/scorm/packages/{parsed_id}/{PurePosixPath(package[1]).as_posix()}",
+        url=f"/api/scorm/packages/{parsed_id}/content/{ticket}/{launch_path}",
         status_code=307,
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+        headers={
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+        },
     )
 
 
@@ -816,7 +824,18 @@ def get_scorm_package_asset(package_id: str, asset_path: str, request: Request):
         raise HTTPException(status_code=404, detail="SCORM package not found.")
     if asset_path in {"launch", "launch-ticket", "content"} or asset_path.startswith("attempts/"):
         raise HTTPException(status_code=404, detail="SCORM asset not found.")
-    ticket_data = _ticket_row(request.cookies.get(TICKET_COOKIE), parsed_id)
+
+    # Content URLs use /content/{ticket}/{relative-path}. This keeps the
+    # bearer ticket in the path for nested relative JS/CSS/image requests,
+    # avoiding dependence on cookies inside the sandboxed opaque-origin iframe.
+    ticket = request.cookies.get(TICKET_COOKIE)
+    if asset_path.startswith("content/"):
+        parts = asset_path.split("/", 2)
+        if len(parts) != 3 or not parts[1] or not parts[2]:
+            raise HTTPException(status_code=404, detail="SCORM asset not found.")
+        ticket = parts[1]
+        asset_path = parts[2]
+    ticket_data = _ticket_row(ticket, parsed_id)
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
