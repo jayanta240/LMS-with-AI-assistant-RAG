@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, BookOpen, CheckCircle2, LoaderCircle, PlayCircle, X } from "lucide-react";
+import { clearApiCache } from "@/lib/course-api";
 
 type ScormPackage = {
   id: string;
