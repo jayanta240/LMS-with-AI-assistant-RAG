@@ -861,6 +861,11 @@ def get_scorm_package_asset(package_id: str, asset_path: str, request: Request):
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, max-age=60",
         "Referrer-Policy": "no-referrer",
+        # Sandboxed SCORM documents have an opaque "null" origin. Browsers
+        # require an ACAO header for font resources loaded by their CSS.
+        # The ticket is short-lived and package-scoped, and remains required
+        # by this handler before any asset is served.
+        "Access-Control-Allow-Origin": "*",
     }
     if suffix in {".html", ".htm"}:
         if target.stat().st_size > MAX_HTML_INJECTION_BYTES:
