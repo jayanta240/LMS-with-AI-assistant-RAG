@@ -41,36 +41,45 @@ def get_user_courses(user_id):
 
             cursor.execute("""
                 SELECT
-
                     c.id,
                     c.title,
                     c.description,
-
-                    COUNT(DISTINCT l.id) AS total_lessons,
-
-                    COUNT(DISTINCT lp.lesson_id)
-                        AS completed_lessons
-
+                    COALESCE(lesson_counts.total_lessons, 0)
+                        + COALESCE(scorm_counts.total_packages, 0) AS total_lessons,
+                    COALESCE(lesson_progress.completed_lessons, 0)
+                        + COALESCE(scorm_progress.completed_packages, 0) AS completed_lessons
                 FROM enrollments e
-
-                JOIN courses c
-                    ON c.id = e.course_id
-
-                LEFT JOIN lessons l
-                    ON l.course_id = c.id
-
-                LEFT JOIN lesson_progress lp
-                    ON lp.lesson_id = l.id
-                   AND lp.user_id = e.user_id
-                   AND lp.completed = 1
-
+                JOIN courses c ON c.id = e.course_id
+                LEFT JOIN (
+                    SELECT course_id, COUNT(*) AS total_lessons
+                    FROM lessons
+                    GROUP BY course_id
+                ) lesson_counts ON lesson_counts.course_id = c.id
+                LEFT JOIN (
+                    SELECT course_id, COUNT(*) AS total_packages
+                    FROM scorm_packages
+                    GROUP BY course_id
+                ) scorm_counts ON scorm_counts.course_id = c.id
+                LEFT JOIN (
+                    SELECT user_id, course_id, COUNT(DISTINCT lesson_id) AS completed_lessons
+                    FROM lesson_progress
+                    WHERE completed = 1
+                    GROUP BY user_id, course_id
+                ) lesson_progress ON lesson_progress.user_id = e.user_id
+                                  AND lesson_progress.course_id = c.id
+                LEFT JOIN (
+                    SELECT a.user_id, p.course_id, COUNT(DISTINCT a.package_id) AS completed_packages
+                    FROM scorm_attempts a
+                    JOIN scorm_packages p ON p.id = a.package_id
+                    WHERE a.completion_status IN ('completed', 'passed')
+                      AND a.success_status <> 'failed'
+                    GROUP BY a.user_id, p.course_id
+                ) scorm_progress ON scorm_progress.user_id = e.user_id
+                                 AND scorm_progress.course_id = c.id
                 WHERE e.user_id = %s
-
-                GROUP BY
-                    c.id,
-                    c.title,
-                    c.description
-
+                GROUP BY c.id, c.title, c.description,
+                         lesson_counts.total_lessons, scorm_counts.total_packages,
+                         lesson_progress.completed_lessons, scorm_progress.completed_packages
                 ORDER BY c.id DESC
             """, (
                 user_id,

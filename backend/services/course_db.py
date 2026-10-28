@@ -815,15 +815,27 @@ def get_course_progress(
 
             completed = cursor.fetchone()[0]
 
+            # Completed SCORM activities count toward overall course progress.
+            cursor.execute("""
+                SELECT COUNT(DISTINCT a.package_id)
+                FROM scorm_attempts a
+                JOIN scorm_packages p ON p.id = a.package_id
+                WHERE a.user_id = %s
+                  AND p.course_id = %s
+                  AND a.completion_status IN ('completed', 'passed', 'failed')
+            """, (user_id, course_id))
+            completed += cursor.fetchone()[0]
+
             # --------------------------------------------------------
-            # Total lessons
+            # Total lessons and SCORM activities
             # --------------------------------------------------------
 
             cursor.execute("""
-                SELECT COUNT(*)
-                FROM lessons
-                WHERE course_id = %s
+                SELECT
+                    (SELECT COUNT(*) FROM lessons WHERE course_id = %s)
+                    + (SELECT COUNT(*) FROM scorm_packages WHERE course_id = %s)
             """, (
+                course_id,
                 course_id,
             ))
 

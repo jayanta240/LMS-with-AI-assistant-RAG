@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import ScormPackageManager from "@/components/scorm/ScormPackageManager";
 
 import {
   getCourse,
@@ -587,6 +588,7 @@ export default function CourseDetails() {
 
         </div>
 
+        <ScormPackageManager courseId={courseId} />
 
         {/* ==================================================
             LESSONS HEADER

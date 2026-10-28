@@ -5,6 +5,8 @@ services:
       context: ./backend
     container_name: lms-backend
     restart: unless-stopped
+    volumes:
+      - scorm_storage:/app/scorm_storage
 
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -22,6 +24,8 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
 
       FRONTEND_URL: ${FRONTEND_URL}
+      SCORM_CONTENT_ORIGIN: ${SCORM_CONTENT_ORIGIN:-}
+      SCORM_COOKIE_SECURE: ${SCORM_COOKIE_SECURE:-false}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME}
@@ -66,3 +70,7 @@ services:
     depends_on:
       - frontend
       - backend
+
+volumes:
+  scorm_storage:
+    name: lms_scorm_storage

@@ -1,0 +1,39 @@
+name: SCORM integration checks
+
+on:
+  push:
+    branches:
+      - feature/scorm-integration
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile backend Python modules
+        run: python -m py_compile backend/main.py backend/scorm_routes.py
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_API_URL: /api
+        run: npm run build

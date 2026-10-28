@@ -17,6 +17,7 @@ import CourseProgress from "@/components/learning/CourseProgress";
 import LessonSidebar from "@/components/learning/LessonSidebar";
 import LessonViewer from "@/components/learning/LessonViewer";
 import AIAssistantCard from "@/components/learning/AIAssistantCard";
+import ScormCoursePlayer from "@/components/scorm/ScormCoursePlayer";
 
 import {
   getCourse,
@@ -48,6 +49,14 @@ export default function CoursePage() {
 
     }
 
+  }, [courseId]);
+
+  useEffect(() => {
+    const refreshProgress = () => {
+      void loadProgress();
+    };
+    window.addEventListener("lms-scorm-progress-updated", refreshProgress);
+    return () => window.removeEventListener("lms-scorm-progress-updated", refreshProgress);
   }, [courseId]);
 
 
@@ -217,7 +226,9 @@ export default function CoursePage() {
             LEARNING WORKSPACE
            ===================================================== */}
 
-        <main className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+        <main className="mx-auto max-w-7xl space-y-7 px-6 py-8 lg:px-10">
+
+          <ScormCoursePlayer courseId={courseId} />
 
           {loading ? (
 
