@@ -12,6 +12,8 @@ import re
 import shutil
 import stat
 import tempfile
+import time
+import threading
 import uuid
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -47,6 +49,16 @@ MAX_HTML_INJECTION_BYTES = 20 * 1024 * 1024
 TICKET_COOKIE = "lms_scorm_ticket"
 TICKET_TTL_MINUTES = 480
 SUPPORTED_VERSION = "1.2"
+
+# SCORM packages often request dozens of static assets concurrently. Rechecking
+# the same launch ticket in remote PostgreSQL for every CSS/JS/font request
+# makes those requests queue behind database round trips. Cache validated
+# ticket + package metadata briefly in this worker; expiry is still checked
+# on every cache hit and the cache never extends the ticket's lifetime.
+_TICKET_CACHE_TTL_SECONDS = 10.0
+_TICKET_CACHE_MAX_ENTRIES = 4096
+_ticket_cache: dict[tuple[str, str], tuple[float, tuple]] = {}
+_ticket_cache_lock = threading.Lock()
 
 
 def init_scorm_db() -> None:
@@ -290,6 +302,17 @@ def _ticket_row(ticket: str | None, package_id: str):
     if not ticket:
         raise HTTPException(status_code=401, detail="SCORM launch ticket is missing or expired.")
     ticket_hash = __import__("hashlib").sha256(ticket.encode("utf-8")).hexdigest()
+    cache_key = (ticket_hash, package_id)
+    now_mono = time.monotonic()
+    with _ticket_cache_lock:
+        cached = _ticket_cache.get(cache_key)
+        if cached and now_mono < cached[0]:
+            cached_row = cached[1]
+            expires_at = cached_row[2]
+            if expires_at and expires_at > datetime.now(timezone.utc):
+                return cached_row
+            _ticket_cache.pop(cache_key, None)
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -304,7 +327,15 @@ def _ticket_row(ticket: str | None, package_id: str):
             """, (ticket_hash, package_id))
             row = cur.fetchone()
     if not row:
+        with _ticket_cache_lock:
+            _ticket_cache.pop(cache_key, None)
         raise HTTPException(status_code=401, detail="SCORM launch ticket is invalid or expired.")
+
+    with _ticket_cache_lock:
+        if len(_ticket_cache) >= _TICKET_CACHE_MAX_ENTRIES:
+            _ticket_cache.clear()
+        ttl_deadline = time.monotonic() + _TICKET_CACHE_TTL_SECONDS
+        _ticket_cache[cache_key] = (ttl_deadline, row)
     return row
 
 
