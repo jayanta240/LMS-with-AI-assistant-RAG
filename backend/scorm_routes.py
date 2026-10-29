@@ -293,9 +293,14 @@ def _ticket_row(ticket: str | None, package_id: str):
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT user_id, company_id, expires_at, attempt_id
-                FROM scorm_launch_tickets
-                WHERE ticket_hash = %s AND package_id = %s AND expires_at > NOW()
+                SELECT t.user_id, t.company_id, t.expires_at, t.attempt_id,
+                       p.storage_path, p.launch_path
+                FROM scorm_launch_tickets AS t
+                JOIN scorm_packages AS p
+                  ON p.id = t.package_id AND p.company_id = t.company_id
+                WHERE t.ticket_hash = %s
+                  AND t.package_id = %s
+                  AND t.expires_at > NOW()
             """, (ticket_hash, package_id))
             row = cur.fetchone()
     if not row:
@@ -454,22 +459,17 @@ def launch_scorm_package(package_id: str, request: Request):
     except ValueError:
         raise HTTPException(status_code=404, detail="SCORM package not found.")
     ticket = request.cookies.get(TICKET_COOKIE)
+    # Ticket validation and package metadata are fetched in one database
+    # round trip; SCORM launches otherwise incur two sequential remote queries.
     ticket_data = _ticket_row(ticket, parsed_id)
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT storage_path, launch_path FROM scorm_packages WHERE id = %s AND company_id = %s",
-                        (parsed_id, int(ticket_data[1])))
-            package = cur.fetchone()
-    if not package:
-        raise HTTPException(status_code=404, detail="SCORM package not found.")
-    root = Path(package[0]).resolve()
-    launch_file = (root / PurePosixPath(package[1])).resolve()
+    root = Path(ticket_data[4]).resolve()
+    launch_file = (root / PurePosixPath(ticket_data[5])).resolve()
     if not launch_file.is_relative_to(root) or not launch_file.is_file():
         raise HTTPException(status_code=404, detail="SCORM launch file is unavailable.")
     # The SCO iframe is sandboxed without allow-same-origin, so browsers omit
     # cookies from its opaque-origin subresource requests. Put the short-lived,
     # package-scoped ticket in the content path so relative assets inherit it.
-    launch_path = PurePosixPath(package[1]).as_posix()
+    launch_path = PurePosixPath(ticket_data[5]).as_posix()
     return RedirectResponse(
         url=f"/api/scorm/packages/{parsed_id}/content/{ticket}/{launch_path}",
         status_code=307,
@@ -835,17 +835,10 @@ def get_scorm_package_asset(package_id: str, asset_path: str, request: Request):
             raise HTTPException(status_code=404, detail="SCORM asset not found.")
         ticket = parts[1]
         asset_path = parts[2]
+    # Validate the short-lived ticket and obtain the package storage path
+    # with one query, instead of two sequential database round trips per asset.
     ticket_data = _ticket_row(ticket, parsed_id)
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT storage_path FROM scorm_packages WHERE id = %s AND company_id = %s",
-                (parsed_id, int(ticket_data[1])),
-            )
-            package = cur.fetchone()
-    if not package:
-        raise HTTPException(status_code=404, detail="SCORM package not found.")
-    root = Path(package[0]).resolve()
+    root = Path(ticket_data[4]).resolve()
     relative = PurePosixPath(asset_path.replace("\\", "/"))
     if relative.is_absolute() or any(part in {"..", ""} for part in relative.parts):
         raise HTTPException(status_code=400, detail="Invalid asset path.")
