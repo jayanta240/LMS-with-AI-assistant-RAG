@@ -463,8 +463,24 @@ def create_launch_ticket(package_id: str, response: Response, attempt_id: uuid.U
                         (str(attempt_id), str(row[0]), int(current_user["user_id"]), company_id))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="SCORM attempt not found.")
-            cur.execute("UPDATE scorm_attempts SET exit_mode = '', session_time = '0000:00:00.00', last_accessed_at = NOW() WHERE id = %s AND user_id = %s AND company_id = %s",
-                        (str(attempt_id), int(current_user["user_id"]), company_id))
+            cur.execute("""
+                UPDATE scorm_attempts
+                SET exit_mode = '',
+                    session_time = '0000:00:00.00',
+                    cmi_data = jsonb_set(
+                        jsonb_set(
+                            COALESCE(cmi_data, '{}'::jsonb),
+                            '{cmi.core.session_time}',
+                            '"0000:00:00.00"'::jsonb,
+                            true
+                        ),
+                        '{cmi.core.total_time}',
+                        to_jsonb(total_time),
+                        true
+                    ),
+                    last_accessed_at = NOW()
+                WHERE id = %s AND user_id = %s AND company_id = %s
+            """, (str(attempt_id), int(current_user["user_id"]), company_id))
     ticket = uuid.uuid4().hex + uuid.uuid4().hex
     ticket_hash = __import__("hashlib").sha256(ticket.encode("utf-8")).hexdigest()
     with get_db_connection() as conn:
@@ -689,8 +705,13 @@ def commit_scorm_attempt(
     terminal_status = lesson_status in {"completed", "passed", "failed"}
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT p.mastery_score, a.total_time, a.exit_mode, p.course_id FROM scorm_attempts a JOIN scorm_packages p ON p.id = a.package_id WHERE a.id = %s AND a.user_id = %s AND a.company_id = %s",
-                        (str(data.attempt_id), user_id, company_id))
+            cur.execute("""
+                SELECT p.mastery_score, a.total_time, a.session_time, p.course_id
+                FROM scorm_attempts a
+                JOIN scorm_packages p ON p.id = a.package_id
+                WHERE a.id = %s AND a.user_id = %s AND a.company_id = %s
+                FOR UPDATE OF a
+            """, (str(data.attempt_id), user_id, company_id))
             existing = cur.fetchone()
             if not existing:
                 raise HTTPException(status_code=404, detail="SCORM attempt not found.")
@@ -699,9 +720,18 @@ def commit_scorm_attempt(
             if lesson_status == "completed" and score is not None and mastery_score is not None:
                 success_status = "passed" if score >= mastery_score else "failed"
             previous_total = _parse_scorm_time(existing[1] or "0000:00:00.00")
-            session_seconds = _parse_scorm_time(str(cmi.get("cmi.core.session_time", "0000:00:00.00")))
-            add_session_time = data.finish and existing[2] != "FINISH"
-            total_time = _format_scorm_time(previous_total + session_seconds) if add_session_time else (existing[1] or "0000:00:00.00")
+            previous_session = _parse_scorm_time(existing[2] or "0000:00:00.00")
+            reported_session = _parse_scorm_time(str(cmi.get("cmi.core.session_time", "0000:00:00.00")))
+
+            # SCORM 1.2 session_time is cumulative within the current launch.
+            # Add only the increase since the previous commit, so repeated
+            # LMSCommit calls and the final LMSFinish cannot double-count time.
+            session_seconds = max(previous_session, reported_session)
+            session_delta = max(0.0, session_seconds - previous_session)
+            total_time = _format_scorm_time(previous_total + session_delta)
+            session_time = _format_scorm_time(session_seconds)
+            cmi["cmi.core.session_time"] = session_time
+            cmi["cmi.core.total_time"] = total_time
             exit_mode = "FINISH" if data.finish else str(cmi.get("cmi.core.exit", ""))
             cur.execute("""
                 UPDATE scorm_attempts
@@ -710,7 +740,7 @@ def commit_scorm_attempt(
                     success_status = %s,
                     score_raw = %s,
                     total_time = %s,
-                    session_time = COALESCE(NULLIF(%s, ''), session_time),
+                    session_time = %s,
                     suspend_data = LEFT(COALESCE(%s, ''), 64000),
                     lesson_location = LEFT(COALESCE(%s, ''), 1000),
                     lesson_status = %s,
@@ -720,7 +750,7 @@ def commit_scorm_attempt(
                 WHERE id = %s AND user_id = %s AND company_id = %s
                 RETURNING id, package_id
             """, (json.dumps(cmi), lesson_status, success_status, score,
-                  total_time, str(cmi.get("cmi.core.session_time", "")),
+                  total_time, session_time,
                   str(cmi.get("cmi.suspend_data", "")), str(cmi.get("cmi.core.lesson_location", "")),
                   lesson_status, exit_mode, terminal_status,
                   str(data.attempt_id), user_id, company_id))
@@ -772,6 +802,7 @@ def _scorm_runtime_script(package_id: str, attempt_id: str, initial_cmi: dict[st
   var packageId = __PACKAGE__;
   var attemptId = __ATTEMPT__;
   var initialized = false, lastError = "0";
+  var sessionStartedAt = 0, autosaveTimer = null;
   var values = Object.assign({
     "cmi._children": "core,suspend_data,launch_data,comments,comments_from_lms,objectives,student_data,student_preference,interactions",
     "cmi.core._children": "student_id,student_name,lesson_location,credit,lesson_status,entry,score,total_time,lesson_mode,exit,session_time",
@@ -808,7 +839,34 @@ def _scorm_runtime_script(package_id: str, attempt_id: str, initial_cmi: dict[st
     "cmi.objectives._count": "0"
   }, seed);
   var writable = /^(cmi\.core\.(lesson_location|lesson_status|score\.(raw|min|max)|session_time|exit)|cmi\.suspend_data|cmi\.comments$|cmi\.student_preference\.|cmi\.interactions\.|cmi\.objectives\.)/;
-  function send(finish){ try { window.parent.postMessage({type:"lms-scorm-commit", packageId:packageId, attemptId:attemptId, cmi:values, finish:!!finish}, "*"); } catch(e){} }
+  function formatScormTime(seconds) {
+    seconds = Math.max(0, seconds);
+    var hours = Math.floor(seconds / 3600);
+    var minutes = Math.floor((seconds % 3600) / 60);
+    var remainder = (seconds % 60).toFixed(2);
+    return String(hours).padStart(4, "0") + ":" +
+      String(minutes).padStart(2, "0") + ":" + remainder.padStart(5, "0");
+  }
+  function updateSessionTime() {
+    if (initialized && sessionStartedAt) {
+      values["cmi.core.session_time"] = formatScormTime((Date.now() - sessionStartedAt) / 1000);
+    }
+  }
+  function send(finish) {
+    updateSessionTime();
+    try {
+      window.parent.postMessage({
+        type:"lms-scorm-commit", packageId:packageId, attemptId:attemptId,
+        cmi:values, finish:!!finish
+      }, "*");
+    } catch(e) {}
+  }
+  function startAutosave() {
+    if (autosaveTimer) clearInterval(autosaveTimer);
+    autosaveTimer = setInterval(function() {
+      if (initialized) send(false);
+    }, 15000);
+  }
   function dynamicCount(prefix) {
     var max = -1;
     Object.keys(values).forEach(function(key) {
@@ -818,8 +876,24 @@ def _scorm_runtime_script(package_id: str, attempt_id: str, initial_cmi: dict[st
     return String(max + 1);
   }
   window.API = {
-    LMSInitialize:function(){ if(initialized){lastError="101";return "false";} initialized=true; lastError="0"; return "true"; },
-    LMSFinish:function(){ if(!initialized){lastError="301";return "false";} values["cmi.core.exit"]=values["cmi.core.exit"]||"suspend"; send(true); initialized=false; lastError="0"; return "true"; },
+    LMSInitialize:function(){
+      if(initialized){lastError="101";return "false";}
+      initialized=true;
+      sessionStartedAt=Date.now();
+      startAutosave();
+      lastError="0";
+      return "true";
+    },
+    LMSFinish:function(){
+      if(!initialized){lastError="301";return "false";}
+      values["cmi.core.exit"]=values["cmi.core.exit"]||"suspend";
+      send(true);
+      initialized=false;
+      sessionStartedAt=0;
+      if(autosaveTimer){clearInterval(autosaveTimer);autosaveTimer=null;}
+      lastError="0";
+      return "true";
+    },
     LMSGetValue:function(key){
       if(!initialized){lastError="301";return "";}
       if(key === "cmi.interactions._count") values[key] = dynamicCount("cmi.interactions");
