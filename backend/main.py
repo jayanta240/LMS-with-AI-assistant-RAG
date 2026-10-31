@@ -4013,7 +4013,7 @@ async def update_course_api(
         thumbnail_url=data.thumbnail_url,
     )
 
-    if role == "company_admin":
+    if role == "company_admin" and data.visible_department_ids is not None:
         selected_department_ids = sorted(set(data.visible_department_ids or []))
         if selected_department_ids:
             with get_db_connection() as conn:
