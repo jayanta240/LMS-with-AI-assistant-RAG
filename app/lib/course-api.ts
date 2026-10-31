@@ -1670,3 +1670,41 @@ export async function uploadCompanyLogo(
 
   return data;
 }
+
+
+// ============================================================
+// COURSE DEPARTMENT VISIBILITY
+// ============================================================
+
+export async function getCourseDepartmentVisibility(courseId: number) {
+  const res = await fetch(
+    `${BASE}/api/courses/${courseId}/department-visibility`,
+    { headers: authHeaders() }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to load course department access");
+  }
+  return data.department_ids || [];
+}
+
+export async function updateCourseDepartmentVisibility(
+  courseId: number,
+  departmentIds: number[]
+) {
+  const res = await fetch(
+    `${BASE}/api/courses/${courseId}/department-visibility`,
+    {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ department_ids: departmentIds }),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to update course department access");
+  }
+  invalidateCache("courses");
+  invalidateCache(`course:${courseId}`);
+  return data;
+}
