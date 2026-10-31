@@ -109,6 +109,19 @@ def init_course_db():
                 ON courses(company_id)
             """)
 
+            # Department-level visibility for company-admin courses.
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS course_department_visibility (
+                    course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+                    department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+                    PRIMARY KEY (course_id, department_id)
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_course_department_visibility_department
+                ON course_department_visibility(department_id, course_id)
+            """)
+
             # ========================================================
             # LESSONS
             # ========================================================
@@ -187,6 +200,7 @@ def create_course(
     expiry_date=None,
     status="draft",
     department_id=None,
+    visible_department_ids=None,
 ):
     """
     Create a course belonging to exactly one company.
@@ -230,8 +244,18 @@ def create_course(
             ))
 
             row = cursor.fetchone()
+            course_id = row[0]
 
-            return row[0]
+            # Store explicit Department Head visibility separately from
+            # the legacy department_id ownership field.
+            for visible_department_id in sorted(set(visible_department_ids or [])):
+                cursor.execute("""
+                    INSERT INTO course_department_visibility (course_id, department_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (course_id, visible_department_id))
+
+            return course_id
 
 
 def get_all_courses():
@@ -287,8 +311,14 @@ def get_courses(company_id=None, department_id=None):
         conditions.append("company_id = %s")
         params.append(company_id)
     if department_id is not None:
-        conditions.append("department_id = %s")
-        params.append(department_id)
+        conditions.append("""(
+            department_id = %s OR EXISTS (
+                SELECT 1 FROM course_department_visibility cdv
+                WHERE cdv.course_id = courses.id
+                  AND cdv.department_id = %s
+            )
+        )""")
+        params.extend([department_id, department_id])
     if conditions:
         select_sql += " WHERE " + " AND ".join(conditions)
     select_sql += " ORDER BY id DESC"
@@ -314,8 +344,14 @@ def get_course(course_id, company_id=None, department_id=None):
         query += " AND company_id = %s"
         params.append(company_id)
     if department_id is not None:
-        query += " AND department_id = %s"
-        params.append(department_id)
+        query += """ AND (
+            department_id = %s OR EXISTS (
+                SELECT 1 FROM course_department_visibility cdv
+                WHERE cdv.course_id = courses.id
+                  AND cdv.department_id = %s
+            )
+        )"""
+        params.extend([department_id, department_id])
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
