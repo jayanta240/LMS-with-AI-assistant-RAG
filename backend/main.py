@@ -4011,7 +4011,6 @@ async def update_course_api(
         title=data.title,
         description=data.description,
         thumbnail_url=data.thumbnail_url,
-        company_id=company_id if role != "super_admin" else None,
     )
 
     if role == "company_admin":
