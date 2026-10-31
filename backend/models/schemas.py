@@ -57,6 +57,7 @@ class CourseCreate(BaseModel):
     release_date: Optional[str] = None
     expiry_date: Optional[str] = None
     status: str = "draft"
+    visible_department_ids: List[int] = Field(default_factory=list)
 
 
 class CourseResponse(BaseModel):
