@@ -16,6 +16,9 @@ import {
   getCourseLessons,
   createLesson,
   getFiles,
+  getDepartments,
+  getCourseDepartmentVisibility,
+  updateCourseDepartmentVisibility,
 } from "@/lib/course-api";
 
 import {
@@ -587,6 +590,8 @@ export default function CourseDetails() {
           </div>
 
         </div>
+
+        <ExistingCourseDepartmentAccess courseId={courseId} />
 
         <ScormPackageManager courseId={courseId} />
 
@@ -1323,4 +1328,126 @@ function GraduationCapPlaceholder() {
 
   );
 
+}
+
+function ExistingCourseDepartmentAccess({ courseId }: { courseId: number }) {
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
+  const [departments, setDepartments] = useState<{ id: number; department_name: string }[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [loadingAccess, setLoadingAccess] = useState(true);
+  const [savingAccess, setSavingAccess] = useState(false);
+  const [accessError, setAccessError] = useState("");
+  const [accessMessage, setAccessMessage] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const role = localStorage.getItem("role");
+    if (role !== "company_admin") {
+      setIsCompanyAdmin(false);
+      setLoadingAccess(false);
+      return;
+    }
+    setIsCompanyAdmin(true);
+    const companyId = Number(localStorage.getItem("company_id"));
+    if (!companyId) {
+      setAccessError("Company information is missing from your session.");
+      setLoadingAccess(false);
+      return;
+    }
+
+    Promise.all([
+      getDepartments(companyId),
+      getCourseDepartmentVisibility(courseId),
+    ])
+      .then(([departmentRows, departmentIds]) => {
+        setDepartments(Array.isArray(departmentRows) ? departmentRows : []);
+        setSelectedIds(Array.isArray(departmentIds) ? departmentIds : []);
+      })
+      .catch((error: any) => {
+        setAccessError(error?.message || "Failed to load department access.");
+      })
+      .finally(() => setLoadingAccess(false));
+  }, [courseId]);
+
+  async function saveAccess() {
+    try {
+      setSavingAccess(true);
+      setAccessError("");
+      setAccessMessage("");
+      await updateCourseDepartmentVisibility(courseId, selectedIds);
+      setAccessMessage("Department access updated successfully.");
+    } catch (error: any) {
+      setAccessError(error?.message || "Failed to update department access.");
+    } finally {
+      setSavingAccess(false);
+    }
+  }
+
+  if (!isCompanyAdmin) return null;
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Department Access</h2>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            Choose which Department Heads can access and manage this existing course. Employees continue to follow the course assignment and visibility rules.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={saveAccess}
+          disabled={loadingAccess || savingAccess}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Save size={16} />
+          {savingAccess ? "Saving..." : "Save Department Access"}
+        </button>
+      </div>
+
+      {loadingAccess ? (
+        <p className="mt-4 text-sm text-slate-500">Loading departments...</p>
+      ) : (
+        <details className="group mt-4 max-w-xl rounded-xl border border-slate-200 bg-slate-50">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-slate-700">
+            <span>{selectedIds.length ? `${selectedIds.length} department(s) selected` : "No departments selected"}</span>
+            <span className="text-xs text-slate-400 group-open:rotate-180">⌄</span>
+          </summary>
+          <div className="space-y-3 border-t border-slate-200 p-4">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={departments.length > 0 && selectedIds.length === departments.length}
+                onChange={(event) => setSelectedIds(event.target.checked ? departments.map((department) => department.id) : [])}
+                disabled={savingAccess || departments.length === 0}
+                className="accent-amber-500"
+              />
+              Select all departments
+            </label>
+            <div className="max-h-52 space-y-2 overflow-y-auto border-t border-slate-200 pt-3">
+              {departments.map((department) => (
+                <label key={department.id} className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(department.id)}
+                    onChange={(event) => setSelectedIds((current) => event.target.checked ? [...current, department.id] : current.filter((id) => id !== department.id))}
+                    disabled={savingAccess}
+                    className="accent-amber-500"
+                  />
+                  {department.department_name}
+                </label>
+              ))}
+              {departments.length === 0 && <p className="text-xs text-slate-400">No departments found for this company.</p>}
+            </div>
+          </div>
+        </details>
+      )}
+
+      {accessError && <p role="alert" className="mt-3 text-sm text-red-600">{accessError}</p>}
+      {accessMessage && <p role="status" className="mt-3 text-sm text-emerald-600">{accessMessage}</p>}
+      <p className="mt-3 text-xs text-slate-400">
+        Clearing all selections removes Department Head access to this course. It does not delete the course or its learner progress.
+      </p>
+    </section>
+  );
 }
