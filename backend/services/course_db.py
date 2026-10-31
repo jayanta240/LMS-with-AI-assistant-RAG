@@ -258,6 +258,19 @@ def create_course(
             return course_id
 
 
+def get_course_department_visibility(course_id):
+    """Return department IDs explicitly granted access to a course."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT department_id
+                FROM course_department_visibility
+                WHERE course_id = %s
+                ORDER BY department_id
+            """, (course_id,))
+            return [row[0] for row in cursor.fetchall()]
+
+
 def set_course_department_visibility(course_id, department_ids):
     """Replace the explicitly shared departments for a course."""
     with get_db_connection() as conn:
