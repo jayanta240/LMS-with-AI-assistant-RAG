@@ -226,7 +226,12 @@ export default function CreateCourseDialog({ onCreated }: Props) {
                   <section className="rounded-2xl border border-slate-200 p-4">
                     <h3 className="font-semibold text-slate-900">Department Access</h3>
                     <p className="mt-1 text-xs text-slate-500">Choose which Department Heads can view and manage this course. Leave all unchecked to keep it limited to Company Admins.</p>
-                    <div className="mt-3 space-y-2">
+                    <details className="group mt-3 rounded-xl border border-slate-200 bg-slate-50">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-sm font-medium text-slate-700">
+                        <span>{visibleDepartmentIds.length ? `${visibleDepartmentIds.length} department(s) selected` : "Select departments"}</span>
+                        <span className="text-xs text-slate-400 group-open:rotate-180">⌄</span>
+                      </summary>
+                      <div className="space-y-2 border-t border-slate-200 p-3">
                       <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
                         <input type="checkbox" checked={departments.length > 0 && visibleDepartmentIds.length === departments.length} onChange={(e) => setVisibleDepartmentIds(e.target.checked ? departments.map((department) => department.id) : [])} disabled={creating || departments.length === 0} className="accent-amber-500" />
                         Select all departments
@@ -240,7 +245,8 @@ export default function CreateCourseDialog({ onCreated }: Props) {
                         ))}
                         {departments.length === 0 && <p className="text-xs text-slate-400">No departments found for this company.</p>}
                       </div>
-                    </div>
+                      </div>
+                    </details>
                   </section>
                 )}
 
