@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Plus, X, Image as ImageIcon } from "lucide-react";
-import { createCourse } from "@/lib/course-api";
+import { createCourse, getDepartments } from "@/lib/course-api";
 
 type Props = {
   onCreated: () => void;
@@ -36,6 +36,24 @@ export default function CreateCourseDialog({ onCreated }: Props) {
   const [status, setStatus] = useState("draft");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [departments, setDepartments] = useState<{ id: number; department_name: string }[]>([]);
+  const [visibleDepartmentIds, setVisibleDepartmentIds] = useState<number[]>([]);
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const currentRole = localStorage.getItem("role") || "";
+    setRole(currentRole);
+    if (currentRole !== "company_admin") return;
+    const companyId = Number(localStorage.getItem("company_id"));
+    if (!companyId) return;
+    getDepartments(companyId)
+      .then((items) => setDepartments(Array.isArray(items) ? items : []))
+      .catch((err) => {
+        console.error("Failed to load departments for course visibility:", err);
+        setError("Could not load departments. Please close and reopen the course form.");
+      });
+  }, [open]);
 
   function resetForm() {
     setTitle("");
@@ -49,6 +67,7 @@ export default function CreateCourseDialog({ onCreated }: Props) {
     setDuration("");
     setCourseType("online");
     setVisibility("private");
+    setVisibleDepartmentIds([]);
     setTags("");
     setOutcomes("");
     setReleaseDate(new Date().toISOString().slice(0, 10));
@@ -82,6 +101,7 @@ export default function CreateCourseDialog({ onCreated }: Props) {
         release_date: releaseDate || null,
         expiry_date: expiryEnabled ? expiryDate || null : null,
         status,
+        visible_department_ids: role === "company_admin" ? visibleDepartmentIds : [],
       });
       resetForm();
       setOpen(false);
@@ -201,6 +221,28 @@ export default function CreateCourseDialog({ onCreated }: Props) {
                     ))}
                   </div>
                 </section>
+
+                {role === "company_admin" && (
+                  <section className="rounded-2xl border border-slate-200 p-4">
+                    <h3 className="font-semibold text-slate-900">Department Access</h3>
+                    <p className="mt-1 text-xs text-slate-500">Choose which Department Heads can view and manage this course. Leave all unchecked to keep it limited to Company Admins.</p>
+                    <div className="mt-3 space-y-2">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+                        <input type="checkbox" checked={departments.length > 0 && visibleDepartmentIds.length === departments.length} onChange={(e) => setVisibleDepartmentIds(e.target.checked ? departments.map((department) => department.id) : [])} disabled={creating || departments.length === 0} className="accent-amber-500" />
+                        Select all departments
+                      </label>
+                      <div className="max-h-48 space-y-2 overflow-y-auto border-t border-slate-100 pt-3">
+                        {departments.map((department) => (
+                          <label key={department.id} className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+                            <input type="checkbox" checked={visibleDepartmentIds.includes(department.id)} onChange={(e) => setVisibleDepartmentIds((current) => e.target.checked ? [...current, department.id] : current.filter((id) => id !== department.id))} disabled={creating} className="accent-amber-500" />
+                            {department.department_name}
+                          </label>
+                        ))}
+                        {departments.length === 0 && <p className="text-xs text-slate-400">No departments found for this company.</p>}
+                      </div>
+                    </div>
+                  </section>
+                )}
 
                 <section className="rounded-2xl border border-slate-200 p-4">
                   <h3 className="font-semibold text-slate-900">Course Visibility</h3>
