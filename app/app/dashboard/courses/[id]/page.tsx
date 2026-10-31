@@ -503,13 +503,13 @@ export default function CourseDetails() {
 
                 <div>
 
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-
-                    Published
-
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Published
+                    </span>
+                    <ExistingCourseDepartmentAccess courseId={courseId} />
+                  </div>
 
                   <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
                     {course?.title}
@@ -590,8 +590,6 @@ export default function CourseDetails() {
           </div>
 
         </div>
-
-        <ExistingCourseDepartmentAccess courseId={courseId} />
 
         <ScormPackageManager courseId={courseId} />
 
@@ -1386,68 +1384,69 @@ function ExistingCourseDepartmentAccess({ courseId }: { courseId: number }) {
   if (!isCompanyAdmin) return null;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">Department Access</h2>
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Choose which Department Heads can access and manage this existing course. Employees continue to follow the course assignment and visibility rules.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={saveAccess}
-          disabled={loadingAccess || savingAccess}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Save size={16} />
-          {savingAccess ? "Saving..." : "Save Department Access"}
-        </button>
-      </div>
-
-      {loadingAccess ? (
-        <p className="mt-4 text-sm text-slate-500">Loading departments...</p>
-      ) : (
-        <details className="group mt-4 max-w-xl rounded-xl border border-slate-200 bg-slate-50">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-slate-700">
-            <span>{selectedIds.length ? `${selectedIds.length} department(s) selected` : "No departments selected"}</span>
-            <span className="text-xs text-slate-400 group-open:rotate-180">⌄</span>
-          </summary>
-          <div className="space-y-3 border-t border-slate-200 p-4">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-              <input
-                type="checkbox"
-                checked={departments.length > 0 && selectedIds.length === departments.length}
-                onChange={(event) => setSelectedIds(event.target.checked ? departments.map((department) => department.id) : [])}
-                disabled={savingAccess || departments.length === 0}
-                className="accent-amber-500"
-              />
-              Select all departments
-            </label>
-            <div className="max-h-52 space-y-2 overflow-y-auto border-t border-slate-200 pt-3">
-              {departments.map((department) => (
-                <label key={department.id} className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(department.id)}
-                    onChange={(event) => setSelectedIds((current) => event.target.checked ? [...current, department.id] : current.filter((id) => id !== department.id))}
-                    disabled={savingAccess}
-                    className="accent-amber-500"
-                  />
-                  {department.department_name}
-                </label>
-              ))}
-              {departments.length === 0 && <p className="text-xs text-slate-400">No departments found for this company.</p>}
-            </div>
+    <div className="relative">
+      <details className="group">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50">
+          <span>Department Access</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+            {loadingAccess ? "..." : selectedIds.length}
+          </span>
+          <span className="text-slate-400 transition group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="absolute left-0 top-full z-30 mt-2 w-[min(340px,calc(100vw-2.5rem))] rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-slate-900">Department Access</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Choose which Department Heads can access and manage this course.
+            </p>
           </div>
-        </details>
-      )}
-
-      {accessError && <p role="alert" className="mt-3 text-sm text-red-600">{accessError}</p>}
-      {accessMessage && <p role="status" className="mt-3 text-sm text-emerald-600">{accessMessage}</p>}
-      <p className="mt-3 text-xs text-slate-400">
-        Clearing all selections removes Department Head access to this course. It does not delete the course or its learner progress.
-      </p>
-    </section>
+          {loadingAccess ? (
+            <p className="py-3 text-sm text-slate-500">Loading departments...</p>
+          ) : (
+            <>
+              <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={departments.length > 0 && selectedIds.length === departments.length}
+                  onChange={(event) => setSelectedIds(event.target.checked ? departments.map((department) => department.id) : [])}
+                  disabled={savingAccess || departments.length === 0}
+                  className="accent-amber-500"
+                />
+                Select all departments
+              </label>
+              <div className="max-h-52 space-y-2 overflow-y-auto border-t border-slate-100 py-3">
+                {departments.map((department) => (
+                  <label key={department.id} className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(department.id)}
+                      onChange={(event) => setSelectedIds((current) => event.target.checked ? [...current, department.id] : current.filter((id) => id !== department.id))}
+                      disabled={savingAccess}
+                      className="accent-amber-500"
+                    />
+                    {department.department_name}
+                  </label>
+                ))}
+                {departments.length === 0 && <p className="text-xs text-slate-400">No departments found for this company.</p>}
+              </div>
+            </>
+          )}
+          {accessError && <p role="alert" className="mb-2 text-xs text-red-600">{accessError}</p>}
+          {accessMessage && <p role="status" className="mb-2 text-xs text-emerald-600">{accessMessage}</p>}
+          <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+            <p className="text-[11px] leading-4 text-slate-400">Changes apply to Department Heads only.</p>
+            <button
+              type="button"
+              onClick={saveAccess}
+              disabled={loadingAccess || savingAccess}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save size={14} />
+              {savingAccess ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      </details>
+    </div>
   );
 }
