@@ -129,6 +129,7 @@ from services.course_db import (
     update_certificate_pdf_url,
     get_admin_analytics,
     delete_lessons_by_content_url,
+    set_course_department_visibility,
 )
 
 from services.video_generator import generate_video
@@ -2256,10 +2257,23 @@ async def create_course_api(
         raise HTTPException(status_code=403, detail="Your account is not associated with a company.")
 
     department_id = None
+    visible_department_ids = []
     if role == "department_head":
         department_id = current_user.get("department_id")
         if department_id is None:
             raise HTTPException(status_code=403, detail="Department information is missing.")
+    elif role == "company_admin":
+        visible_department_ids = sorted(set(data.visible_department_ids or []))
+        if visible_department_ids:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM departments WHERE company_id = %s AND id = ANY(%s)",
+                        (company_id, visible_department_ids),
+                    )
+                    valid_ids = {row[0] for row in cursor.fetchall()}
+            if valid_ids != set(visible_department_ids):
+                raise HTTPException(status_code=400, detail="One or more selected departments do not belong to your company.")
 
     if data.visibility not in ["private", "organization", "public"]:
         raise HTTPException(status_code=400, detail="Invalid course visibility.")
@@ -2283,6 +2297,7 @@ async def create_course_api(
         expiry_date=data.expiry_date,
         status=data.status,
         department_id=department_id,
+        visible_department_ids=visible_department_ids,
     )
 
     notify_company_admins(
@@ -3995,8 +4010,23 @@ async def update_course_api(
         course_id=course_id,
         title=data.title,
         description=data.description,
-        thumbnail_url=data.thumbnail_url
+        thumbnail_url=data.thumbnail_url,
+        company_id=company_id if role != "super_admin" else None,
     )
+
+    if role == "company_admin":
+        selected_department_ids = sorted(set(data.visible_department_ids or []))
+        if selected_department_ids:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM departments WHERE company_id = %s AND id = ANY(%s)",
+                        (company_id, selected_department_ids),
+                    )
+                    valid_ids = {row[0] for row in cursor.fetchall()}
+            if valid_ids != set(selected_department_ids):
+                raise HTTPException(status_code=400, detail="One or more selected departments do not belong to your company.")
+        set_course_department_visibility(course_id, selected_department_ids)
 
     if current_user.get("company_id"):
         notify_company_admins(
