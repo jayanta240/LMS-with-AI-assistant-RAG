@@ -258,6 +258,22 @@ def create_course(
             return course_id
 
 
+def set_course_department_visibility(course_id, department_ids):
+    """Replace the explicitly shared departments for a course."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM course_department_visibility WHERE course_id = %s",
+                (course_id,),
+            )
+            for department_id in sorted(set(department_ids or [])):
+                cursor.execute("""
+                    INSERT INTO course_department_visibility (course_id, department_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (course_id, department_id))
+
+
 def get_all_courses():
     """
     Global course list.
