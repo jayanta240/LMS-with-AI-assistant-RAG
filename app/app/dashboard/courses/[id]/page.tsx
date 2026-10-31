@@ -465,14 +465,14 @@ export default function CourseDetails() {
             COURSE HEADER
            ================================================== */}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
 
           <div className="grid lg:grid-cols-[260px_1fr]">
 
 
             {/* Thumbnail */}
 
-            <div className="relative h-52 overflow-hidden bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 lg:h-full">
+            <div className="relative h-52 overflow-hidden rounded-t-2xl bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 lg:h-full lg:rounded-l-2xl lg:rounded-tr-none">
 
               {course?.thumbnail_url ? (
 
