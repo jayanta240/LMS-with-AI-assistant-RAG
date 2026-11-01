@@ -42,7 +42,7 @@ export default function ScormCoursePlayer({ courseId }: { courseId: number }) {
   const [activePackage, setActivePackage] = useState<ScormPackage | null>(null);
   const [attempt, setAttempt] = useState<ScormAttempt | null>(null);
   const [launchUrl, setLaunchUrl] = useState("");
-  const [launching, setLaunching] = useState(false);
+  const [launchingPackageId, setLaunchingPackageId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [savedStatus, setSavedStatus] = useState("");
@@ -136,7 +136,8 @@ export default function ScormCoursePlayer({ courseId }: { courseId: number }) {
     setError("");
     setMessage("");
     setSavedStatus("");
-    setLaunching(true);
+    if (launchingPackageId !== null) return;
+    setLaunchingPackageId(item.id);
     try {
       const startResponse = await fetch(`${API_BASE}/scorm/attempts/start`, {
         method: "POST",
@@ -161,7 +162,7 @@ export default function ScormCoursePlayer({ courseId }: { courseId: number }) {
     } catch (e: any) {
       setError(e?.message || "Could not launch SCORM activity.");
     } finally {
-      setLaunching(false);
+      setLaunchingPackageId(null);
     }
   }
 
@@ -208,10 +209,10 @@ export default function ScormCoursePlayer({ courseId }: { courseId: number }) {
               <p className="font-semibold text-slate-900">{item.title}</p>
               <p className="mt-1 text-xs text-slate-500">SCORM {item.version}{item.mastery_score !== null ? ` · Pass target ${item.mastery_score}%` : ""}</p>
             </div>
-            <button type="button" onClick={() => void launch(item)} disabled={launching}
+            <button type="button" onClick={() => void launch(item)} disabled={launchingPackageId !== null}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
-              {launching ? <LoaderCircle size={16} className="animate-spin" /> : <PlayCircle size={16} />}
-              {launching ? "Preparing activity…" : "Launch activity"}
+              {launchingPackageId === item.id ? <LoaderCircle size={16} className="animate-spin" /> : <PlayCircle size={16} />}
+              {launchingPackageId === item.id ? "Preparing activity…" : "Launch activity"}
             </button>
           </div>
         ))}
