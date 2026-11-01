@@ -753,7 +753,7 @@ def commit_scorm_attempt(
             raise ValueError()
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid SCORM score.")
-    terminal_status = lesson_status in {"completed", "passed", "failed"} or success_status in {"passed", "failed"}
+    terminal_status = lesson_status == "completed" if is_2004 else lesson_status in {"completed", "passed", "failed"}
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
