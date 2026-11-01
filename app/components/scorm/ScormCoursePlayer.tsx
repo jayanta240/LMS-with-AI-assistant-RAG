@@ -173,11 +173,15 @@ export default function ScormCoursePlayer({ courseId }: { courseId: number }) {
     packageRef.current = null;
   }
 
-  if (loading && packages.length === 0) return null;
-  if (!loading && packages.length === 0) return null;
+  // Keep the SCORM area mounted while its package request is in flight.
+  // This prevents the section from appearing several seconds after normal lessons.
+  if (!loading && packages.length === 0 && !error) return null;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section
+      aria-busy={loading}
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+    >
       <div className="flex items-center gap-2">
         <BookOpen size={20} className="text-amber-600" />
         <h2 className="text-lg font-bold text-slate-900">Interactive SCORM activities</h2>
@@ -187,7 +191,17 @@ export default function ScormCoursePlayer({ courseId }: { courseId: number }) {
       {error && <p role="alert" className="mt-4 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-800"><AlertCircle size={17} />{error}</p>}
       {message && <p role="status" className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 size={17} />{message}</p>}
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      {loading && packages.length === 0 ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2" aria-label="Loading SCORM activities">
+          <div className="animate-pulse rounded-xl border border-slate-200 p-4">
+            <div className="h-4 w-2/3 rounded bg-slate-200" />
+            <div className="mt-3 h-3 w-1/3 rounded bg-slate-100" />
+            <div className="mt-4 h-10 rounded-xl bg-slate-100" />
+          </div>
+        </div>
+      ) : null}
+
+      <div className={`mt-4 grid gap-3 md:grid-cols-2 ${loading && packages.length === 0 ? "hidden" : ""}`}>
         {packages.map((item) => (
           <div key={item.id} className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 p-4">
             <div>
