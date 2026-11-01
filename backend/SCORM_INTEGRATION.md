@@ -1,11 +1,20 @@
-# SCORM integration (initial release)
+# SCORM integration (SCORM 1.2 and 2004)
 
 ## Supported content
 
-The initial implementation targets **SCORM 1.2** packages. The uploaded
-`FIRST DAY COMMUNICATION.zip` is a Storyline-generated SCORM 1.2 package whose
-manifest declares `index_lms.html` as its SCO launch resource and a mastery
-score of 75. SCORM 2004 is not claimed as supported by this release.
+The backend supports **SCORM 1.2** and **SCORM 2004 3rd/4th Edition** packages.
+The package version is detected from the manifest and stored with the package.
+SCORM 1.2 uses the `window.API` adapter and SCORM 2004 uses
+`window.API_1484_11`. Both APIs send CMI snapshots to the LMS parent frame
+using the same authenticated, ticket-bound commit endpoint.
+
+SCORM 2004 support includes completion and success status, raw/scaled scores,
+location, suspend data, learner identity, and ISO 8601 session/total time. The
+existing attempt table and JSONB CMI storage are reused; no schema migration is
+required. The supplied `SCORM2004_Full_Package.zip` declares SCORM 2004 4th
+Edition and launches `story.html`, which redirects to `index.html`; the runtime
+is injected into each HTML response so the redirected launch page receives the
+API adapter too.
 
 ## Architecture
 
@@ -28,7 +37,7 @@ score of 75. SCORM 2004 is not claimed as supported by this release.
 The backend enforces a 250 MiB compressed upload limit, 1 GiB expanded limit,
 a 5,000-entry limit, and a maximum per-entry compression ratio of 200. It rejects
 invalid ZIP files, encrypted entries, symlinks, duplicate normalized paths,
-path traversal, missing root `imsmanifest.xml`, unsupported SCORM versions,
+path traversal, missing root `imsmanifest.xml`, unsupported SCORM versions outside 1.2 and 2004 3rd/4th Edition,
 missing SCO resources, and missing launch files. Extracted bytes are counted
 while streaming to disk as an additional limit check.
 
@@ -39,7 +48,7 @@ while streaming to disk as an additional limit check.
 - `DELETE /api/scorm/packages/{package_id}` — delete a package and its attempts
 - `POST /api/scorm/attempts/start` — create or resume a learner attempt
 - `POST /api/scorm/packages/{package_id}/launch-ticket?attempt_id={uuid}` — issue a short-lived launch cookie
-- `POST /api/scorm/attempts/commit` — persist SCORM 1.2 CMI data and status
+- `POST /api/scorm/attempts/commit` — persist SCORM 1.2 or SCORM 2004 CMI data and status
 - `GET /api/scorm/packages/{package_id}/attempts/me` — learner attempt history
 - `GET /api/scorm/courses/{course_id}/reports` — role-scoped learner progress report
 
@@ -72,5 +81,7 @@ explicitly approved. On a separate test instance, start the test containers with
 
 Then test upload, launch, resume, completion, score threshold handling, learner
 progress, cross-company access denial, certificate issuance, and package
-deletion. SCORM content produced by other authoring tools should be added to the
-compatibility test set before advertising broad vendor compatibility.
+deletion. SCORM 2004 packages should be tested for launch, API discovery, resume, score,
+completion/success status, and time tracking. The included 2004 sample is a small
+runtime test package; compatibility with all authoring tools and every optional
+SCORM CMI data-model element is not implied.
