@@ -49,6 +49,7 @@ MAX_HTML_INJECTION_BYTES = 20 * 1024 * 1024
 TICKET_COOKIE = "lms_scorm_ticket"
 TICKET_TTL_MINUTES = 480
 SUPPORTED_VERSION = "1.2"
+SUPPORTED_SCORM_2004_VERSIONS = {"2004 3rd Edition", "2004 4th Edition"}
 
 # SCORM packages often request dozens of static assets concurrently. Rechecking
 # the same launch ticket in remote PostgreSQL for every CSS/JS/font request
@@ -233,30 +234,45 @@ def _manifest_info(zf: zipfile.ZipFile) -> dict[str, Any]:
             if local_name(element.tag) == name and element.text and element.text.strip():
                 return element.text.strip()
         return None
-    schema = first_text(root, "schema")
-    version = first_text(root, "schemaversion")
-    if (schema or "").strip().lower() != "adl scorm" or (version or "").strip() != SUPPORTED_VERSION:
-        raise HTTPException(status_code=400, detail="Only SCORM 1.2 packages are supported in this release.")
+    schema = (first_text(root, "schema") or "").strip().lower()
+    version = (first_text(root, "schemaversion") or "").strip()
+    if schema != "adl scorm":
+        raise HTTPException(status_code=400, detail="The manifest does not identify an ADL SCORM package.")
+    if version != SUPPORTED_VERSION and version not in SUPPORTED_SCORM_2004_VERSIONS:
+        raise HTTPException(status_code=400, detail="Supported package versions are SCORM 1.2 and SCORM 2004 3rd/4th Edition.")
+    scorm_version = version
     resources = [node for node in root.iter() if local_name(node.tag) == "resource"]
     sco = next((node for node in resources if any(
         key.rsplit("}", 1)[-1].lower() == "scormtype" and value.lower() == "sco"
         for key, value in node.attrib.items()
     )), None)
     if sco is None:
-        raise HTTPException(status_code=400, detail="The manifest does not define a SCORM 1.2 SCO resource.")
+        raise HTTPException(status_code=400, detail="The manifest does not define a SCORM SCO resource.")
     href = sco.attrib.get("href")
     if not href:
         raise HTTPException(status_code=400, detail="The SCORM launch resource has no href.")
     title = first_text(root, "title") or "SCORM learning activity"
     mastery = None
+    # SCORM 2004 declares masteryScore as an attribute on the SCO item.
     for node in root.iter():
-        if local_name(node.tag) == "masteryscore" and node.text:
-            try:
-                mastery = float(node.text.strip())
-            except ValueError:
-                pass
+        for key, value in node.attrib.items():
+            if key.rsplit("}", 1)[-1].lower() == "masteryscore":
+                try:
+                    mastery = float(value.strip())
+                except (ValueError, AttributeError):
+                    pass
+                break
+        if mastery is not None:
             break
-    return {"title": title[:250], "launch_path": href, "mastery_score": mastery}
+    if mastery is None:
+        for node in root.iter():
+            if local_name(node.tag) == "masteryscore" and node.text:
+                try:
+                    mastery = float(node.text.strip())
+                except ValueError:
+                    pass
+                break
+    return {"title": title[:250], "version": scorm_version, "launch_path": href, "mastery_score": mastery}
 
 
 def _validate_archive(zf: zipfile.ZipFile) -> tuple[dict[str, Any], int]:
@@ -317,7 +333,7 @@ def _ticket_row(ticket: str | None, package_id: str):
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT t.user_id, t.company_id, t.expires_at, t.attempt_id,
-                       p.storage_path, p.launch_path
+                       p.storage_path, p.launch_path, p.version
                 FROM scorm_launch_tickets AS t
                 JOIN scorm_packages AS p
                   ON p.id = t.package_id AND p.company_id = t.company_id
@@ -420,12 +436,12 @@ async def upload_scorm_package(
                     (id, course_id, company_id, title, version, launch_path, mastery_score,
                      storage_path, package_size, created_by)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (str(package_id), course_id, company_id, manifest["title"], SUPPORTED_VERSION,
+                """, (str(package_id), course_id, company_id, manifest["title"], manifest["version"],
                       manifest["launch_path"], manifest["mastery_score"], str(final_path), expanded_size,
                       int(current_user["user_id"])))
         return {"success": True, "package": {
             "id": str(package_id), "course_id": course_id, "title": manifest["title"],
-            "version": SUPPORTED_VERSION, "launch_path": manifest["launch_path"],
+            "version": manifest["version"], "launch_path": manifest["launch_path"],
             "mastery_score": manifest["mastery_score"], "package_size": expanded_size,
         }}
     except Exception:
@@ -578,6 +594,26 @@ def _parse_scorm_time(value: str) -> float:
         return 0.0
 
 
+def _parse_scorm_2004_duration(value: str) -> float:
+    """Parse the SCORM 2004 ISO 8601 duration subset (PT#H#M#S)."""
+    if not isinstance(value, str):
+        return 0.0
+    match = re.fullmatch(r"P(?:(?P<days>\d+(?:\.\d+)?)D)?(?:T(?:(?P<hours>\d+(?:\.\d+)?)H)?(?:(?P<minutes>\d+(?:\.\d+)?)M)?(?:(?P<seconds>\d+(?:\.\d+)?)S)?)?", value.strip(), re.I)
+    if not match:
+        return 0.0
+    parts = {key: float(val or 0) for key, val in match.groupdict().items()}
+    return max(0.0, parts["days"]*86400 + parts["hours"]*3600 + parts["minutes"]*60 + parts["seconds"])
+
+
+def _format_scorm_2004_duration(seconds: float) -> str:
+    seconds = max(0.0, float(seconds))
+    whole = int(seconds)
+    hours, remainder = divmod(whole, 3600)
+    minutes, secs = divmod(remainder, 60)
+    second_text = f"{secs + seconds - whole:.2f}".rstrip("0").rstrip(".")
+    return f"PT{hours}H{minutes}M{second_text}S"
+
+
 def _format_scorm_time(seconds: float) -> str:
     seconds = max(0.0, seconds)
     hours = int(seconds // 3600)
@@ -686,23 +722,33 @@ def commit_scorm_attempt(
         raise HTTPException(status_code=400, detail="SCORM CMI values must be scalar values.")
     if len(json.dumps(cmi, ensure_ascii=False)) > 128 * 1024:
         raise HTTPException(status_code=413, detail="SCORM runtime data exceeds the storage limit.")
-    allowed_status = {"not attempted", "incomplete", "completed", "passed", "failed", "browsed"}
-    lesson_status = str(cmi.get("cmi.core.lesson_status", "incomplete")).lower()
-    if lesson_status not in allowed_status:
-        lesson_status = "incomplete"
-    success_status = "unknown"
-    if lesson_status == "passed":
-        success_status = "passed"
-    elif lesson_status == "failed":
-        success_status = "failed"
-    raw_score = cmi.get("cmi.core.score.raw")
+    is_2004 = "cmi.completion_status" in cmi or "cmi.success_status" in cmi or "cmi.session_time" in cmi
+    if is_2004:
+        lesson_status = str(cmi.get("cmi.completion_status", "incomplete")).lower()
+        if lesson_status not in {"not attempted", "incomplete", "completed", "unknown"}:
+            lesson_status = "incomplete"
+        success_status = str(cmi.get("cmi.success_status", "unknown")).lower()
+        if success_status not in {"passed", "failed", "unknown"}:
+            success_status = "unknown"
+        raw_score = cmi.get("cmi.score.raw")
+        session_value = str(cmi.get("cmi.session_time", "PT0S"))
+        location_value = cmi.get("cmi.location", "")
+    else:
+        allowed_status = {"not attempted", "incomplete", "completed", "passed", "failed", "browsed"}
+        lesson_status = str(cmi.get("cmi.core.lesson_status", "incomplete")).lower()
+        if lesson_status not in allowed_status:
+            lesson_status = "incomplete"
+        success_status = "passed" if lesson_status == "passed" else "failed" if lesson_status == "failed" else "unknown"
+        raw_score = cmi.get("cmi.core.score.raw")
+        session_value = str(cmi.get("cmi.core.session_time", "0000:00:00.00"))
+        location_value = cmi.get("cmi.core.lesson_location", "")
     try:
         score = float(raw_score) if raw_score not in (None, "") else None
         if score is not None and not (-100000 <= score <= 100000):
             raise ValueError()
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid SCORM score.")
-    terminal_status = lesson_status in {"completed", "passed", "failed"}
+    terminal_status = lesson_status in {"completed", "passed", "failed"} or success_status in {"passed", "failed"}
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -717,22 +763,24 @@ def commit_scorm_attempt(
                 raise HTTPException(status_code=404, detail="SCORM attempt not found.")
             package_course_id = int(existing[3])
             mastery_score = float(existing[0]) if existing[0] is not None else None
-            if lesson_status == "completed" and score is not None and mastery_score is not None:
+            if success_status == "unknown" and lesson_status in {"completed", "passed"} and score is not None and mastery_score is not None:
                 success_status = "passed" if score >= mastery_score else "failed"
             previous_total = _parse_scorm_time(existing[1] or "0000:00:00.00")
             previous_session = _parse_scorm_time(existing[2] or "0000:00:00.00")
-            reported_session = _parse_scorm_time(str(cmi.get("cmi.core.session_time", "0000:00:00.00")))
-
-            # SCORM 1.2 session_time is cumulative within the current launch.
-            # Add only the increase since the previous commit, so repeated
-            # LMSCommit calls and the final LMSFinish cannot double-count time.
+            reported_session = _parse_scorm_2004_duration(session_value) if is_2004 else _parse_scorm_time(session_value)
             session_seconds = max(previous_session, reported_session)
             session_delta = max(0.0, session_seconds - previous_session)
             total_time = _format_scorm_time(previous_total + session_delta)
             session_time = _format_scorm_time(session_seconds)
-            cmi["cmi.core.session_time"] = session_time
-            cmi["cmi.core.total_time"] = total_time
-            exit_mode = "FINISH" if data.finish else str(cmi.get("cmi.core.exit", ""))
+            if is_2004:
+                cmi["cmi.session_time"] = _format_scorm_2004_duration(session_seconds)
+                cmi["cmi.total_time"] = _format_scorm_2004_duration(previous_total + session_delta)
+                exit_mode = "FINISH" if data.finish else str(cmi.get("cmi.exit", ""))
+            else:
+                cmi["cmi.core.session_time"] = session_time
+                cmi["cmi.core.total_time"] = total_time
+                exit_mode = "FINISH" if data.finish else str(cmi.get("cmi.core.exit", ""))
+            lesson_location = location_value
             cur.execute("""
                 UPDATE scorm_attempts
                 SET cmi_data = %s::jsonb,
@@ -751,7 +799,7 @@ def commit_scorm_attempt(
                 RETURNING id, package_id
             """, (json.dumps(cmi), lesson_status, success_status, score,
                   total_time, session_time,
-                  str(cmi.get("cmi.suspend_data", "")), str(cmi.get("cmi.core.lesson_location", "")),
+                  str(cmi.get("cmi.suspend_data", "")), str(lesson_location or ""),
                   lesson_status, exit_mode, terminal_status,
                   str(data.attempt_id), user_id, company_id))
             saved = cur.fetchone()
@@ -789,6 +837,44 @@ def my_scorm_attempts(package_id: str, current_user=Depends(get_current_user)):
              "last_accessed_at": r[8].isoformat() if r[8] else None,
              "completed_at": r[9].isoformat() if r[9] else None} for r in rows]
 
+
+
+def _scorm_2004_runtime_script(package_id: str, attempt_id: str, initial_cmi: dict[str, Any]) -> str:
+    """Expose the synchronous SCORM 2004 API and persist CMI through the LMS parent."""
+    seed = json.dumps(initial_cmi or {}, ensure_ascii=False).replace("</", "<\\/")
+    package_json = json.dumps(package_id)
+    attempt_json = json.dumps(attempt_id)
+    return """<script>
+(function(){
+ var seed=__SEED__,packageId=__PACKAGE__,attemptId=__ATTEMPT__;
+ var initialized=false,terminated=false,lastError="0",started=0,timer=null;
+ var values=Object.assign({
+  "cmi._version":"1.0","cmi._children":"completion_status,success_status,credit,entry,exit,interactions,launch_data,learner_id,learner_name,learner_preference,location,max_time_allowed,mode,objectives,progress_measure,scaled_passing_score,score,session_time,suspend_data,time_limit_action,total_time",
+  "cmi.completion_status":"not attempted","cmi.success_status":"unknown","cmi.credit":"credit","cmi.entry":"ab-initio","cmi.exit":"suspend",
+  "cmi.learner_id":"","cmi.learner_name":"","cmi.location":"","cmi.mode":"normal","cmi.progress_measure":"",
+  "cmi.scaled_passing_score":"","cmi.score._children":"scaled,raw,min,max","cmi.score.scaled":"","cmi.score.raw":"","cmi.score.min":"","cmi.score.max":"",
+  "cmi.session_time":"PT0S","cmi.total_time":"PT0S","cmi.suspend_data":"","cmi.launch_data":"","cmi.max_time_allowed":"",
+  "cmi.time_limit_action":"continue,no message","cmi.interactions._count":"0","cmi.objectives._count":"0"
+ },seed);
+ var readOnly=new Set(["cmi._version","cmi._children","cmi.credit","cmi.entry","cmi.learner_id","cmi.learner_name","cmi.mode","cmi.max_time_allowed","cmi.scaled_passing_score","cmi.total_time"]);
+ function dur(sec){sec=Math.max(0,sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=(sec%60).toFixed(2).replace(/\\.?0+$/,"");return "PT"+h+"H"+m+"M"+s+"S";}
+ function elapsed(){return started?(Date.now()-started)/1000:0;}
+ function send(finish){values["cmi.session_time"]=dur(elapsed());try{window.parent.postMessage({type:"lms-scorm-commit",packageId:packageId,attemptId:attemptId,cmi:values,finish:!!finish},"*");}catch(e){}}
+ function autosave(){if(timer)clearInterval(timer);timer=setInterval(function(){if(initialized)send(false);},15000);}
+ function valid(k){return typeof k==="string"&&k.indexOf("cmi.")===0&&k.split(".").every(function(p){return p&&p!=="__proto__"&&p!=="constructor"&&p!=="prototype";});}
+ function count(prefix){var max=-1,re=new RegExp("^"+prefix.replace(/\\./g,"\\\\.")+"\\\\.(\\\\d+)\\\\.");Object.keys(values).forEach(function(k){var m=k.match(re);if(m)max=Math.max(max,+m[1]);});return String(max+1);}
+ window.API_1484_11={
+  Initialize:function(p){if(p!==""||initialized||terminated){lastError="103";return "false";}initialized=true;started=Date.now();autosave();lastError="0";return "true";},
+  Terminate:function(p){if(p!==""||!initialized){lastError="112";return "false";}send(true);initialized=false;terminated=true;started=0;if(timer){clearInterval(timer);timer=null;}lastError="0";return "true";},
+  GetValue:function(k){if(!initialized){lastError="301";return "";}if(!valid(k)){lastError="201";return "";}if(k==="cmi.interactions._count"||k==="cmi.objectives._count")values[k]=count(k.slice(0,k.lastIndexOf(".")));if(k in values){lastError="0";return String(values[k]==null?"":values[k]);}if(/^cmi\\.(interactions|objectives)\\.\\d+\\./.test(k)){lastError="0";return "";}lastError="401";return "";},
+  SetValue:function(k,v){if(!initialized){lastError="301";return "false";}if(!valid(k)||typeof v!=="string"){lastError="201";return "false";}if(readOnly.has(k)){lastError="404";return "false";}if(k==="cmi.completion_status"&&!["completed","incomplete","not attempted","unknown"].includes(v)){lastError="406";return "false";}if(k==="cmi.success_status"&&!["passed","failed","unknown"].includes(v)){lastError="406";return "false";}values[k]=v;if(k.indexOf("cmi.interactions.")===0)values["cmi.interactions._count"]=count("cmi.interactions");if(k.indexOf("cmi.objectives.")===0)values["cmi.objectives._count"]=count("cmi.objectives");lastError="0";return "true";},
+  Commit:function(p){if(p!==""||!initialized){lastError="112";return "false";}send(false);lastError="0";return "true";},
+  GetLastError:function(){return lastError;},
+  GetErrorString:function(c){return ({"0":"No error","103":"Already initialized","112":"Invalid parameter or termination before initialization","201":"Invalid argument","301":"Not initialized","401":"Undefined data model element","404":"Read only data model element","406":"Data type mismatch"}[String(c)]||"Unknown error");},
+  GetDiagnostic:function(c){return this.GetErrorString(c||lastError);}
+ };
+})();
+</script>""".replace("__SEED__",seed).replace("__PACKAGE__",package_json).replace("__ATTEMPT__",attempt_json)
 
 
 def _scorm_runtime_script(package_id: str, attempt_id: str, initial_cmi: dict[str, Any]) -> str:
@@ -992,15 +1078,26 @@ def get_scorm_package_asset(package_id: str, asset_path: str, request: Request):
                 """, (str(ticket_data[3]) if ticket_data[3] else None, int(ticket_data[0]), int(ticket_data[1])))
                 attempt_row = cur.fetchone()
         initial_cmi = dict(attempt_row[0] or {}) if attempt_row else {}
-        if attempt_row:
-            initial_cmi["cmi.core.total_time"] = attempt_row[1] or "0000:00:00.00"
-            initial_cmi["cmi.core.student_id"] = str(attempt_row[2] or ticket_data[0])
-            initial_cmi["cmi.core.student_name"] = str(attempt_row[3] or "")
-            initial_cmi["cmi.core.student_data.mastery_score"] = str(attempt_row[4]) if attempt_row[4] is not None else ""
-        has_resume_data = bool(initial_cmi.get("cmi.suspend_data") or initial_cmi.get("cmi.core.lesson_location") or initial_cmi.get("cmi.core.lesson_status") == "incomplete")
-        initial_cmi["cmi.core.entry"] = "resume" if has_resume_data else "ab-initio"
-        initial_cmi["cmi.core.session_time"] = "0000:00:00.00"
-        runtime = _scorm_runtime_script(parsed_id, str(ticket_data[3]) if ticket_data[3] else "", initial_cmi)
+        is_2004 = str(ticket_data[6] or "").startswith("2004")
+        if is_2004:
+            if attempt_row:
+                initial_cmi["cmi.total_time"] = _format_scorm_2004_duration(_parse_scorm_time(attempt_row[1] or "0000:00:00.00"))
+                initial_cmi["cmi.learner_id"] = str(attempt_row[2] or ticket_data[0])
+                initial_cmi["cmi.learner_name"] = str(attempt_row[3] or "")
+            resume = bool(initial_cmi.get("cmi.suspend_data") or initial_cmi.get("cmi.location") or initial_cmi.get("cmi.completion_status") == "incomplete")
+            initial_cmi["cmi.entry"] = "resume" if resume else "ab-initio"
+            initial_cmi["cmi.session_time"] = "PT0S"
+            runtime = _scorm_2004_runtime_script(parsed_id, str(ticket_data[3]) if ticket_data[3] else "", initial_cmi)
+        else:
+            if attempt_row:
+                initial_cmi["cmi.core.total_time"] = attempt_row[1] or "0000:00:00.00"
+                initial_cmi["cmi.core.student_id"] = str(attempt_row[2] or ticket_data[0])
+                initial_cmi["cmi.core.student_name"] = str(attempt_row[3] or "")
+                initial_cmi["cmi.core.student_data.mastery_score"] = str(attempt_row[4]) if attempt_row[4] is not None else ""
+            resume = bool(initial_cmi.get("cmi.suspend_data") or initial_cmi.get("cmi.core.lesson_location") or initial_cmi.get("cmi.core.lesson_status") == "incomplete")
+            initial_cmi["cmi.core.entry"] = "resume" if resume else "ab-initio"
+            initial_cmi["cmi.core.session_time"] = "0000:00:00.00"
+            runtime = _scorm_runtime_script(parsed_id, str(ticket_data[3]) if ticket_data[3] else "", initial_cmi)
         html = target.read_text(encoding="utf-8", errors="replace")
         lower_html = html.lower()
         insert_at = lower_html.find("</head>")
