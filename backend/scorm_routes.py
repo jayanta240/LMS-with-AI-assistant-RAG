@@ -857,16 +857,16 @@ def _scorm_2004_runtime_script(package_id: str, attempt_id: str, initial_cmi: di
   "cmi.time_limit_action":"continue,no message","cmi.interactions._count":"0","cmi.objectives._count":"0"
  },seed);
  var readOnly=new Set(["cmi._version","cmi._children","cmi.credit","cmi.entry","cmi.learner_id","cmi.learner_name","cmi.mode","cmi.max_time_allowed","cmi.scaled_passing_score","cmi.total_time"]);
- function dur(sec){sec=Math.max(0,sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=(sec%60).toFixed(2).replace(/\\.?0+$/,"");return "PT"+h+"H"+m+"M"+s+"S";}
+ function dur(sec){sec=Math.max(0,sec);var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=(sec%60).toFixed(2).replace(/\.?0+$/,"");return "PT"+h+"H"+m+"M"+s+"S";}
  function elapsed(){return started?(Date.now()-started)/1000:0;}
  function send(finish){values["cmi.session_time"]=dur(elapsed());try{window.parent.postMessage({type:"lms-scorm-commit",packageId:packageId,attemptId:attemptId,cmi:values,finish:!!finish},"*");}catch(e){}}
  function autosave(){if(timer)clearInterval(timer);timer=setInterval(function(){if(initialized)send(false);},15000);}
  function valid(k){return typeof k==="string"&&k.indexOf("cmi.")===0&&k.split(".").every(function(p){return p&&p!=="__proto__"&&p!=="constructor"&&p!=="prototype";});}
- function count(prefix){var max=-1,re=new RegExp("^"+prefix.replace(/\\./g,"\\\\.")+"\\\\.(\\\\d+)\\\\.");Object.keys(values).forEach(function(k){var m=k.match(re);if(m)max=Math.max(max,+m[1]);});return String(max+1);}
+ function count(prefix){var max=-1,re=new RegExp("^"+prefix.replace(/\./g,"\\.")+"\\.(\\d+)\\.");Object.keys(values).forEach(function(k){var m=k.match(re);if(m)max=Math.max(max,+m[1]);});return String(max+1);}
  window.API_1484_11={
   Initialize:function(p){if(p!==""||initialized||terminated){lastError="103";return "false";}initialized=true;started=Date.now();autosave();lastError="0";return "true";},
   Terminate:function(p){if(p!==""||!initialized){lastError="112";return "false";}send(true);initialized=false;terminated=true;started=0;if(timer){clearInterval(timer);timer=null;}lastError="0";return "true";},
-  GetValue:function(k){if(!initialized){lastError="301";return "";}if(!valid(k)){lastError="201";return "";}if(k==="cmi.interactions._count"||k==="cmi.objectives._count")values[k]=count(k.slice(0,k.lastIndexOf(".")));if(k in values){lastError="0";return String(values[k]==null?"":values[k]);}if(/^cmi\\.(interactions|objectives)\\.\\d+\\./.test(k)){lastError="0";return "";}lastError="401";return "";},
+  GetValue:function(k){if(!initialized){lastError="301";return "";}if(!valid(k)){lastError="201";return "";}if(k==="cmi.interactions._count"||k==="cmi.objectives._count")values[k]=count(k.slice(0,k.lastIndexOf(".")));if(k in values){lastError="0";return String(values[k]==null?"":values[k]);}if(/^cmi\.(interactions|objectives)\.\d+\./.test(k)){lastError="0";return "";}lastError="401";return "";},
   SetValue:function(k,v){if(!initialized){lastError="301";return "false";}if(!valid(k)||typeof v!=="string"){lastError="201";return "false";}if(readOnly.has(k)){lastError="404";return "false";}if(k==="cmi.completion_status"&&!["completed","incomplete","not attempted","unknown"].includes(v)){lastError="406";return "false";}if(k==="cmi.success_status"&&!["passed","failed","unknown"].includes(v)){lastError="406";return "false";}values[k]=v;if(k.indexOf("cmi.interactions.")===0)values["cmi.interactions._count"]=count("cmi.interactions");if(k.indexOf("cmi.objectives.")===0)values["cmi.objectives._count"]=count("cmi.objectives");lastError="0";return "true";},
   Commit:function(p){if(p!==""||!initialized){lastError="112";return "false";}send(false);lastError="0";return "true";},
   GetLastError:function(){return lastError;},
