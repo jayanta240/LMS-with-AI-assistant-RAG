@@ -485,13 +485,18 @@ def create_launch_ticket(package_id: str, response: Response, attempt_id: uuid.U
                     session_time = '0000:00:00.00',
                     cmi_data = jsonb_set(
                         jsonb_set(
-                            COALESCE(cmi_data, '{}'::jsonb),
-                            '{cmi.core.session_time}',
-                            '"0000:00:00.00"'::jsonb,
+                            jsonb_set(
+                                COALESCE(cmi_data, '{}'::jsonb),
+                                '{cmi.core.session_time}',
+                                '"0000:00:00.00"'::jsonb,
+                                true
+                            ),
+                            '{cmi.core.total_time}',
+                            to_jsonb(total_time),
                             true
                         ),
-                        '{cmi.core.total_time}',
-                        to_jsonb(total_time),
+                        '{cmi.session_time}',
+                        '"PT0S"'::jsonb,
                         true
                     ),
                     last_accessed_at = NOW()
