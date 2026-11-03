@@ -12,19 +12,6 @@ type ScormPackage = {
   created_at?: string | null;
 };
 
-type ScormReport = {
-  package_title: string;
-  learner_name: string;
-  learner_email: string;
-  attempt_number: number;
-  completion_status: string;
-  success_status: string;
-  score: number | null;
-  mastery_score: number | null;
-  total_time: string;
-  last_accessed_at: string | null;
-};
-
 const configuredApiBase = process.env.NEXT_PUBLIC_API_URL;
 const API_BASE = configuredApiBase
   ? (configuredApiBase.replace(/\/$/, "").endsWith("/api")
@@ -44,10 +31,6 @@ export default function ScormPackageManager({ courseId }: { courseId: number }) 
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [canManage, setCanManage] = useState(false);
-  const [canReport, setCanReport] = useState(false);
-  const [reports, setReports] = useState<ScormReport[]>([]);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportLoading, setReportLoading] = useState(false);
 
   async function loadPackages() {
     setLoading(true);
@@ -70,7 +53,6 @@ export default function ScormPackageManager({ courseId }: { courseId: number }) 
   useEffect(() => {
     const role = localStorage.getItem("role") || "";
     setCanManage(role === "company_admin" || role === "department_head");
-    setCanReport(role === "super_admin" || role === "company_admin" || role === "department_head");
     void loadPackages();
   }, [courseId]);
 
@@ -124,25 +106,6 @@ export default function ScormPackageManager({ courseId }: { courseId: number }) 
     }
   }
 
-  async function loadReports() {
-    setReportLoading(true);
-    setError("");
-    try {
-      const response = await fetch(`${API_BASE}/scorm/courses/${courseId}/reports`, {
-        headers: authHeaders(),
-        cache: "no-store",
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.detail || "Could not load SCORM progress report.");
-      setReports(Array.isArray(data) ? data : []);
-      setReportOpen(true);
-    } catch (e: any) {
-      setError(e?.message || "Could not load SCORM progress report.");
-    } finally {
-      setReportLoading(false);
-    }
-  }
-
   function formatBytes(value: number) {
     if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
     return `${(value / (1024 * 1024)).toFixed(1)} MB`;
@@ -163,12 +126,6 @@ export default function ScormPackageManager({ courseId }: { courseId: number }) 
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
             <RefreshCw size={15} /> Refresh
           </button>
-          {canReport && (
-            <button type="button" onClick={() => void loadReports()} disabled={reportLoading}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-              {reportLoading ? "Loading report…" : "View progress"}
-            </button>
-          )}
           {canManage && (
             <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 ${uploading ? "pointer-events-none opacity-60" : ""}`}>
               <Upload size={16} /> {uploading ? "Uploading…" : "Upload SCORM ZIP"}
@@ -180,44 +137,6 @@ export default function ScormPackageManager({ courseId }: { courseId: number }) 
 
       {notice && <p role="status" className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 size={17} />{notice}</p>}
       {error && <p role="alert" className="mt-4 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-800"><AlertCircle size={17} />{error}</p>}
-
-      {reportOpen && (
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-            <div>
-              <p className="font-semibold text-slate-900">Learner progress report</p>
-              <p className="text-xs text-slate-500">{reports.length} attempt records · limited to your permitted company or department scope</p>
-            </div>
-            <button type="button" onClick={() => setReportOpen(false)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white">Hide report</button>
-          </div>
-          {reports.length === 0 ? (
-            <p className="p-5 text-sm text-slate-500">No SCORM attempts have been recorded for this course yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-white text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Learner</th><th className="px-4 py-3">Activity</th><th className="px-4 py-3">Attempt</th><th className="px-4 py-3">Completion</th><th className="px-4 py-3">Score</th><th className="px-4 py-3">Time</th><th className="px-4 py-3">Last activity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reports.map((item, index) => (
-                    <tr key={`${item.learner_email}-${item.package_title}-${item.attempt_number}-${index}`} className="text-slate-700">
-                      <td className="px-4 py-3"><p className="font-medium text-slate-900">{item.learner_name || "Learner"}</p><p className="text-xs text-slate-500">{item.learner_email}</p></td>
-                      <td className="px-4 py-3">{item.package_title}</td>
-                      <td className="px-4 py-3">{item.attempt_number}</td>
-                      <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold">{item.completion_status}</span><p className="mt-1 text-xs text-slate-500">{item.success_status}</p></td>
-                      <td className="px-4 py-3">{item.score === null ? "—" : `${item.score}${item.mastery_score !== null ? ` / pass ${item.mastery_score}` : ""}`}</td>
-                      <td className="px-4 py-3">{item.total_time || "—"}</td>
-                      <td className="px-4 py-3">{item.last_accessed_at ? new Date(item.last_accessed_at).toLocaleString() : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
 
       {loading ? (
         <p className="mt-5 text-sm text-slate-500">Loading SCORM packages…</p>
