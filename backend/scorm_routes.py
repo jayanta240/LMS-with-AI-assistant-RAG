@@ -1172,6 +1172,74 @@ def scorm_course_reports(
     } for r in rows]
 
 
+
+@router.get("/learners/{user_id}/summary")
+def scorm_learner_summary(user_id: int, current_user=Depends(get_current_user)):
+    """Return one concise SCORM result per package for an authorized learner."""
+    role = current_user.get("role")
+    if role not in {"super_admin", "company_admin", "department_head"}:
+        raise HTTPException(status_code=403, detail="Permission denied.")
+
+    learner = get_user_by_id(user_id)
+    if not learner or str(learner[3]).lower() != "employee":
+        raise HTTPException(status_code=404, detail="Learner not found.")
+
+    if role == "company_admin" and learner[5] != current_user.get("company_id"):
+        raise HTTPException(status_code=403, detail="This learner is outside your company.")
+    if role == "department_head" and (
+        learner[5] != current_user.get("company_id")
+        or learner[6] != current_user.get("department_id")
+    ):
+        raise HTTPException(status_code=403, detail="This learner is outside your department.")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT c.id, c.title, p.id, p.title, p.version,
+                       latest.completion_status, latest.success_status,
+                       latest.score_raw, p.mastery_score, latest.total_time,
+                       latest.last_accessed_at, latest.completed_at,
+                       COALESCE(attempts.attempt_count, 0)
+                FROM enrollments e
+                JOIN courses c ON c.id = e.course_id
+                JOIN scorm_packages p ON p.course_id = c.id
+                LEFT JOIN LATERAL (
+                    SELECT a.completion_status, a.success_status, a.score_raw,
+                           a.total_time, a.last_accessed_at, a.completed_at
+                    FROM scorm_attempts a
+                    WHERE a.package_id = p.id AND a.user_id = %s
+                      AND a.company_id = %s
+                    ORDER BY a.attempt_number DESC
+                    LIMIT 1
+                ) latest ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*) AS attempt_count
+                    FROM scorm_attempts a
+                    WHERE a.package_id = p.id AND a.user_id = %s
+                      AND a.company_id = %s
+                ) attempts ON TRUE
+                WHERE e.user_id = %s
+                ORDER BY c.title, p.title
+            """, (user_id, learner[5], user_id, learner[5], user_id))
+            rows = cur.fetchall()
+
+    return [{
+        "course_id": row[0],
+        "course_title": row[1],
+        "package_id": str(row[2]),
+        "package_title": row[3],
+        "scorm_version": row[4],
+        "completion_status": row[5] or "not attempted",
+        "success_status": row[6] or "unknown",
+        "score": float(row[7]) if row[7] is not None else None,
+        "mastery_score": float(row[8]) if row[8] is not None else None,
+        "total_time": row[9],
+        "last_activity_at": row[10].isoformat() if row[10] else None,
+        "completed_at": row[11].isoformat() if row[11] else None,
+        "attempt_count": int(row[12] or 0),
+    } for row in rows]
+
+
 @router.delete("/packages/{package_id}")
 def delete_scorm_package(package_id: str, current_user=Depends(get_current_user)):
     if current_user.get("role") not in {"company_admin", "department_head"}:
