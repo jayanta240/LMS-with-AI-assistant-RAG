@@ -233,6 +233,10 @@ export default function EmployeesPage() {
 
   const [showRegistrationChoices, setShowRegistrationChoices] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [selectedLearner, setSelectedLearner] = useState<Employee | null>(null);
+  const [learnerScorm, setLearnerScorm] = useState<any[]>([]);
+  const [learnerScormLoading, setLearnerScormLoading] = useState(false);
+  const [learnerScormError, setLearnerScormError] = useState("");
 
   const employeeName = useMemo(
     () =>
@@ -840,6 +844,19 @@ export default function EmployeesPage() {
   // ==========================================================
   // FILTERED USERS
   // ==========================================================
+
+  async function openLearnerDetails(user: Employee) {
+    setSelectedLearner(user); setLearnerScorm([]); setLearnerScormError(""); setLearnerScormLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
+      const response = await fetch(`${base}/api/scorm/learners/${user.id}/summary`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.detail || "Unable to load learner results.");
+      setLearnerScorm(Array.isArray(data) ? data : []);
+    } catch (error: any) { setLearnerScormError(error?.message || "Unable to load learner results."); }
+    finally { setLearnerScormLoading(false); }
+  }
 
   const filteredUsers =
     useMemo(() => {
@@ -1878,9 +1895,7 @@ export default function EmployeesPage() {
 
                               <div className="min-w-0">
 
-                                <p className="truncate text-sm font-semibold text-slate-900">
-                                  {user.name}
-                                </p>
+                                <button type="button" onClick={() => void openLearnerDetails(user)} className="truncate text-left text-sm font-semibold text-slate-900 underline decoration-transparent underline-offset-4 hover:text-amber-700 hover:decoration-amber-500">{user.name}</button>
 
                                 <p className="truncate text-xs text-slate-500">
                                   {user.email}
@@ -2081,6 +2096,33 @@ export default function EmployeesPage() {
         </div>
 
       </div>
+
+        {selectedLearner && <div className="fixed inset-0 z-[100] flex justify-end bg-slate-950/40 backdrop-blur-sm" onClick={() => setSelectedLearner(null)}>
+          <section role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} className="flex h-full w-full max-w-2xl flex-col overflow-y-auto bg-slate-50 shadow-2xl">
+            <header className="sticky top-0 z-10 border-b border-slate-200 bg-white p-6">
+              <div className="flex items-start justify-between"><div><h2 className="text-xl font-bold text-slate-900">{selectedLearner.name}</h2><p className="text-sm text-slate-500">{selectedLearner.email} · {selectedLearner.department || "No department"}</p></div><button onClick={() => setSelectedLearner(null)} className="rounded-xl border p-2 text-slate-500"><X size={18}/></button></div>
+              <p className="mt-3 text-sm text-slate-500">SCORM learner performance · latest result per package</p>
+            </header>
+            <div className="space-y-4 p-6">
+              {learnerScormLoading ? <div className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500">Loading results…</div>
+              : learnerScormError ? <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{learnerScormError}</div>
+              : learnerScorm.length === 0 ? <div className="rounded-2xl border border-dashed bg-white p-8 text-center"><GraduationCap className="mx-auto text-slate-400" size={30}/><p className="mt-3 font-semibold">No SCORM results yet</p><p className="mt-1 text-sm text-slate-500">Results appear after the learner launches an assigned package.</p></div>
+              : <>
+                <div className="grid grid-cols-3 gap-3">{[
+                  ["Packages", learnerScorm.length],
+                  ["Completed", learnerScorm.filter((x) => ["completed","passed"].includes(x.completion_status)).length],
+                  ["Passed", learnerScorm.filter((x) => x.success_status === "passed").length]
+                ].map(([label,value]) => <div key={String(label)} className="rounded-2xl border bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}</div>
+                {learnerScorm.map((item) => { const done=["completed","passed"].includes(item.completion_status); const score=item.score===null?null:Math.max(0,Math.min(100,Number(item.score))); return <article key={item.package_id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{item.course_title}</p><h3 className="mt-1 font-semibold text-slate-900">{item.package_title}</h3><p className="text-xs text-slate-500">SCORM {item.scorm_version}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${done?"bg-emerald-50 text-emerald-700":"bg-amber-50 text-amber-700"}`}>{done?"Completed":item.completion_status||"Not attempted"}</span></div>
+                  <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4"><div><p className="text-xs text-slate-500">Score</p><p className="text-lg font-bold">{score===null?"—":`${score}%`}</p></div><div><p className="text-xs text-slate-500">Result</p><p className="font-semibold">{item.success_status||"Pending"}</p></div><div><p className="text-xs text-slate-500">Learning time</p><p className="font-semibold">{item.total_time||"—"}</p></div><div><p className="text-xs text-slate-500">Attempts</p><p className="font-semibold">{item.attempt_count}</p></div></div>
+                  {score!==null&&<div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-amber-500" style={{width:`${score}%`}}/></div>}
+                  <p className="mt-3 text-xs text-slate-400">{item.completed_at?`Completed ${new Date(item.completed_at).toLocaleString()}`:item.last_activity_at?`Last activity ${new Date(item.last_activity_at).toLocaleString()}`:"No activity recorded"}</p>
+                </article>; })}
+              </>}
+            </div>
+          </section>
+        </div>}
 
     </DashboardLayout>
 
