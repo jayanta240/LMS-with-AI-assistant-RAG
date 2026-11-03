@@ -1181,7 +1181,7 @@ def scorm_learner_summary(user_id: int, current_user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Permission denied.")
 
     learner = get_user_by_id(user_id)
-    if not learner or str(learner[3]).lower() != "employee":
+    if not learner or str(learner[4]).lower() != "employee":
         raise HTTPException(status_code=404, detail="Learner not found.")
 
     if role == "company_admin" and learner[5] != current_user.get("company_id"):
