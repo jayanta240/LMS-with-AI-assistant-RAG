@@ -235,7 +235,7 @@ export default function Header({
 
 
   return (
-    <header className="flex h-[68px] items-center justify-between border-b border-slate-200 bg-white px-3 sm:h-[82px] sm:px-6 lg:px-8">
+    <header className="flex h-[68px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-3 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur-xl sm:h-[82px] sm:px-6 lg:px-8">
 
       {/* =====================================================
           LEFT
