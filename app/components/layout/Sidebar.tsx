@@ -263,15 +263,15 @@ export default function Sidebar({
       <aside
         className={`
           fixed inset-y-0 z-[70]
-          flex h-dvh w-[236px] shrink-0 flex-col overflow-hidden
-          border-r border-slate-200 bg-white
+          flex h-dvh w-[252px] shrink-0 flex-col overflow-hidden
+          border-r border-slate-200/80 bg-white
           shadow-xl transition-[left] duration-200
           md:static md:shadow-none
         `}
         style={{
           zIndex: 70,
           pointerEvents: "auto",
-          left: mobileOpen ? 0 : "-236px",
+          left: mobileOpen ? 0 : "-252px",
         }}
       >
 
@@ -279,7 +279,7 @@ export default function Sidebar({
           LOGO
          ===================================================== */}
 
-      <div className="flex h-[82px] items-center justify-between border-b border-slate-200 px-6">
+      <div className="flex h-[82px] items-center justify-between border-b border-slate-100 px-6">
 
         <Link
           href={
@@ -359,9 +359,9 @@ export default function Sidebar({
           NAVIGATION
          ===================================================== */}
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
 
           {menu.map((item) => {
 
@@ -396,8 +396,8 @@ export default function Sidebar({
                 }
                 className={`
                   group relative flex items-center gap-3
-                  rounded-xl px-4 py-3
-                  text-[14px] font-medium
+                  rounded-xl px-4 py-3.5
+                  text-[13px] font-semibold tracking-[0.005em]
                   transition-all duration-200
                   ${
                     active
@@ -448,9 +448,9 @@ export default function Sidebar({
           USER / COMPANY CARD
          ===================================================== */}
 
-      <div className="shrink-0 border-t border-slate-200 p-3">
+      <div className="shrink-0 border-t border-slate-100 p-4">
 
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3">
 
           {/* Avatar */}
 
