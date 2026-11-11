@@ -13,7 +13,7 @@ export default function DashboardLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#f8fafc]">
+    <div className="flex h-dvh overflow-hidden bg-[#f5f7fb]">
 
       <Sidebar
         mobileOpen={mobileOpen}
@@ -30,7 +30,7 @@ export default function DashboardLayout({
 
         <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
 
-          <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+          <div className="mx-auto w-full max-w-[1720px] px-4 py-5 sm:px-6 sm:py-7 lg:px-9 lg:py-8">
             {children}
           </div>
 
