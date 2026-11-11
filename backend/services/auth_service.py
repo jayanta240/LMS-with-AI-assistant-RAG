@@ -52,15 +52,18 @@ def create_access_token(
     email,
     role,
     company_id,
-    department_id
+    department_id,
+    remember_me: bool = False
 ):
 
-    expire = (
-        datetime.utcnow()
-        + timedelta(
-            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+    # A remembered login remains valid across browser restarts.
+    # The shorter default lifetime remains in place when unchecked.
+    token_lifetime = (
+        timedelta(days=365)
+        if remember_me
+        else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+    expire = datetime.utcnow() + token_lifetime
 
     payload = {
         "user_id": user_id,
