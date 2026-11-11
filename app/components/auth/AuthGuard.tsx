@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-const PUBLIC_ROUTES = ["/login", "/forgot-password"];
-
 function getRoleHome(role: string | null): string | null {
   if (role === "employee") return "/learning";
 
