@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const handleLogin = async () => {
     try {
@@ -31,7 +32,8 @@ export default function LoginPage() {
 
       const data = await login(
         email,
-        password
+        password,
+        rememberMe
       );
 
       if (!data.success) {
@@ -457,7 +459,16 @@ export default function LoginPage() {
 
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                    />
+                    Remember me
+                  </label>
                   <Link
                     href="/forgot-password"
                     className="text-sm font-semibold text-slate-600 transition hover:text-slate-950 hover:underline"
