@@ -2790,7 +2790,8 @@ async def login_user(
         user_id=user[0],
         email=user[2],
         role=user[4],company_id=user[5],
-        department_id=user[6]
+        department_id=user[6],
+        remember_me=data.remember_me
     )
 
     branding = (
