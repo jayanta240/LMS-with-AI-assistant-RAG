@@ -6,7 +6,8 @@ const BASE =
 
 export async function login(
   email: string,
-  password: string
+  password: string,
+  rememberMe: boolean = true
 ) {
 
   const res = await fetch(
@@ -20,6 +21,7 @@ export async function login(
       body: JSON.stringify({
         email,
         password,
+        remember_me: rememberMe,
       }),
     }
   );
