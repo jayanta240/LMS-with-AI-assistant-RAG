@@ -59,22 +59,22 @@ function MetricCard({
   trend?: "up" | "neutral";
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+    <div className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.035)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(15,23,42,0.07)]">
 
       <div className="flex items-start justify-between gap-4">
 
         <div className="min-w-0">
 
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-[13px] font-medium tracking-wide text-slate-500">
             {title}
           </p>
 
-          <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+          <p className="mt-3 text-[30px] font-semibold leading-none tracking-tight text-slate-950">
             {value}
           </p>
 
           {subtitle && (
-            <div className="mt-2 flex items-center gap-1 text-xs text-slate-500">
+            <div className="mt-3 flex items-center gap-1.5 text-xs leading-5 text-slate-500">
 
               {trend === "up" && (
                 <TrendingUp
@@ -91,7 +91,7 @@ function MetricCard({
         </div>
 
         <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${iconClassName}`}
         >
           {icon}
         </div>
@@ -115,11 +115,11 @@ function SectionCard({
   headerAction?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.035)]">
 
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div className="flex items-center justify-between border-b border-slate-100/90 px-5 py-4.5">
 
-        <h2 className="text-base font-semibold text-slate-900">
+        <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">
           {title}
         </h2>
 
@@ -278,13 +278,13 @@ export default function DashboardPage() {
             PAGE HEADER
            ===================================================== */}
 
-        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-white via-white to-amber-50/70 px-5 py-5 shadow-sm sm:px-6 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-white via-white to-orange-50/50 px-6 py-6 shadow-[0_8px_30px_rgba(15,23,42,0.045)] sm:px-7 xl:flex-row xl:items-center xl:justify-between">
 
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-600">
               CPUTEK LMS · Overview
             </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="mt-2 text-[28px] font-semibold tracking-tight text-slate-950 sm:text-[32px]">
               {dashboardTitle}
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
