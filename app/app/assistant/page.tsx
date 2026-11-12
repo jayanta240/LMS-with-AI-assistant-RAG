@@ -19,6 +19,7 @@ import {
   getMessages,
   createSession,
   diagnoseImage,
+  rewriteContent,
 } from "../../lib/api";
 
 import {
@@ -84,6 +85,15 @@ export default function Home() {
 
   const [loading, setLoading] =
     useState(false);
+
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [rewriteText, setRewriteText] = useState("");
+  const [rewriteDifficulty, setRewriteDifficulty] = useState<
+    "beginner" | "intermediate" | "advanced" | "expert"
+  >("intermediate");
+  const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewriteError, setRewriteError] = useState("");
+  const [rewriteTarget, setRewriteTarget] = useState<number | null>(null);
 
   const [videoLoading, setVideoLoading] =
     useState(false);
@@ -365,6 +375,51 @@ ${diagnosis.solution}
 
     } finally {
       setLoading(false);
+    }
+  }
+
+
+  async function handleRewrite() {
+    const content = rewriteText.trim();
+    if (!content) {
+      setRewriteError("Paste or select some technical content first.");
+      return;
+    }
+    if (content.length > 12000) {
+      setRewriteError("Content must be 12,000 characters or fewer.");
+      return;
+    }
+
+    setRewriteLoading(true);
+    setRewriteError("");
+    try {
+      const result = await rewriteContent(content, rewriteDifficulty);
+      const rewritten = result?.rewritten_content;
+      if (!rewritten) {
+        throw new Error("The rewriting service returned no content.");
+      }
+
+      if (rewriteTarget !== null) {
+        setMessages((previous) =>
+          previous.map((item, index) =>
+            index === rewriteTarget ? { ...item, content: rewritten } : item
+          )
+        );
+      } else {
+        setMessages((previous) => [
+          ...previous,
+          { role: "assistant", content: rewritten },
+        ]);
+      }
+      setRewriteOpen(false);
+      setRewriteText("");
+      setRewriteTarget(null);
+    } catch (error: any) {
+      setRewriteError(
+        error?.message || "Could not rewrite the content. Please try again."
+      );
+    } finally {
+      setRewriteLoading(false);
     }
   }
 
@@ -937,6 +992,20 @@ ${diagnosis.solution}
             <p className="mt-1 text-sm text-slate-500">
               Ask anything about your organization&apos;s knowledge base.
             </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setRewriteTarget(null);
+                setRewriteText("");
+                setRewriteError("");
+                setRewriteOpen((open) => !open);
+              }}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <Sparkles size={14} style={{ color: "var(--brand-accent)" }} />
+              Rewrite technical content
+            </button>
 
           </div>
 
@@ -2015,6 +2084,21 @@ ${diagnosis.solution}
                             </button>
 
 
+                            <button
+                              type="button"
+                              title="Rewrite at a different difficulty"
+                              onClick={() => {
+                                setRewriteText(m.content);
+                                setRewriteTarget(index);
+                                setRewriteError("");
+                                setRewriteOpen(true);
+                              }}
+                              className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                            >
+                              Rewrite
+                            </button>
+
+
                             <div className="ml-auto">
 
                               {!m.video && (
@@ -2175,6 +2259,66 @@ ${diagnosis.solution}
 
         )}
 
+
+        {rewriteOpen && (
+          <div className="mx-auto mt-4 w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  {rewriteTarget !== null ? "Rewrite assistant response" : "Rewrite technical content"}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Choose a learner level. Meaning and important technical details are preserved.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setRewriteOpen(false);
+                  setRewriteTarget(null);
+                  setRewriteError("");
+                }}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                aria-label="Close rewrite tool"
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Difficulty level</label>
+            <select
+              value={rewriteDifficulty}
+              onChange={(event) => setRewriteDifficulty(event.target.value as typeof rewriteDifficulty)}
+              className="mb-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
+            >
+              <option value="beginner">Beginner — simple language and examples</option>
+              <option value="intermediate">Intermediate — clear technical explanations</option>
+              <option value="advanced">Advanced — detailed technical explanation</option>
+              <option value="expert">Expert — in-depth professional language</option>
+            </select>
+            <textarea
+              value={rewriteText}
+              onChange={(event) => setRewriteText(event.target.value)}
+              rows={6}
+              maxLength={12000}
+              placeholder="Paste technical content here..."
+              className="w-full resize-y rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-800 outline-none focus:border-slate-400"
+            />
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs text-slate-400">{rewriteText.length.toLocaleString()} / 12,000 characters</span>
+              <button
+                type="button"
+                onClick={handleRewrite}
+                disabled={rewriteLoading || !rewriteText.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: "var(--brand-primary)" }}
+              >
+                {rewriteLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {rewriteLoading ? "Rewriting..." : "Rewrite content"}
+              </button>
+            </div>
+            {rewriteError && <p role="alert" className="mt-2 text-xs text-red-600">{rewriteError}</p>}
+          </div>
+        )}
 
         {/* =====================================================
             INPUT
