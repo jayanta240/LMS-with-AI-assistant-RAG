@@ -87,6 +87,35 @@ export async function sendMessage(
 }
 
 
+
+
+// ============================================================
+// REWRITE TECHNICAL CONTENT
+// ============================================================
+
+export async function rewriteContent(
+  content: string,
+  difficulty: "beginner" | "intermediate" | "advanced" | "expert"
+) {
+  const res = await fetch(`${BASE}/api/assistant/rewrite`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ content, difficulty }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(
+      data?.detail || data?.message || "Content rewriting failed"
+    );
+  }
+  return data;
+}
+
+
 // ============================================================
 // UPLOAD ASSISTANT CONTENT
 // ============================================================
