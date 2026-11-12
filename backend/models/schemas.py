@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 
 # -----------------------------
@@ -9,6 +9,11 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str
     mode: Optional[str] = "normal"
+
+
+class RewriteRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=12000)
+    difficulty: Literal["beginner", "intermediate", "advanced", "expert"] = "intermediate"
 
 
 # -----------------------------
