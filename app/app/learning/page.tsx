@@ -14,12 +14,20 @@ import {
 } from "lucide-react";
 
 import EmployeeLayout from "@/components/layout/EmployeeLayout";
-import {\n  getUserCourses,\n  getBookmarkedCourseIds,\n  addCourseBookmark,\n  removeCourseBookmark,\n} from "@/lib/course-api";
+import {
+  getUserCourses,
+  getBookmarkedCourseIds,
+  addCourseBookmark,
+  removeCourseBookmark,
+} from "@/lib/course-api";
 
 export default function LearningPage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("Learner");\n  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);\n  const [bookmarkBusyId, setBookmarkBusyId] = useState<number | null>(null);\n  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
+  const [userName, setUserName] = useState("Learner");
+  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
+  const [bookmarkBusyId, setBookmarkBusyId] = useState<number | null>(null);
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
 
   const inProgressCourses = courses.filter(
     (c) => c.progress > 0 && c.progress < 100
@@ -38,7 +46,9 @@ export default function LearningPage() {
       localStorage.getItem("user_name") || "Learner"
     );
 
-    loadCourses();\n    loadBookmarks();\n  }, []);
+    loadCourses();
+    loadBookmarks();
+  }, []);
 
   const loadCourses = async () => {
     try {
@@ -302,8 +312,8 @@ export default function LearningPage() {
 
             ) : (
 
-              {(showBookmarksOnly &&
-                courses.filter((course) => bookmarkedIds.includes(Number(course.id))).length === 0) ? (
+              {showBookmarksOnly &&
+                courses.filter((course) => bookmarkedIds.includes(Number(course.id))).length === 0 ? (
                 <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
                   <Bookmark size={26} className="mx-auto text-slate-400" />
                   <h3 className="mt-3 text-lg font-bold text-slate-800">No Bookmarked Courses</h3>
@@ -421,7 +431,6 @@ export default function LearningPage() {
 
                       </div>
 
-                    </div>
                     </Link>
                   </article>
 
