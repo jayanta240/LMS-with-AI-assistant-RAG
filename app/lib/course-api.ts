@@ -1757,3 +1757,66 @@ export async function removeCourseBookmark(courseId: number) {
   }
   return data;
 }
+
+
+// ============================================================
+// LEARNER NOTES
+// ============================================================
+
+export async function getLearnerNote(
+  courseId: number,
+  lessonId: number
+) {
+  const params = new URLSearchParams({
+    course_id: String(courseId),
+    lesson_id: String(lessonId),
+  });
+  const res = await fetch(
+    `${BASE}/api/learner-notes?${params.toString()}`,
+    { headers: authHeaders() }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || data?.message || "Failed to load note");
+  }
+  return data;
+}
+
+export async function saveLearnerNote(
+  courseId: number,
+  lessonId: number,
+  content: string
+) {
+  const res = await fetch(
+    `${BASE}/api/learner-notes`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        course_id: courseId,
+        lesson_id: lessonId,
+        content,
+      }),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || data?.message || "Failed to save note");
+  }
+  return data;
+}
+
+export async function deleteLearnerNote(noteId: number) {
+  const res = await fetch(
+    `${BASE}/api/learner-notes/${noteId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || data?.message || "Failed to delete note");
+  }
+  return data;
+}
