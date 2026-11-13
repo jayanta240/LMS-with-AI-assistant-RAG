@@ -9,15 +9,17 @@ import {
   Clock3,
   GraduationCap,
   Sparkles,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 
 import EmployeeLayout from "@/components/layout/EmployeeLayout";
-import { getUserCourses } from "@/lib/course-api";
+import {\n  getUserCourses,\n  getBookmarkedCourseIds,\n  addCourseBookmark,\n  removeCourseBookmark,\n} from "@/lib/course-api";
 
 export default function LearningPage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("Learner");
+  const [userName, setUserName] = useState("Learner");\n  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);\n  const [bookmarkBusyId, setBookmarkBusyId] = useState<number | null>(null);\n  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
 
   const inProgressCourses = courses.filter(
     (c) => c.progress > 0 && c.progress < 100
@@ -36,8 +38,7 @@ export default function LearningPage() {
       localStorage.getItem("user_name") || "Learner"
     );
 
-    loadCourses();
-  }, []);
+    loadCourses();\n    loadBookmarks();\n  }, []);
 
   const loadCourses = async () => {
     try {
@@ -52,6 +53,37 @@ export default function LearningPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const loadBookmarks = async () => {
+    try {
+      const ids = await getBookmarkedCourseIds();
+      setBookmarkedIds(ids);
+    } catch (err) {
+      console.error("Failed to load course bookmarks:", err);
+    }
+  };
+
+  const toggleBookmark = async (courseId: number) => {
+    if (bookmarkBusyId === courseId) return;
+    setBookmarkBusyId(courseId);
+    try {
+      if (bookmarkedIds.includes(courseId)) {
+        await removeCourseBookmark(courseId);
+        setBookmarkedIds((current) => current.filter((id) => id !== courseId));
+      } else {
+        await addCourseBookmark(courseId);
+        setBookmarkedIds((current) =>
+          current.includes(courseId) ? current : [...current, courseId]
+        );
+      }
+    } catch (err) {
+      console.error("Failed to update course bookmark:", err);
+      window.alert(err instanceof Error ? err.message : "Could not update bookmark.");
+    } finally {
+      setBookmarkBusyId(null);
     }
   };
 
@@ -218,6 +250,22 @@ export default function LearningPage() {
                 <p className="mt-1 text-slate-500">
                   Continue where you left off or start your next program.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setShowBookmarksOnly((value) => !value)}
+                  className={`mt-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    showBookmarksOnly
+                      ? "border-yellow-300 bg-yellow-50 text-yellow-800"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                  aria-pressed={showBookmarksOnly}
+                >
+                  <Bookmark size={16} />
+                  {showBookmarksOnly ? "Show all courses" : "My Bookmarks"}
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">
+                    {bookmarkedIds.length}
+                  </span>
+                </button>
               </div>
 
               <span className="text-sm text-slate-400">
@@ -254,17 +302,38 @@ export default function LearningPage() {
 
             ) : (
 
+              {(showBookmarksOnly &&
+                courses.filter((course) => bookmarkedIds.includes(Number(course.id))).length === 0) ? (
+                <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+                  <Bookmark size={26} className="mx-auto text-slate-400" />
+                  <h3 className="mt-3 text-lg font-bold text-slate-800">No Bookmarked Courses</h3>
+                  <p className="mt-1 text-sm text-slate-500">Bookmark a course to find it here quickly.</p>
+                </div>
+              ) : (
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
 
-                {courses.map((course) => (
+                {(showBookmarksOnly
+                  ? courses.filter((course) => bookmarkedIds.includes(Number(course.id)))
+                  : courses
+                ).map((course) => (
 
-                  <Link
+                  <article
                     key={course.id}
-                    href={`/learning/${course.id}`}
-                    className="group"
+                    className="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
                   >
-
-                    <article className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => toggleBookmark(Number(course.id))}
+                      disabled={bookmarkBusyId === Number(course.id)}
+                      aria-label={bookmarkedIds.includes(Number(course.id)) ? "Remove bookmark" : "Bookmark course"}
+                      aria-pressed={bookmarkedIds.includes(Number(course.id))}
+                      className="absolute right-4 top-5 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-yellow-300 hover:text-yellow-700 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {bookmarkedIds.includes(Number(course.id))
+                        ? <BookmarkCheck size={19} className="text-yellow-600" />
+                        : <Bookmark size={19} />}
+                    </button>
+                    <Link href={`/learning/${course.id}`} className="block h-full">
 
                       <div className="relative h-2 bg-slate-100">
                         <div
@@ -352,13 +421,14 @@ export default function LearningPage() {
 
                       </div>
 
-                    </article>
-
-                  </Link>
+                    </div>
+                    </Link>
+                  </article>
 
                 ))}
 
               </div>
+              )}
 
             )}
 
