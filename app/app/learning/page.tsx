@@ -310,10 +310,8 @@ export default function LearningPage() {
                 </p>
               </div>
 
-            ) : (
-
-              {showBookmarksOnly &&
-                courses.filter((course) => bookmarkedIds.includes(Number(course.id))).length === 0 ? (
+            ) : showBookmarksOnly &&
+              courses.filter((course) => bookmarkedIds.includes(Number(course.id))).length === 0 ? (
                 <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
                   <Bookmark size={26} className="mx-auto text-slate-400" />
                   <h3 className="mt-3 text-lg font-bold text-slate-800">No Bookmarked Courses</h3>
@@ -365,7 +363,7 @@ export default function LearningPage() {
                             <BookOpen size={22} />
                           </div>
 
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                          <span className="mr-12 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
                             {course.progress === 100
                               ? "Completed"
                               : course.progress > 0
@@ -437,7 +435,6 @@ export default function LearningPage() {
                 ))}
 
               </div>
-              )}
 
             )}
 

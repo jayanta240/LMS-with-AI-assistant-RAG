@@ -253,357 +253,232 @@ def get_dashboard_metrics(
     """
     Return dashboard metrics scoped to the logged-in user's role.
 
-    Definitions:
-      - Active users: users with activity in the last 30 days.
-      - Completion rate: fully completed course enrollments /
-        total enrollments.
-      - Learning hours: tracked active learning seconds / 3600.
-      - Certificates: issued certificates in the user's scope.
-      - AI conversations: persistent AI chat sessions in scope.
+    Uses one SQL statement to reduce sequential database round trips.
+    Metric definitions and role-based filters match the previous version.
     """
-
     cutoff = datetime.now() - timedelta(days=30)
+
+    params = {
+        "cutoff": cutoff,
+        "company_id": company_id,
+        "department_id": department_id,
+        "user_id": user_id,
+        "role": role,
+    }
+
+    user_filters = []
+    course_filters = []
+    enrollment_filters = []
+    certificate_filters = []
+    learning_filters = []
+    ai_filters = []
+
+    # USER SCOPE
+    if role == "company_admin" and company_id is not None:
+        user_filters.extend([
+            "u.company_id = %(company_id)s",
+            "u.role = 'employee'",
+        ])
+    elif role == "department_head":
+        if department_id is not None:
+            user_filters.extend([
+                "u.department_id = %(department_id)s",
+                "u.role = 'employee'",
+            ])
+        elif company_id is not None:
+            user_filters.extend([
+                "u.company_id = %(company_id)s",
+                "u.role = 'employee'",
+            ])
+    elif role == "employee" and user_id is not None:
+        user_filters.append("u.id = %(user_id)s")
+
+    # COURSE SCOPE
+    if role in {"company_admin", "department_head"}:
+        if company_id is not None:
+            course_filters.append("c.company_id = %(company_id)s")
+    elif role == "employee" and user_id is not None:
+        course_filters.append("""
+            EXISTS (
+                SELECT 1
+                FROM enrollments e2
+                WHERE e2.course_id = c.id
+                  AND e2.user_id = %(user_id)s
+            )
+        """)
+
+    # ENROLLMENT SCOPE
+    if role in {"company_admin", "department_head"}:
+        if company_id is not None:
+            enrollment_filters.append("c.company_id = %(company_id)s")
+
+    if role == "department_head" and department_id is not None:
+        enrollment_filters.append("u.department_id = %(department_id)s")
+
+    if role == "employee" and user_id is not None:
+        enrollment_filters.append("e.user_id = %(user_id)s")
+
+    # CERTIFICATE SCOPE
+    if role in {"company_admin", "department_head"}:
+        if company_id is not None:
+            certificate_filters.append("c.company_id = %(company_id)s")
+
+    if role == "department_head" and department_id is not None:
+        certificate_filters.append("""
+            EXISTS (
+                SELECT 1
+                FROM users u
+                WHERE u.id = c.user_id
+                  AND u.department_id = %(department_id)s
+            )
+        """)
+
+    if role == "employee" and user_id is not None:
+        certificate_filters.append("c.user_id = %(user_id)s")
+
+    # LEARNING TIME SCOPE
+    if role in {"company_admin", "department_head"}:
+        if company_id is not None:
+            learning_filters.append("lt.company_id = %(company_id)s")
+
+    if role == "department_head" and department_id is not None:
+        learning_filters.append("""
+            EXISTS (
+                SELECT 1
+                FROM users u
+                WHERE u.id = lt.user_id
+                  AND u.department_id = %(department_id)s
+            )
+        """)
+
+    if role == "employee" and user_id is not None:
+        learning_filters.append("lt.user_id = %(user_id)s")
+
+    # AI SESSION SCOPE
+    if role in {"company_admin", "department_head"}:
+        if company_id is not None:
+            ai_filters.append("a.company_id = %(company_id)s")
+
+    if role == "department_head" and department_id is not None:
+        ai_filters.append("""
+            EXISTS (
+                SELECT 1
+                FROM users u
+                WHERE u.id = a.user_id
+                  AND u.department_id = %(department_id)s
+            )
+        """)
+
+    if role == "employee" and user_id is not None:
+        ai_filters.append("a.user_id = %(user_id)s")
+
+    def where(filters):
+        return "WHERE " + " AND ".join(filters) if filters else ""
+
+    sql = f"""
+        SELECT
+            (SELECT COUNT(*)
+             FROM users u
+             {where(user_filters)}) AS total_users,
+
+            (SELECT COUNT(*) FILTER (
+                 WHERE u.last_active_at >= %(cutoff)s
+             )
+             FROM users u
+             {where(user_filters)}) AS active_users,
+
+            (SELECT COUNT(*)
+             FROM courses c
+             {where(course_filters)}) AS courses_count,
+
+            (SELECT COUNT(*)
+             FROM lessons l
+             JOIN courses c ON c.id = l.course_id
+             {where(course_filters)}) AS lessons_count,
+
+            (SELECT COUNT(*)
+             FROM enrollments e
+             JOIN users u ON u.id = e.user_id
+             JOIN courses c ON c.id = e.course_id
+             {where(enrollment_filters)}) AS total_enrollments,
+
+            (SELECT COUNT(*)
+             FROM (
+                 SELECT e.id
+                 FROM enrollments e
+                 JOIN users u ON u.id = e.user_id
+                 JOIN courses c ON c.id = e.course_id
+                 LEFT JOIN lessons l ON l.course_id = c.id
+                 LEFT JOIN lesson_progress lp
+                   ON lp.lesson_id = l.id
+                  AND lp.user_id = e.user_id
+                  AND lp.completed = 1
+                 {where(enrollment_filters)}
+                 GROUP BY e.id
+                 HAVING COUNT(DISTINCT l.id) > 0
+                    AND COUNT(DISTINCT lp.lesson_id)
+                        >= COUNT(DISTINCT l.id)
+             ) completed_enrollments) AS completed_enrollments,
+
+            (SELECT COUNT(*)
+             FROM certificates c
+             {where(certificate_filters)}) AS certificates_count,
+
+            (SELECT COALESCE(SUM(lt.seconds), 0)
+             FROM learning_time lt
+             {where(learning_filters)}) AS learning_seconds,
+
+            (SELECT COUNT(*)
+             FROM ai_sessions a
+             {where(ai_filters)}) AS ai_conversations,
+
+            (SELECT COALESCE(SUM(a.message_count), 0)
+             FROM ai_sessions a
+             {where(ai_filters)}) AS ai_messages,
+
+            (SELECT COUNT(*)
+             FROM companies) AS companies_count,
+
+            (SELECT COUNT(*)
+             FROM uploaded_files
+             WHERE %(company_id)s IS NULL
+                OR %(role)s = 'super_admin'
+                OR company_id = %(company_id)s) AS files_count
+    """
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
+            cursor.execute(sql, params)
+            row = cursor.fetchone()
 
-            # --------------------------------------------------------
-            # USER SCOPE
-            # --------------------------------------------------------
-            user_filters = []
-            user_params = []
+    companies_count = (
+        int(row[10] or 0) if role == "super_admin" else 0
+    )
 
-            if role == "company_admin" and company_id is not None:
-                user_filters.append("u.company_id = %s")
-                user_params.append(company_id)
-                user_filters.append("u.role = 'employee'")
-
-            elif role == "department_head":
-                if department_id is not None:
-                    user_filters.append("u.department_id = %s")
-                    user_params.append(department_id)
-                    user_filters.append("u.role = 'employee'")
-                elif company_id is not None:
-                    user_filters.append("u.company_id = %s")
-                    user_params.append(company_id)
-                    user_filters.append("u.role = 'employee'")
-
-            elif role == "employee" and user_id is not None:
-                user_filters.append("u.id = %s")
-                user_params.append(user_id)
-
-            user_where = (
-                "WHERE " + " AND ".join(user_filters)
-                if user_filters
-                else ""
-            )
-
-            cursor.execute(
-                f"""
-                SELECT
-                    COUNT(*) AS total_users,
-                    COUNT(*) FILTER (
-                        WHERE u.last_active_at >= %s
-                    ) AS active_users
-                FROM users u
-                {user_where}
-                """,
-                [cutoff, *user_params],
-            )
-
-            user_row = cursor.fetchone()
-
-            total_users = int(user_row[0] or 0)
-            active_users = int(user_row[1] or 0)
-
-            # --------------------------------------------------------
-            # COURSE SCOPE
-            # --------------------------------------------------------
-            course_filters = []
-            course_params = []
-
-            if role in {"company_admin", "department_head"}:
-                if company_id is not None:
-                    course_filters.append("c.company_id = %s")
-                    course_params.append(company_id)
-
-            elif role == "employee" and user_id is not None:
-                course_filters.append("""
-                    EXISTS (
-                        SELECT 1
-                        FROM enrollments e2
-                        WHERE e2.course_id = c.id
-                          AND e2.user_id = %s
-                    )
-                """)
-                course_params.append(user_id)
-
-            course_where = (
-                "WHERE " + " AND ".join(course_filters)
-                if course_filters
-                else ""
-            )
-
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM courses c
-                {course_where}
-                """,
-                course_params,
-            )
-            courses_count = int(cursor.fetchone()[0] or 0)
-
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM lessons l
-                JOIN courses c
-                  ON c.id = l.course_id
-                {course_where}
-                """,
-                course_params,
-            )
-            lessons_count = int(cursor.fetchone()[0] or 0)
-
-            # --------------------------------------------------------
-            # ENROLLMENT / COMPLETION RATE
-            # --------------------------------------------------------
-            enrollment_filters = []
-            enrollment_params = []
-
-            if role in {"company_admin", "department_head"}:
-                if company_id is not None:
-                    enrollment_filters.append("c.company_id = %s")
-                    enrollment_params.append(company_id)
-
-            if role == "department_head" and department_id is not None:
-                enrollment_filters.append("u.department_id = %s")
-                enrollment_params.append(department_id)
-
-            if role == "employee" and user_id is not None:
-                enrollment_filters.append("e.user_id = %s")
-                enrollment_params.append(user_id)
-
-            enrollment_where = (
-                "WHERE " + " AND ".join(enrollment_filters)
-                if enrollment_filters
-                else ""
-            )
-
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM enrollments e
-                JOIN users u
-                  ON u.id = e.user_id
-                JOIN courses c
-                  ON c.id = e.course_id
-                {enrollment_where}
-                """,
-                enrollment_params,
-            )
-            total_enrollments = int(cursor.fetchone()[0] or 0)
-
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM (
-                    SELECT
-                        e.id
-                    FROM enrollments e
-                    JOIN users u
-                      ON u.id = e.user_id
-                    JOIN courses c
-                      ON c.id = e.course_id
-                    LEFT JOIN lessons l
-                      ON l.course_id = c.id
-                    LEFT JOIN lesson_progress lp
-                      ON lp.lesson_id = l.id
-                     AND lp.user_id = e.user_id
-                     AND lp.completed = 1
-                    {enrollment_where}
-                    GROUP BY e.id
-                    HAVING COUNT(DISTINCT l.id) > 0
-                       AND COUNT(DISTINCT lp.lesson_id)
-                           >= COUNT(DISTINCT l.id)
-                ) completed_enrollments
-                """,
-                enrollment_params,
-            )
-            completed_enrollments = int(cursor.fetchone()[0] or 0)
-
-            completion_rate = (
-                round(
-                    (completed_enrollments / total_enrollments) * 100,
-                    1,
-                )
-                if total_enrollments > 0
-                else 0
-            )
-
-            # --------------------------------------------------------
-            # CERTIFICATES
-            # --------------------------------------------------------
-            certificate_filters = []
-            certificate_params = []
-
-            if role in {"company_admin", "department_head"}:
-                if company_id is not None:
-                    certificate_filters.append(
-                        "c.company_id = %s"
-                    )
-                    certificate_params.append(company_id)
-
-            if role == "department_head" and department_id is not None:
-                certificate_filters.append(
-                    "EXISTS ("
-                    "SELECT 1 FROM users u "
-                    "WHERE u.id = c.user_id "
-                    "AND u.department_id = %s)"
-                )
-                certificate_params.append(department_id)
-
-            if role == "employee" and user_id is not None:
-                certificate_filters.append("c.user_id = %s")
-                certificate_params.append(user_id)
-
-            certificate_where = (
-                "WHERE " + " AND ".join(certificate_filters)
-                if certificate_filters
-                else ""
-            )
-
-            cursor.execute(
-                f"""
-                SELECT COUNT(*)
-                FROM certificates c
-                {certificate_where}
-                """,
-                certificate_params,
-            )
-            certificates_count = int(cursor.fetchone()[0] or 0)
-
-            # --------------------------------------------------------
-            # LEARNING HOURS
-            # --------------------------------------------------------
-            learning_filters = []
-            learning_params = []
-
-            if role in {"company_admin", "department_head"}:
-                if company_id is not None:
-                    learning_filters.append("lt.company_id = %s")
-                    learning_params.append(company_id)
-
-            if role == "department_head" and department_id is not None:
-                learning_filters.append("""
-                    EXISTS (
-                        SELECT 1
-                        FROM users u
-                        WHERE u.id = lt.user_id
-                          AND u.department_id = %s
-                    )
-                """)
-                learning_params.append(department_id)
-
-            if role == "employee" and user_id is not None:
-                learning_filters.append("lt.user_id = %s")
-                learning_params.append(user_id)
-
-            learning_where = (
-                "WHERE " + " AND ".join(learning_filters)
-                if learning_filters
-                else ""
-            )
-
-            cursor.execute(
-                f"""
-                SELECT COALESCE(SUM(lt.seconds), 0)
-                FROM learning_time lt
-                {learning_where}
-                """,
-                learning_params,
-            )
-            learning_seconds = int(cursor.fetchone()[0] or 0)
-
-            learning_hours = round(
-                learning_seconds / 3600,
-                1,
-            )
-
-            # --------------------------------------------------------
-            # AI CONVERSATIONS
-            # --------------------------------------------------------
-            ai_filters = []
-            ai_params = []
-
-            if role in {"company_admin", "department_head"}:
-                if company_id is not None:
-                    ai_filters.append("a.company_id = %s")
-                    ai_params.append(company_id)
-
-            if role == "department_head" and department_id is not None:
-                ai_filters.append("""
-                    EXISTS (
-                        SELECT 1
-                        FROM users u
-                        WHERE u.id = a.user_id
-                          AND u.department_id = %s
-                    )
-                """)
-                ai_params.append(department_id)
-
-            if role == "employee" and user_id is not None:
-                ai_filters.append("a.user_id = %s")
-                ai_params.append(user_id)
-
-            ai_where = (
-                "WHERE " + " AND ".join(ai_filters)
-                if ai_filters
-                else ""
-            )
-
-            cursor.execute(
-                f"""
-                SELECT
-                    COUNT(*),
-                    COALESCE(SUM(a.message_count), 0)
-                FROM ai_sessions a
-                {ai_where}
-                """,
-                ai_params,
-            )
-
-            ai_row = cursor.fetchone()
-            ai_conversations = int(ai_row[0] or 0)
-            ai_messages = int(ai_row[1] or 0)
-
-    # Super Admin uses global platform values.
-    if role == "super_admin":
-        from services.company_db import get_company_count
-        from services.file_db import get_file_count
-
-        companies_count = get_company_count()
-        files_count = get_file_count()
+    if role == "super_admin" or company_id is not None:
+        files_count = int(row[11] or 0)
     else:
-        companies_count = 0
+        files_count = 0
 
-        from services.file_db import get_file_count
+    total_enrollments = int(row[4] or 0)
+    completed_enrollments = int(row[5] or 0)
 
-        files_count = get_file_count(
-            company_id=company_id
-        ) if company_id is not None else 0
+    completion_rate = (
+        round((completed_enrollments / total_enrollments) * 100, 1)
+        if total_enrollments > 0
+        else 0
+    )
 
     return {
         "companies": companies_count,
-        "users": total_users,
-        "active_users": active_users,
-        "courses": courses_count,
-        "lessons": lessons_count,
+        "users": int(row[0] or 0),
+        "active_users": int(row[1] or 0),
+        "courses": int(row[2] or 0),
+        "lessons": int(row[3] or 0),
         "files": files_count,
-        "learning_hours": learning_hours,
+        "learning_hours": round(int(row[7] or 0) / 3600, 1),
         "completion_rate": completion_rate,
-        "certificates_issued": certificates_count,
-        "ai_conversations": ai_conversations,
-        "ai_messages": ai_messages,
+        "certificates_issued": int(row[6] or 0),
+        "ai_conversations": int(row[8] or 0),
+        "ai_messages": int(row[9] or 0),
     }

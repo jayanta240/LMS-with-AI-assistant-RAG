@@ -106,6 +106,7 @@ def _get_healthy_connection():
 def get_db_connection():
 
     connection = None
+    connection_broken = False
     checkout_started = time.perf_counter()
     lease_started = None
 
@@ -128,7 +129,14 @@ def get_db_connection():
         if not connection.closed:
             connection.commit()
 
-    except Exception:
+    except Exception as exc:
+
+        # Discard connections affected by SSL, network, or driver failures.
+        if isinstance(
+            exc,
+            (psycopg2.OperationalError, psycopg2.InterfaceError, OSError),
+        ):
+            connection_broken = True
 
         # Only emit timings; never log SQL, credentials, or payloads.
         if lease_started is None:
@@ -146,7 +154,7 @@ def get_db_connection():
             try:
                 connection.rollback()
             except Exception:
-                pass
+                connection_broken = True
 
         raise
 
@@ -163,7 +171,7 @@ def get_db_connection():
         if connection is not None:
 
             try:
-                if connection.closed:
+                if connection.closed or connection_broken:
                     db_pool.putconn(
                         connection,
                         close=True,
