@@ -6,6 +6,7 @@ from services.auth_dependency import get_current_user
 from report_routes import router as report_router
 from bulk_registration_routes import router as bulk_registration_router
 from scorm_routes import router as scorm_router, init_scorm_db
+from bookmark_routes import router as bookmark_router, init_bookmark_db
 from config import settings
 import os
 import time
@@ -175,6 +176,7 @@ app = FastAPI()
 app.include_router(report_router)
 app.include_router(bulk_registration_router)
 app.include_router(scorm_router)
+app.include_router(bookmark_router)
 
 # Lightweight diagnostics: log only slow API requests. Never log query
 # strings, request bodies, authorization headers, or personal data.
@@ -246,6 +248,7 @@ def startup():
     print("🗄️ Ensuring user schema is up to date...")
     init_user_db()
     init_scorm_db()
+    init_bookmark_db()
     init_password_reset_db()
     print("🚀 Initializing Qdrant...")
     init_qdrant()

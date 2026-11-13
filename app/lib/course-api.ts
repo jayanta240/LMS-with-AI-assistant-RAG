@@ -1708,3 +1708,52 @@ export async function updateCourseDepartmentVisibility(
   invalidateCache(`course:${courseId}`);
   return data;
 }
+
+
+// ============================================================
+// LEARNER COURSE BOOKMARKS
+// ============================================================
+
+export async function getBookmarkedCourseIds(): Promise<number[]> {
+  const res = await fetch(
+    `${BASE}/api/bookmarks`,
+    { headers: authHeaders() }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to load bookmarks");
+  }
+  return Array.isArray(data?.course_ids)
+    ? data.course_ids.map((id: number | string) => Number(id))
+    : [];
+}
+
+export async function addCourseBookmark(courseId: number) {
+  const res = await fetch(
+    `${BASE}/api/courses/${courseId}/bookmark`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to bookmark course");
+  }
+  return data;
+}
+
+export async function removeCourseBookmark(courseId: number) {
+  const res = await fetch(
+    `${BASE}/api/courses/${courseId}/bookmark`,
+    {
+      method: "DELETE",
+      headers: authHeaders(),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to remove bookmark");
+  }
+  return data;
+}
