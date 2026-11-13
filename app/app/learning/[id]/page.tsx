@@ -16,6 +16,7 @@ import CourseHeader from "@/components/learning/CourseHeader";
 import CourseProgress from "@/components/learning/CourseProgress";
 import LessonSidebar from "@/components/learning/LessonSidebar";
 import LessonViewer from "@/components/learning/LessonViewer";
+import LearnerNotes from "@/components/learning/LearnerNotes";
 import AIAssistantCard from "@/components/learning/AIAssistantCard";
 import ScormCoursePlayer from "@/components/scorm/ScormCoursePlayer";
 
@@ -353,6 +354,13 @@ export default function CoursePage() {
                   />
 
                 </div>
+
+                {selectedLesson?.id && (
+                  <LearnerNotes
+                    courseId={courseId}
+                    lessonId={Number(selectedLesson.id)}
+                  />
+                )}
 
                 {/* AI CARD */}
 
