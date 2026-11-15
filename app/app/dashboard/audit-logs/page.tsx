@@ -8,6 +8,9 @@ import {
   ChevronRight,
   RefreshCw,
   ShieldCheck,
+  Building2,
+  Users,
+  Clock3,
 } from "lucide-react";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -15,16 +18,12 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 
 type AuditEvent = {
   id: number;
-  actor_user_id: number | null;
-  actor_email: string | null;
+  actor_name: string;
+  actor_email: string;
   actor_role: string;
-  action: string;
-  resource: string;
-  resource_id: string | null;
-  method: string;
-  endpoint: string;
-  status_code: number;
-  ip_address: string | null;
+  company_name: string;
+  department_name: string;
+  activity: string;
   created_at: string;
 };
 
@@ -45,7 +44,7 @@ const API_BASE =
 function humanize(value: string) {
   return value
     .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
 }
 
 
@@ -53,7 +52,13 @@ function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? value
-    : date.toLocaleString();
+    : date.toLocaleString([], {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 }
 
 
@@ -94,9 +99,7 @@ export default function AuditLogsPage() {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-          throw new Error(
-            data?.detail || "Unable to load audit logs."
-          );
+          throw new Error(data?.detail || "Unable to load activity history.");
         }
 
         if (!cancelled) {
@@ -111,7 +114,7 @@ export default function AuditLogsPage() {
           setError(
             err instanceof Error
               ? err.message
-              : "Unable to load audit logs."
+              : "Unable to load activity history."
           );
         }
       } finally {
@@ -136,20 +139,20 @@ export default function AuditLogsPage() {
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-amber-600">
               <ShieldCheck size={17} />
-              Platform governance
+              Account activity
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
               Audit Logs
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Review administrative changes and learner activity recorded by the LMS.
+              See who used the LMS, what they did, and when it happened.
             </p>
           </div>
 
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <ClipboardList size={18} className="text-slate-500" />
             <div>
-              <p className="text-xs text-slate-500">Recorded events</p>
+              <p className="text-xs text-slate-500">Recorded activities</p>
               <p className="text-lg font-semibold text-slate-900">
                 {total.toLocaleString()}
               </p>
@@ -162,7 +165,7 @@ export default function AuditLogsPage() {
             <div>
               <h2 className="font-semibold text-slate-900">Activity history</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Successful write actions and successful sign-ins.
+                Login history and important actions performed in the LMS.
               </p>
             </div>
 
@@ -177,7 +180,7 @@ export default function AuditLogsPage() {
                   setSearch(event.target.value);
                   setOffset(0);
                 }}
-                placeholder="Search user, action or endpoint..."
+                placeholder="Search by name, email, activity or company..."
                 className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
             </div>
@@ -190,29 +193,28 @@ export default function AuditLogsPage() {
           )}
 
           <div className="overflow-x-auto">
-            <table className="min-w-[950px] w-full text-left text-sm">
+            <table className="min-w-[1050px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Activity</th>
-                  <th className="px-5 py-3 font-semibold">Performed by</th>
+                  <th className="px-5 py-3 font-semibold">User</th>
                   <th className="px-5 py-3 font-semibold">Role</th>
-                  <th className="px-5 py-3 font-semibold">Resource</th>
-                  <th className="px-5 py-3 font-semibold">Endpoint</th>
-                  <th className="px-5 py-3 font-semibold">Time</th>
-                  <th className="px-5 py-3 font-semibold">Status</th>
+                  <th className="px-5 py-3 font-semibold">Company</th>
+                  <th className="px-5 py-3 font-semibold">Department</th>
+                  <th className="px-5 py-3 font-semibold">Date &amp; Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
-                      Loading audit history...
+                    <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
+                      Loading activity history...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
-                      {error ? "Audit history could not be loaded." : "No audit events found."}
+                    <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
+                      {error ? "Activity history could not be loaded." : "No activities found."}
                     </td>
                   </tr>
                 ) : (
@@ -220,48 +222,36 @@ export default function AuditLogsPage() {
                     <tr key={item.id} className="transition hover:bg-slate-50/70">
                       <td className="px-5 py-4">
                         <span className="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                          {humanize(item.action)}
+                          {item.activity}
                         </span>
                       </td>
                       <td className="px-5 py-4">
                         <p className="font-medium text-slate-800">
-                          {item.actor_email || "Unknown user"}
+                          {item.actor_name || "Unknown user"}
                         </p>
-                        {item.actor_user_id && (
-                          <p className="mt-0.5 text-xs text-slate-400">
-                            User ID: {item.actor_user_id}
-                          </p>
-                        )}
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {item.actor_email || "Email unavailable"}
+                        </p>
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {humanize(item.actor_role)}
                       </td>
                       <td className="px-5 py-4 text-slate-600">
-                        <span className="font-medium text-slate-700">
-                          {humanize(item.resource)}
+                        <span className="inline-flex items-center gap-1.5">
+                          <Building2 size={14} className="text-slate-400" />
+                          {item.company_name || "Not assigned"}
                         </span>
-                        {item.resource_id && (
-                          <span className="ml-1 text-xs text-slate-400">
-                            #{item.resource_id}
-                          </span>
-                        )}
                       </td>
-                      <td className="px-5 py-4">
-                        <p className="font-mono text-xs text-slate-600">
-                          {item.method} {item.endpoint}
-                        </p>
-                        {item.ip_address && (
-                          <p className="mt-1 text-xs text-slate-400">
-                            {item.ip_address}
-                          </p>
-                        )}
+                      <td className="px-5 py-4 text-slate-600">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users size={14} className="text-slate-400" />
+                          {item.department_name || "Not assigned"}
+                        </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-600">
-                        {formatDate(item.created_at)}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          {item.status_code}
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock3 size={14} className="text-slate-400" />
+                          {formatDate(item.created_at)}
                         </span>
                       </td>
                     </tr>
@@ -274,8 +264,8 @@ export default function AuditLogsPage() {
           <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-slate-500">
               {total === 0
-                ? "No events"
-                : `Showing ${offset + 1}–${Math.min(offset + items.length, total)} of ${total.toLocaleString()} events`}
+                ? "No activities"
+                : `Showing ${offset + 1}–${Math.min(offset + items.length, total)} of ${total.toLocaleString()} activities`}
             </p>
 
             <div className="flex items-center gap-2">
@@ -307,7 +297,7 @@ export default function AuditLogsPage() {
                   setRefreshKey((value) => value + 1);
                 }}
                 disabled={loading}
-                aria-label="Refresh audit logs"
+                aria-label="Refresh activity history"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
               >
                 <RefreshCw size={15} />
