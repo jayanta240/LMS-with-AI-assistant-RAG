@@ -135,6 +135,8 @@ from services.course_db import (
     delete_lessons_by_content_url,
     set_course_department_visibility,
     get_course_department_visibility,
+    get_course_prerequisite_status,
+    get_missing_course_prerequisites,
 )
 
 from services.video_generator import generate_video
@@ -2340,6 +2342,19 @@ async def create_course_api(
     if data.visibility not in ["private", "organization", "public"]:
         raise HTTPException(status_code=400, detail="Invalid course visibility.")
 
+    prerequisite_ids = sorted(set(data.prerequisite_course_ids or []))
+    for prerequisite_id in prerequisite_ids:
+        prerequisite = get_course(
+            prerequisite_id,
+            company_id=company_id,
+            department_id=department_id if role == "department_head" else None,
+        )
+        if not prerequisite:
+            raise HTTPException(
+                status_code=400,
+                detail="Prerequisite courses must be available within your company and department.",
+            )
+
     course_id = create_course(
         company_id=company_id,
         title=data.title,
@@ -2360,6 +2375,7 @@ async def create_course_api(
         status=data.status,
         department_id=department_id,
         visible_department_ids=visible_department_ids,
+        prerequisite_course_ids=prerequisite_ids,
     )
 
     notify_company_admins(
@@ -2428,6 +2444,15 @@ async def get_course_api(
             detail="Course not found."
         )
 
+    prerequisite_status = (
+        get_course_prerequisite_status(user_id, course_id)
+        if role == "employee"
+        else get_course_prerequisite_status(None, course_id)
+    )
+    missing_prerequisites = [
+        item for item in prerequisite_status if not item["completed"]
+    ] if role == "employee" else []
+
     return {
         "id": row[0],
         "title": row[1],
@@ -2449,6 +2474,9 @@ async def get_course_api(
         "expiry_date": row[17],
         "status": row[18],
         "department_id": row[19] if len(row) > 19 else None,
+        "prerequisites": prerequisite_status,
+        "missing_prerequisites": missing_prerequisites,
+        "is_locked": bool(missing_prerequisites),
     }
 
 
@@ -2605,6 +2633,15 @@ async def get_course_lessons_api(
 
     if not course:
         raise HTTPException(status_code=404, detail="Course not found in your permitted scope.")
+
+    if role == "employee":
+        missing_prerequisites = get_missing_course_prerequisites(user_id, course_id)
+        if missing_prerequisites:
+            titles = ", ".join(item["title"] for item in missing_prerequisites)
+            raise HTTPException(
+                status_code=403,
+                detail=f"Complete these prerequisite courses before accessing this course: {titles}",
+            )
 
     rows = get_lessons(
         course_id,
