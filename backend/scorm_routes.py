@@ -31,6 +31,7 @@ from services.course_db import (
     get_course_progress,
     create_certificate,
     update_certificate_pdf_url,
+    get_missing_course_prerequisites,
 )
 from services.company_db import get_company, get_company_branding
 from services.user_db import get_user_by_id
@@ -180,6 +181,15 @@ def _get_course_for_role(course_id: int, user: dict):
                 raise HTTPException(status_code=403, detail="This course is only available within its organization.")
             if visibility not in {"private", "organization", "public"}:
                 raise HTTPException(status_code=403, detail="Course visibility is not configured correctly.")
+            missing_prerequisites = get_missing_course_prerequisites(
+                int(user["user_id"]), course_id
+            )
+            if missing_prerequisites:
+                titles = ", ".join(item["title"] for item in missing_prerequisites)
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Complete these prerequisite courses before accessing this course: {titles}",
+                )
     else:
         raise HTTPException(status_code=403, detail="Permission denied.")
     if not course:
