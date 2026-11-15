@@ -50,7 +50,9 @@ export default function CreateCourseDialog({ onCreated }: Props) {
     getCourses()
       .then((items) => setAvailableCourses(
         Array.isArray(items)
-          ? items.map((item: any) => ({ id: Number(item.id), title: String(item.title || "Untitled course") }))
+          ? items
+              .filter((item: any) => (item.status || "published") === "published")
+              .map((item: any) => ({ id: Number(item.id), title: String(item.title || "Untitled course") }))
           : []
       ))
       .catch((err) => {
