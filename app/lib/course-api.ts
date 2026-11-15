@@ -935,6 +935,9 @@ export async function markLessonComplete(
     "dashboard-stats"
   );
 
+  // A completed prerequisite may unlock other course pages.
+  invalidateCache("course");
+
 
   return data;
 }
