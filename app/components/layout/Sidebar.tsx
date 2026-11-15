@@ -16,6 +16,7 @@ import {
   Settings,
   LogOut,
   FolderOpen,
+  ClipboardList,
   X,
 } from "lucide-react";
 
@@ -39,6 +40,11 @@ const superAdminMenu: MenuItem[] = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    name: "Audit Logs",
+    href: "/dashboard/audit-logs",
+    icon: ClipboardList,
   },
   {
     name: "Companies",
@@ -73,6 +79,11 @@ const companyMenu: MenuItem[] = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    name: "Audit Logs",
+    href: "/dashboard/audit-logs",
+    icon: ClipboardList,
   },
   {
     name: "Company Admins",
@@ -122,6 +133,11 @@ const departmentMenu: MenuItem[] = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    name: "Audit Logs",
+    href: "/dashboard/audit-logs",
+    icon: ClipboardList,
   },
   {
     name: "Employees",
