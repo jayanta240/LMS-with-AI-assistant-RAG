@@ -14,6 +14,8 @@ _IGNORED_PATH_PREFIXES = (
     "/api/learning-time",
     "/api/notifications",
     "/api/auth/login",
+    "/api/auth/register",
+    "/api/sessions",
     "/api/auth/forgot-password",
     "/api/auth/reset-password",
 )
