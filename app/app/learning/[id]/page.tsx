@@ -244,10 +244,17 @@ export default function CoursePage() {
               </p>
               <div className="mx-auto mt-6 max-w-xl space-y-3">
                 {missingPrerequisites.map((item) => (
-                  <div key={item.course_id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <BookOpen size={17} className="shrink-0 text-amber-600" />
-                    <span className="text-sm font-semibold text-slate-800">{item.title}</span>
-                  </div>
+                  <Link
+                    key={item.course_id}
+                    href={`/learning/${item.course_id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-amber-300 hover:bg-amber-50"
+                  >
+                    <span className="flex items-center gap-3">
+                      <BookOpen size={17} className="shrink-0 text-amber-600" />
+                      <span className="text-sm font-semibold text-slate-800">{item.title}</span>
+                    </span>
+                    <span className="text-xs font-semibold text-amber-700">Open course</span>
+                  </Link>
                 ))}
               </div>
               <div className="mt-7 text-center">
