@@ -4542,6 +4542,15 @@ async def complete_lesson(
         if visibility not in {"private", "organization", "public"}:
             raise HTTPException(status_code=403, detail="Course visibility is not configured correctly.")
 
+    if current_user.get("role") == "employee":
+        missing_prerequisites = get_missing_course_prerequisites(user_id, data.course_id)
+        if missing_prerequisites:
+            titles = ", ".join(item["title"] for item in missing_prerequisites)
+            raise HTTPException(
+                status_code=403,
+                detail=f"Complete these prerequisite courses before accessing this course: {titles}",
+            )
+
     course_title = (
         course[1]
         if len(course) > 1
