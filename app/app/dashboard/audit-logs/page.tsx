@@ -64,6 +64,7 @@ export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +124,7 @@ export default function AuditLogsPage() {
     return () => {
       cancelled = true;
     };
-  }, [offset, search]);
+  }, [offset, search, refreshKey]);
 
   const pageNumber = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -303,7 +304,7 @@ export default function AuditLogsPage() {
                 type="button"
                 onClick={() => {
                   setOffset(0);
-                  setSearch((value) => value);
+                  setRefreshKey((value) => value + 1);
                 }}
                 disabled={loading}
                 aria-label="Refresh audit logs"
