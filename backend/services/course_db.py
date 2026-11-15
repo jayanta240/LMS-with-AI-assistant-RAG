@@ -309,7 +309,31 @@ def get_course_prerequisite_status(user_id, course_id):
     for prerequisite_id, title in rows:
         completed = False
         if user_id is not None:
-            completed = is_course_completed(user_id, prerequisite_id)
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT
+                            (SELECT COUNT(*) FROM lessons WHERE course_id = %s)
+                            + (SELECT COUNT(*) FROM scorm_packages WHERE course_id = %s),
+                            (SELECT COUNT(DISTINCT lesson_id)
+                             FROM lesson_progress
+                             WHERE user_id = %s AND course_id = %s AND completed = 1)
+                            + (SELECT COUNT(DISTINCT a.package_id)
+                               FROM scorm_attempts a
+                               JOIN scorm_packages p ON p.id = a.package_id
+                               WHERE a.user_id = %s
+                                 AND p.course_id = %s
+                                 AND a.completion_status IN ('completed', 'passed')
+                                 AND a.success_status <> 'failed')
+                    """, (
+                        prerequisite_id, prerequisite_id,
+                        user_id, prerequisite_id,
+                        user_id, prerequisite_id,
+                    ))
+                    progress_row = cursor.fetchone()
+            total_required = int(progress_row[0] or 0)
+            total_completed = int(progress_row[1] or 0)
+            completed = total_required > 0 and total_completed >= total_required
         status.append({
             "course_id": prerequisite_id,
             "title": title,
