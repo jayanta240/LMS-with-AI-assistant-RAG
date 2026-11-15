@@ -107,6 +107,20 @@ def _describe_event(method, endpoint, path):
     path_parts = [part for part in path.split("/") if part and part != "api"]
     numeric_ids = re.findall(r"/(\d+)(?:/|$)", path)
 
+    if path.endswith("/bookmark"):
+        return (
+            "bookmark_added" if method == "POST" else "bookmark_removed",
+            "bookmark",
+            numeric_ids[-1] if numeric_ids else None,
+        )
+    if path == "/api/profile/photo":
+        return "profile_photo_updated", "profile", None
+    if "/attempts/start" in path:
+        return "scorm_attempt_started", "scorm_attempt", numeric_ids[-1] if numeric_ids else None
+    if "/attempts/commit" in path:
+        return "scorm_attempt_submitted", "scorm_attempt", numeric_ids[-1] if numeric_ids else None
+    if path == "/api/lesson-progress":
+        return "lesson_progress_updated", "lesson_progress", None
     if "progress" in endpoint_lower or "complete" in endpoint_lower:
         return "learning_progress_updated", "learning_progress", numeric_ids[-1] if numeric_ids else None
 
