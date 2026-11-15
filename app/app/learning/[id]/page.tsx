@@ -38,13 +38,14 @@ export default function CoursePage() {
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [completedLessons, setCompletedLessons] = useState<number[]>([]);
+  const [locked, setLocked] = useState(false);
+  const [missingPrerequisites, setMissingPrerequisites] = useState<{ course_id: number; title: string }[]>([]);
 
   useEffect(() => {
 
     if (courseId) {
 
-      loadLessons();
-      loadCourse();
+      loadCourseAndLessons();
       loadProgress();
       loadCompletedLessons();
 
@@ -59,23 +60,6 @@ export default function CoursePage() {
     window.addEventListener("lms-scorm-progress-updated", refreshProgress);
     return () => window.removeEventListener("lms-scorm-progress-updated", refreshProgress);
   }, [courseId]);
-
-
-  async function loadCourse() {
-
-    try {
-
-      const data = await getCourse(courseId);
-
-      setCourse(data);
-
-    } catch (err) {
-
-      console.error(err);
-
-    }
-
-  }
 
 
   async function loadProgress() {
@@ -111,40 +95,33 @@ export default function CoursePage() {
   }
 
 
-  async function loadLessons() {
-
+  async function loadCourseAndLessons() {
+    setLoading(true);
     try {
+      const data = await getCourse(courseId);
+      setCourse(data);
 
-      const data = await getCourseLessons(
-        courseId
-      );
+      const missing = Array.isArray(data?.missing_prerequisites)
+        ? data.missing_prerequisites
+        : [];
+      setMissingPrerequisites(missing);
+      setLocked(Boolean(data?.is_locked));
 
-      if (Array.isArray(data)) {
-
-        setLessons(data);
-
-        if (data.length > 0) {
-
-          setSelectedLesson(data[0]);
-
-        }
-
-      } else {
-
+      if (data?.is_locked) {
         setLessons([]);
-
+        setSelectedLesson(null);
+        return;
       }
 
+      const lessonData = await getCourseLessons(courseId);
+      const safeLessons = Array.isArray(lessonData) ? lessonData : [];
+      setLessons(safeLessons);
+      setSelectedLesson(safeLessons.length > 0 ? safeLessons[0] : null);
     } catch (err) {
-
       console.error(err);
-
     } finally {
-
       setLoading(false);
-
     }
-
   }
 
 
@@ -229,7 +206,7 @@ export default function CoursePage() {
 
         <main className="mx-auto max-w-7xl space-y-7 px-6 py-8 lg:px-10">
 
-          <ScormCoursePlayer courseId={courseId} />
+          {!loading && !locked && <ScormCoursePlayer courseId={courseId} />}
 
           {loading ? (
 
@@ -249,6 +226,34 @@ export default function CoursePage() {
                 Preparing your learning workspace...
               </p>
 
+            </div>
+
+          ) : locked ? (
+
+            <div className="rounded-2xl border border-amber-200 bg-white p-8 shadow-sm sm:p-10">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+                <BookOpen size={26} />
+              </div>
+              <h2 className="mt-5 text-center text-2xl font-bold text-slate-900">
+                Complete the required courses first
+              </h2>
+              <p className="mx-auto mt-2 max-w-xl text-center text-sm leading-6 text-slate-500">
+                This course will become available after you complete the following prerequisite courses.
+              </p>
+              <div className="mx-auto mt-6 max-w-xl space-y-3">
+                {missingPrerequisites.map((item) => (
+                  <div key={item.course_id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <BookOpen size={17} className="shrink-0 text-amber-600" />
+                    <span className="text-sm font-semibold text-slate-800">{item.title}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-7 text-center">
+                <Link href="/learning" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
+                  <ArrowLeft size={16} />
+                  Back to My Courses
+                </Link>
+              </div>
             </div>
 
           ) : lessons.length === 0 ? (
@@ -348,7 +353,7 @@ export default function CoursePage() {
 
                       loadProgress();
                       loadCompletedLessons();
-                      loadLessons();
+                      loadCourseAndLessons();
 
                     }}
                   />
