@@ -2626,6 +2626,7 @@ async def get_course_lessons_api(
 
 @app.post("/api/auth/register")
 async def register_user(
+    request: Request,
     data: UserRegister,
     current_user = Depends(get_current_user)
 ):
@@ -2736,6 +2737,26 @@ async def register_user(
         company_id=data.company_id,
         department_id=data.department_id
     )
+
+    try:
+        client = request.client
+        record_audit_event(
+            actor_user_id=current_user.get("user_id"),
+            actor_email=current_user.get("email"),
+            actor_role=current_user.get("role", "unknown"),
+            company_id=current_user.get("company_id"),
+            department_id=current_user.get("department_id"),
+            action="user_created",
+            resource="user",
+            resource_id=user_id,
+            method="POST",
+            endpoint="/api/auth/register",
+            status_code=200,
+            ip_address=client.host if client else None,
+            user_agent=request.headers.get("user-agent"),
+        )
+    except Exception:
+        _perf_logger.exception("Could not persist user creation audit event.")
 
     if data.company_id:
         if data.role == "company_admin":
