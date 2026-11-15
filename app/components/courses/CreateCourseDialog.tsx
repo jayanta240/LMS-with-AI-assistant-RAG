@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Plus, X, Image as ImageIcon } from "lucide-react";
-import { createCourse, getDepartments } from "@/lib/course-api";
+import { createCourse, getDepartments, getCourses } from "@/lib/course-api";
 
 type Props = {
   onCreated: () => void;
@@ -38,12 +38,26 @@ export default function CreateCourseDialog({ onCreated }: Props) {
   const [error, setError] = useState("");
   const [departments, setDepartments] = useState<{ id: number; department_name: string }[]>([]);
   const [visibleDepartmentIds, setVisibleDepartmentIds] = useState<number[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<{ id: number; title: string }[]>([]);
+  const [prerequisiteCourseIds, setPrerequisiteCourseIds] = useState<number[]>([]);
   const [role, setRole] = useState("");
 
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
     const currentRole = localStorage.getItem("role") || "";
     setRole(currentRole);
+
+    getCourses()
+      .then((items) => setAvailableCourses(
+        Array.isArray(items)
+          ? items.map((item: any) => ({ id: Number(item.id), title: String(item.title || "Untitled course") }))
+          : []
+      ))
+      .catch((err) => {
+        console.error("Failed to load courses for prerequisite selection:", err);
+        setError("Could not load existing courses. Please close and reopen the course form.");
+      });
+
     if (currentRole !== "company_admin") return;
     const companyId = Number(localStorage.getItem("company_id"));
     if (!companyId) return;
@@ -68,6 +82,7 @@ export default function CreateCourseDialog({ onCreated }: Props) {
     setCourseType("online");
     setVisibility("private");
     setVisibleDepartmentIds([]);
+    setPrerequisiteCourseIds([]);
     setTags("");
     setOutcomes("");
     setReleaseDate(new Date().toISOString().slice(0, 10));
@@ -102,6 +117,7 @@ export default function CreateCourseDialog({ onCreated }: Props) {
         expiry_date: expiryEnabled ? expiryDate || null : null,
         status,
         visible_department_ids: role === "company_admin" ? visibleDepartmentIds : [],
+        prerequisite_course_ids: prerequisiteCourseIds,
       });
       resetForm();
       setOpen(false);
@@ -249,6 +265,38 @@ export default function CreateCourseDialog({ onCreated }: Props) {
                     </details>
                   </section>
                 )}
+
+                <section className="rounded-2xl border border-slate-200 p-4">
+                  <h3 className="font-semibold text-slate-900">Course Prerequisites</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Learners must complete the selected courses before they can open this course. Leave empty if no prerequisite is needed.
+                  </p>
+                  <div className="mt-3 max-h-52 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-3">
+                    {availableCourses.length === 0 ? (
+                      <p className="text-xs text-slate-400">No existing courses available.</p>
+                    ) : availableCourses.map((item) => (
+                      <label key={item.id} className="flex cursor-pointer items-start gap-2 text-sm text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={prerequisiteCourseIds.includes(item.id)}
+                          onChange={(event) => setPrerequisiteCourseIds((current) =>
+                            event.target.checked
+                              ? [...current, item.id]
+                              : current.filter((id) => id !== item.id)
+                          )}
+                          disabled={creating}
+                          className="mt-0.5 accent-amber-500"
+                        />
+                        <span>{item.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {prerequisiteCourseIds.length > 0 && (
+                    <p className="mt-2 text-xs font-medium text-amber-700">
+                      {prerequisiteCourseIds.length} prerequisite course(s) selected
+                    </p>
+                  )}
+                </section>
 
                 <section className="rounded-2xl border border-slate-200 p-4">
                   <h3 className="font-semibold text-slate-900">Course Visibility</h3>
