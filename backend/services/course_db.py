@@ -122,6 +122,20 @@ def init_course_db():
                 ON course_department_visibility(department_id, course_id)
             """)
 
+            # A course may require one or more earlier courses to be completed.
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS course_prerequisites (
+                    course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+                    prerequisite_course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+                    PRIMARY KEY (course_id, prerequisite_course_id),
+                    CHECK (course_id <> prerequisite_course_id)
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_course_prerequisites_prerequisite
+                ON course_prerequisites(prerequisite_course_id, course_id)
+            """)
+
             # ========================================================
             # LESSONS
             # ========================================================
@@ -201,6 +215,7 @@ def create_course(
     status="draft",
     department_id=None,
     visible_department_ids=None,
+    prerequisite_course_ids=None,
 ):
     """
     Create a course belonging to exactly one company.
@@ -255,7 +270,60 @@ def create_course(
                     ON CONFLICT DO NOTHING
                 """, (course_id, visible_department_id))
 
+            prerequisite_ids = sorted(set(prerequisite_course_ids or []))
+            if prerequisite_ids:
+                cursor.execute("""
+                    SELECT id
+                    FROM courses
+                    WHERE company_id = %s
+                      AND id = ANY(%s)
+                """, (company_id, prerequisite_ids))
+                valid_prerequisite_ids = {row[0] for row in cursor.fetchall()}
+                if valid_prerequisite_ids != set(prerequisite_ids):
+                    raise ValueError("Prerequisite courses must belong to the same company.")
+                if course_id in prerequisite_ids:
+                    raise ValueError("A course cannot be its own prerequisite.")
+                for prerequisite_id in prerequisite_ids:
+                    cursor.execute("""
+                        INSERT INTO course_prerequisites (course_id, prerequisite_course_id)
+                        VALUES (%s, %s)
+                    """, (course_id, prerequisite_id))
+
             return course_id
+
+
+def get_course_prerequisite_status(user_id, course_id):
+    """Return prerequisite courses and whether this learner completed each one."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT prerequisite.id, prerequisite.title
+                FROM course_prerequisites cp
+                JOIN courses prerequisite ON prerequisite.id = cp.prerequisite_course_id
+                WHERE cp.course_id = %s
+                ORDER BY prerequisite.title
+            """, (course_id,))
+            rows = cursor.fetchall()
+
+    status = []
+    for prerequisite_id, title in rows:
+        completed = False
+        if user_id is not None:
+            completed = is_course_completed(user_id, prerequisite_id)
+        status.append({
+            "course_id": prerequisite_id,
+            "title": title,
+            "completed": completed,
+        })
+    return status
+
+
+def get_missing_course_prerequisites(user_id, course_id):
+    """Return prerequisites that the learner has not completed yet."""
+    return [
+        item for item in get_course_prerequisite_status(user_id, course_id)
+        if not item["completed"]
+    ]
 
 
 def get_course_department_visibility(course_id):
