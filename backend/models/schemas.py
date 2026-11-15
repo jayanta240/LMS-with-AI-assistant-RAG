@@ -63,6 +63,7 @@ class CourseCreate(BaseModel):
     expiry_date: Optional[str] = None
     status: str = "draft"
     visible_department_ids: Optional[List[int]] = None
+    prerequisite_course_ids: List[int] = Field(default_factory=list)
 
 
 class CourseResponse(BaseModel):
