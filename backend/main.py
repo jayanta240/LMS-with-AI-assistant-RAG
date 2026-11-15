@@ -4,6 +4,8 @@ from typing import List,Optional
 from pydantic import BaseModel, Field
 from services.auth_dependency import get_current_user
 from report_routes import router as report_router
+from audit_routes import router as audit_router
+from services.audit_service import audit_request_middleware, init_audit_db, record_audit_event
 from bulk_registration_routes import router as bulk_registration_router
 from scorm_routes import router as scorm_router, init_scorm_db
 from bookmark_routes import router as bookmark_router, init_bookmark_db
@@ -174,7 +176,9 @@ from services.file_db import (
     get_file_url_by_company_and_filename
 )
 app = FastAPI()
+app.middleware("http")(audit_request_middleware)
 app.include_router(report_router)
+app.include_router(audit_router)
 app.include_router(bulk_registration_router)
 app.include_router(scorm_router)
 app.include_router(bookmark_router)
@@ -249,6 +253,7 @@ app.add_middleware(
 def startup():
     print("🗄️ Ensuring user schema is up to date...")
     init_user_db()
+    init_audit_db()
     init_scorm_db()
     init_bookmark_db()
     init_learner_notes_db()
@@ -2810,6 +2815,7 @@ async def reset_password(data: PasswordResetConfirm):
 
 @app.post("/api/auth/login")
 async def login_user(
+    request: Request,
     data: UserLogin
 ):
 
@@ -2849,6 +2855,26 @@ async def login_user(
         department_id=user[6],
         remember_me=data.remember_me
     )
+
+    try:
+        client = request.client
+        record_audit_event(
+            actor_user_id=user[0],
+            actor_email=user[2],
+            actor_role=user[4],
+            company_id=user[5],
+            department_id=user[6],
+            action="logged_in",
+            resource="authentication",
+            resource_id=user[0],
+            method="POST",
+            endpoint="/api/auth/login",
+            status_code=200,
+            ip_address=client.host if client else None,
+            user_agent=request.headers.get("user-agent"),
+        )
+    except Exception:
+        _perf_logger.exception("Could not persist successful login audit event.")
 
     branding = (
         get_company_branding(user[5])
