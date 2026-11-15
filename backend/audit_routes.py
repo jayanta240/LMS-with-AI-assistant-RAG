@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from services.auth_dependency import get_current_user
 from services.postgres_db import get_db_connection
-from services.audit_service import init_audit_db
 
 
 router = APIRouter()
