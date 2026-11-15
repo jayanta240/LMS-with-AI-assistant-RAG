@@ -25,6 +25,7 @@ import {
   getCourseLessons,
   getUserCourses,
   getCompletedLessons,
+  clearApiCache,
 } from "@/lib/course-api";
 
 export default function CoursePage() {
@@ -55,6 +56,7 @@ export default function CoursePage() {
 
   useEffect(() => {
     const refreshProgress = () => {
+      clearApiCache();
       void loadProgress();
     };
     window.addEventListener("lms-scorm-progress-updated", refreshProgress);
