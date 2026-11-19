@@ -11,6 +11,8 @@ from scorm_routes import router as scorm_router, init_scorm_db
 from bookmark_routes import router as bookmark_router, init_bookmark_db
 from learner_notes_routes import router as learner_notes_router, init_learner_notes_db
 from config import settings
+from services.certificate_expiry_reminder_service import process_due_certificate_expiry_reminders
+import asyncio
 import os
 import time
 import logging
@@ -219,6 +221,38 @@ init_db()
 init_course_db()
 init_notification_db()
 init_dashboard_db()
+
+
+_certificate_expiry_reminder_task = None
+
+
+async def _certificate_expiry_reminder_loop():
+    """Check once per hour; reminders are date-based and deduplicated in PostgreSQL."""
+    while True:
+        try:
+            await asyncio.to_thread(process_due_certificate_expiry_reminders)
+        except Exception:
+            logging.getLogger(__name__).exception("Certificate expiry reminder sweep failed")
+        await asyncio.sleep(60 * 60)
+
+
+@app.on_event("startup")
+async def start_certificate_expiry_reminder_scheduler():
+    global _certificate_expiry_reminder_task
+    if _certificate_expiry_reminder_task is None or _certificate_expiry_reminder_task.done():
+        _certificate_expiry_reminder_task = asyncio.create_task(_certificate_expiry_reminder_loop())
+
+
+@app.on_event("shutdown")
+async def stop_certificate_expiry_reminder_scheduler():
+    global _certificate_expiry_reminder_task
+    if _certificate_expiry_reminder_task is not None:
+        _certificate_expiry_reminder_task.cancel()
+        try:
+            await _certificate_expiry_reminder_task
+        except asyncio.CancelledError:
+            pass
+        _certificate_expiry_reminder_task = None
 app.mount("/temp_videos", StaticFiles(directory="temp_videos"), name="temp_videos")
 os.makedirs(
     "certificates",
