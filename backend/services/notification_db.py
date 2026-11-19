@@ -31,6 +31,18 @@ def init_notification_db():
             """)
 
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS certificate_expiry_reminders (
+                    id SERIAL PRIMARY KEY,
+                    certificate_id INTEGER NOT NULL REFERENCES certificates(id) ON DELETE CASCADE,
+                    reminder_days INTEGER NOT NULL CHECK (reminder_days IN (7, 1, 0)),
+                    notification_created BOOLEAN NOT NULL DEFAULT FALSE,
+                    email_sent BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (certificate_id, reminder_days)
+                )
+            """)
+
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS company_notification_settings (
                     company_id INTEGER PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
                     course_assignment_email BOOLEAN NOT NULL DEFAULT TRUE,
