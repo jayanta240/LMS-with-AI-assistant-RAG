@@ -4879,6 +4879,7 @@ async def complete_lesson(
                     course_title,
                     pdf_url,
                     certificate.get("certificate_number", ""),
+                    company_name,
                 )
 
                 if background_tasks is not None:
