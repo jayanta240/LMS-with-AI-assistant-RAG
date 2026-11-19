@@ -131,6 +131,8 @@ from services.course_db import (
     get_user_certificates,
     create_certificate,
     update_certificate_pdf_url,
+    get_company_certificate_settings,
+    update_company_certificate_settings,
     get_admin_analytics,
     delete_lessons_by_content_url,
     set_course_department_visibility,
@@ -4374,6 +4376,33 @@ async def get_single_certificate(
         "success": True,
         "certificate": certificate,
     }
+
+
+@app.get("/api/company/certificate-expiry-settings")
+async def company_certificate_expiry_settings(current_user=Depends(get_current_user)):
+    if current_user.get("role") != "company_admin":
+        raise HTTPException(status_code=403, detail="Only Company Admin can manage certificate expiry settings.")
+    company_id = current_user.get("company_id")
+    if company_id is None:
+        raise HTTPException(status_code=400, detail="Company ID not available.")
+    return {"success": True, "settings": get_company_certificate_settings(company_id)}
+
+
+@app.put("/api/company/certificate-expiry-settings")
+async def update_company_certificate_expiry_settings(data: dict, current_user=Depends(get_current_user)):
+    if current_user.get("role") != "company_admin":
+        raise HTTPException(status_code=403, detail="Only Company Admin can manage certificate expiry settings.")
+    company_id = current_user.get("company_id")
+    if company_id is None:
+        raise HTTPException(status_code=400, detail="Company ID not available.")
+    validity_days = data.get("validity_days")
+    if validity_days is not None and (isinstance(validity_days, bool) or not isinstance(validity_days, int) or validity_days <= 0):
+        raise HTTPException(status_code=422, detail="validity_days must be a positive integer or null for no expiry.")
+    try:
+        settings_data = update_company_certificate_settings(company_id, validity_days)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"success": True, "settings": settings_data}
 
 
 # ============================================================
