@@ -20,14 +20,9 @@ def _sender() -> str:
     return settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
 
 
-def _sender_header() -> str:
-    return formataddr(
-        (
-            settings.SMTP_FROM_NAME
-            or "LMS",
-            _sender(),
-        )
-    )
+def _sender_header(sender_name: str | None = None) -> str:
+    display_name = (sender_name or settings.SMTP_FROM_NAME or "LMS").strip()
+    return formataddr((display_name, _sender()))
 
 
 def _send_message(
@@ -37,6 +32,7 @@ def _send_message(
     html_body: str,
     attachment_bytes: bytes | None = None,
     attachment_filename: str | None = None,
+    sender_name: str | None = None,
 ):
     if not recipient:
         return False
@@ -46,7 +42,7 @@ def _send_message(
         return False
 
     message = EmailMessage()
-    message["From"] = _sender_header()
+    message["From"] = _sender_header(sender_name)
     message["To"] = recipient
     message["Subject"] = subject
 
@@ -161,6 +157,7 @@ def send_certificate_email(
     course_title: str,
     certificate_url: str,
     certificate_number: str,
+    sender_name: str | None = None,
 ):
     if not certificate_url:
         print(
@@ -230,4 +227,57 @@ LMS
         html_body=html_body,
         attachment_bytes=pdf_bytes,
         attachment_filename=f"{safe_number}.pdf",
+        sender_name=sender_name,
+    )
+
+
+
+def send_certificate_expiry_reminder(
+    recipient: str,
+    user_name: str,
+    course_title: str,
+    certificate_number: str,
+    expires_at,
+    days_remaining: int,
+    sender_name: str | None = None,
+):
+    safe_name = escape(user_name or "Learner")
+    safe_title = escape(course_title or "your course")
+    safe_number = escape(certificate_number or "Certificate")
+    expiry_date = expires_at.strftime("%d %B %Y") if hasattr(expires_at, "strftime") else str(expires_at)
+    if days_remaining == 7:
+        timing = "in 7 days"
+        subject_timing = "in 7 days"
+    elif days_remaining == 1:
+        timing = "tomorrow"
+        subject_timing = "tomorrow"
+    else:
+        timing = "today"
+        subject_timing = "today"
+
+    subject = f"Your certificate expires {subject_timing}: {course_title or 'Course'}"
+    text_body = f"""Hello {user_name or 'Learner'},
+
+Your certificate for {course_title or 'your course'} expires {timing} ({expiry_date}).
+
+Certificate number: {certificate_number or 'Certificate'}
+Please contact your company administrator if you need information about renewal.
+
+Regards,
+{sender_name or settings.SMTP_FROM_NAME or 'LMS'}
+"""
+    html_body = f"""<html><body style="font-family:Arial,sans-serif;color:#0f172a;">
+      <h2>Certificate expiry reminder</h2>
+      <p>Hello {safe_name},</p>
+      <p>Your certificate for <strong>{safe_title}</strong> expires <strong>{timing}</strong>.</p>
+      <p>Expiry date: <strong>{escape(expiry_date)}</strong><br/>Certificate number: <strong>{safe_number}</strong></p>
+      <p>Please contact your company administrator if you need information about renewal.</p>
+      <p>Regards,<br/>{escape(sender_name or settings.SMTP_FROM_NAME or 'LMS')}</p>
+    </body></html>"""
+    return _send_message(
+        recipient=recipient,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+        sender_name=sender_name,
     )
