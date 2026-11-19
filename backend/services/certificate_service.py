@@ -477,7 +477,7 @@ def generate_certificate_pdf(
     # FOOTER INFORMATION
     # ========================================================
 
-    footer_y = 62
+    footer_y = 78 if expires_at else 62
 
     pdf.setStrokeColor(
         HexColor("#CBD5E1")
