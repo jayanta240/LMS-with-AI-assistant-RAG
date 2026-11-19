@@ -49,6 +49,8 @@ type Certificate = {
   pdf_url: string;
 
   status: string;
+  expires_at?: string | null;
+  expiry_status?: "active" | "expiring_soon" | "expired" | "no_expiry";
 };
 
 
@@ -948,6 +950,19 @@ export default function LearningDashboardPage() {
 
                                     </div>
 
+                                    <div className="mt-4 rounded-xl border border-slate-100 bg-white/80 px-3 py-2.5">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Valid Until</p>
+                                          <p className="mt-1 text-xs font-semibold text-slate-800">
+                                            {certificate.expires_at ? new Date(certificate.expires_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "No expiry configured"}
+                                          </p>
+                                        </div>
+                                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${certificate.expiry_status === "expired" ? "bg-red-50 text-red-700" : certificate.expiry_status === "expiring_soon" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+                                          {certificate.expiry_status === "expired" ? "Expired" : certificate.expiry_status === "expiring_soon" ? "Expiring Soon" : certificate.expiry_status === "active" ? "Active" : "No Expiry"}
+                                        </span>
+                                      </div>
+                                    </div>
 
                                     {/* ==================================
                                         ACTIONS
