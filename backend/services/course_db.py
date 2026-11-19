@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 import json
 
@@ -1202,7 +1202,7 @@ def create_certificate(
             validity_row = cursor.fetchone()
             validity_days = validity_row[0] if validity_row else None
             expires_at = (
-                issued_at + __import__("datetime").timedelta(days=validity_days)
+                issued_at + timedelta(days=validity_days)
                 if validity_days else None
             )
 
