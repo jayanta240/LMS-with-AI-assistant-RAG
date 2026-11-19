@@ -190,6 +190,52 @@ def init_course_db():
                 )
             """)
 
+            # Certificate expiry migration. Existing certificates are deliberately
+            # left without an expiry date to preserve their current validity.
+            cursor.execute("""
+                ALTER TABLE certificates
+                ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP NULL
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS company_certificate_settings (
+                    company_id INTEGER PRIMARY KEY,
+                    validity_days INTEGER NULL CHECK (validity_days IS NULL OR validity_days > 0),
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+
+def get_company_certificate_settings(company_id):
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT validity_days, updated_at
+                FROM company_certificate_settings
+                WHERE company_id = %s
+            """, (company_id,))
+            row = cursor.fetchone()
+    return {
+        "company_id": company_id,
+        "validity_days": row[0] if row else None,
+        "no_expiry": row is None or row[0] is None,
+        "updated_at": row[1] if row else None,
+    }
+
+
+def update_company_certificate_settings(company_id, validity_days):
+    if validity_days is not None and (not isinstance(validity_days, int) or validity_days <= 0):
+        raise ValueError("validity_days must be a positive integer or null for no expiry.")
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO company_certificate_settings (company_id, validity_days, updated_at)
+                VALUES (%s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (company_id) DO UPDATE
+                SET validity_days = EXCLUDED.validity_days,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (company_id, validity_days))
+    return get_company_certificate_settings(company_id)
+
 
 # ============================================================
 # COURSES
@@ -1148,6 +1194,17 @@ def create_certificate(
             )
 
             issued_at = datetime.now()
+            cursor.execute("""
+                SELECT validity_days
+                FROM company_certificate_settings
+                WHERE company_id = %s
+            """, (company_id,))
+            validity_row = cursor.fetchone()
+            validity_days = validity_row[0] if validity_row else None
+            expires_at = (
+                issued_at + __import__("datetime").timedelta(days=validity_days)
+                if validity_days else None
+            )
 
             # --------------------------------------------------------
             # Insert certificate
@@ -1169,12 +1226,13 @@ def create_certificate(
                     accent_color,
                     issued_at,
                     pdf_url,
-                    status
+                    status,
+                    expires_at
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s
                 )
                 RETURNING id
             """, (
@@ -1193,6 +1251,7 @@ def create_certificate(
                 issued_at,
                 pdf_url,
                 "issued",
+                expires_at,
             ))
 
             certificate_id = cursor.fetchone()[0]
@@ -1203,6 +1262,7 @@ def create_certificate(
                 "certificate_uuid": certificate_uuid,
                 "pdf_url": pdf_url,
                 "issued_at": issued_at,
+                "expires_at": expires_at,
                 "already_exists": False,
             }
 
@@ -1257,7 +1317,8 @@ def get_user_certificates(user_id):
                     accent_color,
                     issued_at,
                     pdf_url,
-                    status
+                    status,
+                    expires_at
                 FROM certificates
                 WHERE user_id = %s
                 ORDER BY issued_at DESC
@@ -1288,6 +1349,13 @@ def get_user_certificates(user_id):
             "issued_at": row[13],
             "pdf_url": row[14],
             "status": row[15],
+            "expires_at": row[16],
+            "expiry_status": (
+                "no_expiry" if row[16] is None else
+                "expired" if row[16].date() < datetime.now().date() else
+                "expiring_soon" if (row[16].date() - datetime.now().date()).days <= 30 else
+                "active"
+            ),
         })
 
     return certificates
@@ -1319,7 +1387,8 @@ def get_certificate(certificate_id):
                     accent_color,
                     issued_at,
                     pdf_url,
-                    status
+                    status,
+                    expires_at
                 FROM certificates
                 WHERE id = %s
             """, (
@@ -1348,6 +1417,13 @@ def get_certificate(certificate_id):
         "issued_at": row[13],
         "pdf_url": row[14],
         "status": row[15],
+        "expires_at": row[16],
+        "expiry_status": (
+            "no_expiry" if row[16] is None else
+            "expired" if row[16].date() < datetime.now().date() else
+            "expiring_soon" if (row[16].date() - datetime.now().date()).days <= 30 else
+            "active"
+        ),
     }
 
 
@@ -1377,7 +1453,8 @@ def get_company_certificates(company_id):
                     accent_color,
                     issued_at,
                     pdf_url,
-                    status
+                    status,
+                    expires_at
                 FROM certificates
                 WHERE company_id = %s
                 ORDER BY issued_at DESC
@@ -1408,6 +1485,13 @@ def get_company_certificates(company_id):
             "issued_at": row[13],
             "pdf_url": row[14],
             "status": row[15],
+            "expires_at": row[16],
+            "expiry_status": (
+                "no_expiry" if row[16] is None else
+                "expired" if row[16].date() < datetime.now().date() else
+                "expiring_soon" if (row[16].date() - datetime.now().date()).days <= 30 else
+                "active"
+            ),
         })
 
     return certificates
