@@ -11,6 +11,7 @@ import {
   UsersRound,
   Settings2,
   Bell,
+  CalendarClock,
 } from "lucide-react";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -169,6 +170,22 @@ export default function SettingsPage() {
 
             </Link>
 
+
+
+            <Link
+              href="/dashboard/settings/certificate-expiry"
+              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ backgroundColor: "color-mix(in srgb, var(--brand-primary) 10%, white)", color: "var(--brand-primary)" }}>
+                  <CalendarClock size={22} />
+                </div>
+                <ChevronRight size={19} className="text-slate-300 transition group-hover:text-slate-500" />
+              </div>
+              <h2 className="mt-5 text-lg font-semibold text-slate-900">Certificate Expiry</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">Set the default validity period for certificates issued by your company.</p>
+              <div className="mt-5 text-sm font-semibold" style={{ color: "var(--brand-primary)" }}>Manage Validity →</div>
+            </Link>
 
             {/* Security */}
 
