@@ -152,6 +152,7 @@ def generate_certificate_pdf(
         certificate.get("issued_at")
         or ""
     )
+    expires_at = certificate.get("expires_at")
 
     logo_url = (
         certificate.get("logo_url")
@@ -518,6 +519,13 @@ def generate_certificate_pdf(
         footer_y - 13,
         str(issued_at),
     )
+
+    # Valid-until date (shown only when this certificate has an expiry).
+    if expires_at:
+        pdf.setFont("Helvetica-Bold", 8.5)
+        pdf.drawCentredString(page_width / 2, footer_y - 27, "VALID UNTIL")
+        pdf.setFont("Helvetica", 9)
+        pdf.drawCentredString(page_width / 2, footer_y - 39, str(expires_at))
 
     # Certificate number
 
