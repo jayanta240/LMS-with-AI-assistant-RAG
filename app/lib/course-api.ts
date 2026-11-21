@@ -825,6 +825,35 @@ export async function assignCourse(
 }
 
 
+export async function submitCourseAssignmentRequest(courseId: number, employeeIds: number[]) {
+  const res = await fetch(BASE + "/api/course-assignment-requests", {
+    method: "POST", headers: authHeaders(),
+    body: JSON.stringify({ course_id: courseId, employee_ids: employeeIds }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || "Failed to submit approval request.");
+  invalidateCache("users");
+  return data;
+}
+
+export async function getCourseAssignmentRequests() {
+  return cachedGet<any[]>("course-assignment-requests", BASE + "/api/course-assignment-requests", 15 * 1000);
+}
+
+export async function decideCourseAssignmentRequest(requestId: number, decision: "approve" | "reject", note = "") {
+  const res = await fetch(BASE + "/api/course-assignment-requests/" + requestId + "/decision", {
+    method: "POST", headers: authHeaders(),
+    body: JSON.stringify({ decision, note }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || "Failed to submit decision.");
+  invalidateCache("course-assignment-requests");
+  invalidateCache("users");
+  invalidateCache("dashboard-stats");
+  return data;
+}
+
+
 // ============================================================
 // LESSON PROGRESS
 // ============================================================
