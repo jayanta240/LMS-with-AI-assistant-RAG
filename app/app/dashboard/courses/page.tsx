@@ -240,7 +240,7 @@ export default function CoursesPage() {
           </div>
 
 
-          {(role === "company_admin" || role === "department_head") && (
+          {(role === "company_admin") && (
             <div className="flex items-center gap-3">
               <CreateCourseDialog onCreated={loadCourses} />
             </div>
@@ -619,7 +619,7 @@ export default function CoursesPage() {
                       </Link>
 
 
-                      {(role === "super_admin" || role === "company_admin" || role === "department_head") && (
+                      {(role === "super_admin" || role === "company_admin") && (
                         <button
                           type="button"
                           onClick={() => handleDelete(course.id, course.title)}
