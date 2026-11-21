@@ -57,6 +57,7 @@ type Employee = {
   department?: string;
   department_id?: number;
   department_head_id?: number;
+  department_head_name?: string | null;
   company_id?: number;
   progress?: number;
   profile_photo_url?: string | null;
@@ -1696,7 +1697,7 @@ export default function EmployeesPage() {
 
             <div className="overflow-x-auto">
 
-              <table className="min-w-[760px] w-full">
+              <table className="min-w-[900px] w-full">
 
                 <thead>
 
@@ -1708,6 +1709,10 @@ export default function EmployeesPage() {
 
                     <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       Department
+                    </th>
+
+                    <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Department Head
                     </th>
 
                     <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -1799,6 +1804,21 @@ export default function EmployeesPage() {
 
                             </div>
 
+                          </td>
+
+
+                          {/* Department Head */}
+
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <UserRound
+                                size={15}
+                                className="text-slate-400"
+                              />
+                              <span className="text-sm text-slate-600">
+                                {user.department_head_name || "Not assigned"}
+                              </span>
+                            </div>
                           </td>
 
 
