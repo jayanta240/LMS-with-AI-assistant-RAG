@@ -771,60 +771,6 @@ export async function getUserCourses(
 }
 
 
-// ============================================================
-// ENROLLMENTS
-// ============================================================
-
-export async function assignCourse(
-  userId: number,
-  courseId: number
-) {
-
-  const res =
-    await fetch(
-      `${BASE}/api/enrollments`,
-      {
-        method: "POST",
-        headers:
-          authHeaders(),
-        body: JSON.stringify({
-          user_id: userId,
-          course_id: courseId,
-        }),
-      }
-    );
-
-
-  const data =
-    await res.json();
-
-
-  if (!res.ok) {
-
-    throw new Error(
-      data?.detail ||
-      data?.message ||
-      "Failed to assign course"
-    );
-  }
-
-
-  // Invalidate the affected user's course list.
-  invalidateCache(
-    `user-courses:${userId}`
-  );
-
-
-  // Progress-related data may also be affected.
-  invalidateCache(
-    "dashboard-stats"
-  );
-
-
-  return data;
-}
-
-
 export async function submitCourseAssignmentRequest(courseId: number, employeeIds: number[]) {
   const res = await fetch(BASE + "/api/course-assignment-requests", {
     method: "POST", headers: authHeaders(),
