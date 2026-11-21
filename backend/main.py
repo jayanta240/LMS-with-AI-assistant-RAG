@@ -3974,6 +3974,16 @@ async def create_course_assignment_requests(
     if len(employees) != len(employee_ids):
         raise HTTPException(status_code=400, detail="One or more selected employees were not found.")
 
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT user_id FROM enrollments WHERE course_id = %s AND user_id = ANY(%s)",
+                (course_id, employee_ids),
+            )
+            existing_enrollments = [row[0] for row in cursor.fetchall()]
+    if existing_enrollments:
+        raise HTTPException(status_code=400, detail="One or more selected employees are already enrolled in this course.")
+
     grouped = {}
     for employee in employees:
         employee_id, role, employee_company, department_id, assigned_head_id = employee
