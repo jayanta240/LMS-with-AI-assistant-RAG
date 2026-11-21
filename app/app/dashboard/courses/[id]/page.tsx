@@ -128,6 +128,8 @@ export default function CourseDetails() {
   const [previewLesson, setPreviewLesson] =
     useState<Lesson | null>(null);
 
+  const [role, setRole] = useState("");
+
 
   // ==========================================================
   // LOAD DATA
@@ -135,6 +137,7 @@ export default function CourseDetails() {
 
   useEffect(() => {
 
+    setRole(localStorage.getItem("role") || "");
     if (!courseId) {
       return;
     }
@@ -591,7 +594,7 @@ export default function CourseDetails() {
 
         </div>
 
-        <ScormPackageManager courseId={courseId} />
+        {(role === "company_admin" || role === "super_admin") && <ScormPackageManager courseId={courseId} />}
 
         {/* ==================================================
             LESSONS HEADER
@@ -616,36 +619,38 @@ export default function CourseDetails() {
           </div>
 
 
-          <button
-            type="button"
-            onClick={() =>
-              setShowCreateForm(
-                true
-              )
-            }
-            className="
-              inline-flex
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              bg-slate-900
-              px-5
-              py-3
-              text-sm
-              font-semibold
-              text-white
-              shadow-sm
-              transition
-              hover:bg-slate-800
-            "
-          >
-
-            <Plus size={18} />
-
-            Add Lesson
-
-          </button>
+          {(role === "company_admin" || role === "super_admin") && (
+            <button
+              type="button"
+              onClick={() =>
+                setShowCreateForm(
+                  true
+                )
+              }
+              className="
+                inline-flex
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                bg-slate-900
+                px-5
+                py-3
+                text-sm
+                font-semibold
+                text-white
+                shadow-sm
+                transition
+                hover:bg-slate-800
+              "
+            >
+  
+              <Plus size={18} />
+  
+              Add Lesson
+  
+            </button>
+          )}
 
         </div>
 
