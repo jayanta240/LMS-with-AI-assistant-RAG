@@ -31,6 +31,7 @@ export default function FilesPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [role, setRole] = useState("");
 
   async function loadFiles() {
 
@@ -65,6 +66,7 @@ export default function FilesPage() {
 
   useEffect(() => {
 
+    setRole(localStorage.getItem("role") || "");
     loadFiles();
 
   }, []);
@@ -221,15 +223,17 @@ This removes the file record from the database and its associated stored knowled
 
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={deletingId === file.id}
-                      onClick={() => handleDelete(file)}
-                      className="rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-50"
-                      title="Delete file"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {(role === "super_admin" || role === "company_admin") && (
+                      <button
+                        type="button"
+                        disabled={deletingId === file.id}
+                        onClick={() => handleDelete(file)}
+                        className="rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-50"
+                        title="Delete file"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
 
                   </div>
 
