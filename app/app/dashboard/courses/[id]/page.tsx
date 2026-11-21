@@ -594,7 +594,7 @@ export default function CourseDetails() {
 
         </div>
 
-        {(role === "company_admin" || role === "super_admin") && <ScormPackageManager courseId={courseId} />}
+        {role === "company_admin" && <ScormPackageManager courseId={courseId} />}
 
         {/* ==================================================
             LESSONS HEADER
@@ -619,7 +619,7 @@ export default function CourseDetails() {
           </div>
 
 
-          {(role === "company_admin" || role === "super_admin") && (
+          {role === "company_admin" && (
             <button
               type="button"
               onClick={() =>
