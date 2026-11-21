@@ -3993,6 +3993,14 @@ async def create_course_assignment_requests(
             if len(heads) != 1:
                 raise HTTPException(status_code=400, detail=f"Department {department_id} must have exactly one assigned Department Head.")
             head_id = heads[0]
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM users WHERE id = %s AND role = 'department_head' AND company_id = %s AND department_id = %s",
+                    (head_id, company_id, department_id),
+                )
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=400, detail=f"Employee {employee_id} has no valid Department Head assigned.")
         grouped.setdefault((department_id, head_id), []).append(employee_id)
 
     request_ids = []
