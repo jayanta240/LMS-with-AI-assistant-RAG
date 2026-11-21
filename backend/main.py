@@ -2339,10 +2339,8 @@ async def create_course_api(
     role = current_user["role"]
     company_id = current_user.get("company_id")
 
-    # Company admins manage company courses; department heads are restricted
-    # to the department assigned to their authenticated account.
-    if role not in ["company_admin", "department_head"]:
-        raise HTTPException(status_code=403, detail="Permission denied.")
+    if role != "company_admin":
+        raise HTTPException(status_code=403, detail="Only Company Admins can create courses.")
 
     if company_id is None:
         raise HTTPException(status_code=403, detail="Your account is not associated with a company.")
