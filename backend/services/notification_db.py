@@ -31,6 +31,26 @@ def init_notification_db():
             """)
 
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS course_assignment_requests (
+                    id SERIAL PRIMARY KEY,
+                    company_id INTEGER NOT NULL,
+                    department_id INTEGER NOT NULL,
+                    department_head_id INTEGER NOT NULL,
+                    requested_by INTEGER NOT NULL,
+                    course_id INTEGER NOT NULL,
+                    employee_ids JSONB NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+                    decision_note TEXT,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    decided_at TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_course_assignment_requests_head_status
+                ON course_assignment_requests(department_head_id, status, created_at DESC)
+            """)
+
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS certificate_expiry_reminders (
                     id SERIAL PRIMARY KEY,
                     certificate_id INTEGER NOT NULL REFERENCES certificates(id) ON DELETE CASCADE,
