@@ -13,6 +13,7 @@ from learner_notes_routes import router as learner_notes_router, init_learner_no
 from config import settings
 from services.certificate_expiry_reminder_service import process_due_certificate_expiry_reminders
 import asyncio
+import json
 import os
 import time
 import logging
@@ -3941,6 +3942,206 @@ async def delete_department_head_api(
         "success": True,
         "message": "Department Head deleted permanently."
     }
+
+
+
+@app.post("/api/course-assignment-requests")
+async def create_course_assignment_requests(
+    data: dict,
+    current_user=Depends(get_current_user),
+):
+    if current_user.get("role") != "company_admin":
+        raise HTTPException(status_code=403, detail="Only Company Admins can request course assignments.")
+
+    company_id = current_user.get("company_id")
+    course_id = data.get("course_id")
+    employee_ids = data.get("employee_ids")
+    if not isinstance(course_id, int) or not isinstance(employee_ids, list) or not employee_ids:
+        raise HTTPException(status_code=400, detail="Select a course and at least one employee.")
+    if any(not isinstance(item, int) or isinstance(item, bool) for item in employee_ids):
+        raise HTTPException(status_code=400, detail="Employee IDs must be integers.")
+    employee_ids = sorted(set(employee_ids))
+    course = get_course(course_id, company_id=company_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found in your company.")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, role, company_id, department_id, department_head_id FROM users WHERE id = ANY(%s)",
+                (employee_ids,),
+            )
+            employees = cursor.fetchall()
+
+    if len(employees) != len(employee_ids):
+        raise HTTPException(status_code=400, detail="One or more selected employees were not found.")
+
+    grouped = {}
+    for employee in employees:
+        employee_id, role, employee_company, department_id, assigned_head_id = employee
+        if role != "employee" or employee_company != company_id or department_id is None:
+            raise HTTPException(status_code=400, detail="All selected users must be employees in your company with a department.")
+        head_id = assigned_head_id
+        if head_id is None:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM users WHERE role = 'department_head' AND company_id = %s AND department_id = %s ORDER BY id",
+                        (company_id, department_id),
+                    )
+                    heads = [row[0] for row in cursor.fetchall()]
+            if len(heads) != 1:
+                raise HTTPException(status_code=400, detail=f"Department {department_id} must have exactly one assigned Department Head.")
+            head_id = heads[0]
+        grouped.setdefault((department_id, head_id), []).append(employee_id)
+
+    request_ids = []
+    for (department_id, head_id), ids in grouped.items():
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO course_assignment_requests
+                    (company_id, department_id, department_head_id, requested_by, course_id, employee_ids)
+                    VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                    RETURNING id
+                    """,
+                    (company_id, department_id, head_id, current_user.get("user_id"), course_id, json.dumps(ids)),
+                )
+                request_id = cursor.fetchone()[0]
+                request_ids.append(request_id)
+        create_notification(
+            user_id=head_id,
+            company_id=company_id,
+            title="Course assignment approval required",
+            message=f"Review the request to assign {course[1] or 'a course'} to {len(ids)} employee(s).",
+            notification_type="course",
+            link="/dashboard/course-assignment-approvals",
+        )
+
+    return {"success": True, "request_ids": request_ids, "department_requests": len(request_ids)}
+
+
+@app.get("/api/course-assignment-requests")
+async def list_course_assignment_requests(current_user=Depends(get_current_user)):
+    role = current_user.get("role")
+    user_id = current_user.get("user_id")
+    if role == "department_head":
+        where_sql, params = "department_head_id = %s", (user_id,)
+    elif role == "company_admin":
+        where_sql, params = "requested_by = %s AND company_id = %s", (user_id, current_user.get("company_id"))
+    else:
+        raise HTTPException(status_code=403, detail="Permission denied.")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT r.id, r.department_id, d.name, r.course_id, c.title,
+                       r.employee_ids, r.status, r.decision_note, r.created_at,
+                       r.decided_at, r.department_head_id
+                FROM course_assignment_requests r
+                LEFT JOIN departments d ON d.id = r.department_id
+                LEFT JOIN courses c ON c.id = r.course_id
+                WHERE {where_sql}
+                ORDER BY r.created_at DESC
+                """,
+                params,
+            )
+            rows = cursor.fetchall()
+            results = []
+            for row in rows:
+                ids = row[5] if isinstance(row[5], list) else json.loads(row[5] or "[]")
+                cursor.execute(
+                    "SELECT id, COALESCE(first_name || ' ' || last_name, first_name, last_name, email) FROM users WHERE id = ANY(%s) ORDER BY id",
+                    (ids,),
+                )
+                employee_rows = cursor.fetchall()
+                results.append({
+                    "id": row[0], "department_id": row[1], "department": row[2],
+                    "course_id": row[3], "course_title": row[4], "employee_ids": ids,
+                    "employees": [{"id": item[0], "name": item[1]} for item in employee_rows],
+                    "status": row[6], "decision_note": row[7],
+                    "created_at": row[8], "decided_at": row[9],
+                    "department_head_id": row[10],
+                })
+    return results
+
+
+@app.post("/api/course-assignment-requests/{request_id}/decision")
+async def decide_course_assignment_request(
+    request_id: int,
+    data: dict,
+    current_user=Depends(get_current_user),
+):
+    if current_user.get("role") != "department_head":
+        raise HTTPException(status_code=403, detail="Only Department Heads can review requests.")
+    decision = data.get("decision")
+    note = (data.get("note") or "").strip()
+    if decision not in {"approve", "reject"}:
+        raise HTTPException(status_code=400, detail="Decision must be approve or reject.")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT company_id, department_id, course_id, employee_ids, status
+                FROM course_assignment_requests
+                WHERE id = %s AND department_head_id = %s
+                """,
+                (request_id, current_user.get("user_id")),
+            )
+            request_row = cursor.fetchone()
+    if not request_row:
+        raise HTTPException(status_code=404, detail="Approval request not found.")
+    company_id, department_id, course_id, raw_ids, status = request_row
+    if status != "pending":
+        raise HTTPException(status_code=409, detail="This request has already been reviewed.")
+    employee_ids = raw_ids if isinstance(raw_ids, list) else json.loads(raw_ids or "[]")
+
+    if decision == "approve":
+        course = get_course(course_id, company_id=company_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="The requested course is no longer available.")
+        for employee_id in employee_ids:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, role, company_id, department_id, COALESCE(first_name || ' ' || last_name, first_name, last_name, email) FROM users WHERE id = %s",
+                        (employee_id,),
+                    )
+                    employee = cursor.fetchone()
+            if not employee or employee[1] != "employee" or employee[2] != company_id or employee[3] != department_id:
+                raise HTTPException(status_code=409, detail="An employee no longer belongs to this department. No approval was completed.")
+            assign_course(user_id=employee_id, course_id=course_id)
+            create_notification(
+                user_id=employee_id, company_id=company_id,
+                title="New course assigned",
+                message=f"You have been enrolled in “{course[1] or 'a new course'}”.",
+                notification_type="course", link=f"/learning/{course_id}",
+            )
+    new_status = "approved" if decision == "approve" else "rejected"
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE course_assignment_requests
+                SET status = %s, decision_note = %s, decided_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND status = 'pending'
+                """,
+                (new_status, note or None, request_id),
+            )
+            if cursor.rowcount != 1:
+                raise HTTPException(status_code=409, detail="This request has already been reviewed.")
+
+    notify_company_admins(
+        company_id,
+        title=f"Course assignment request {new_status}",
+        message=f"The Department Head {new_status} a request for {len(employee_ids)} employee(s).",
+        notification_type="course",
+        link="/dashboard/users",
+    )
+    return {"success": True, "status": new_status}
 
 
 @app.post("/api/enrollments")
