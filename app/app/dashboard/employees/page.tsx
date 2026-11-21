@@ -7,8 +7,6 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   getDepartments,
   getUsers,
-  getCourses,
-  assignCourse,
   getDepartmentHeads,
   registerEmployee,
   getNextEmployeeId,
@@ -64,11 +62,6 @@ type Employee = {
   profile_photo_url?: string | null;
 };
 
-
-type Course = {
-  id: number;
-  title: string;
-};
 
 const EMPLOYMENT_TYPES = [
   "Permanent",
@@ -142,10 +135,6 @@ export default function EmployeesPage() {
 
   const [users, setUsers] =
     useState<Employee[]>([]);
-
-  const [courses, setCourses] =
-    useState<Course[]>([]);
-
 
   // ==========================================================
   // CREATE EMPLOYEE FORM
@@ -261,17 +250,6 @@ export default function EmployeesPage() {
 
 
   // ==========================================================
-  // ASSIGN COURSE
-  // ==========================================================
-
-  const [selectedCourse, setSelectedCourse] =
-    useState<Record<number, number>>({});
-
-  const [assigningUserId, setAssigningUserId] =
-    useState<number | null>(null);
-
-
-  // ==========================================================
   // PAGE STATE
   // ==========================================================
 
@@ -327,7 +305,6 @@ export default function EmployeesPage() {
         loadDepartments(companyId),
         loadDepartmentHeads(),
         loadUsers(),
-        loadCourses(),
       ]);
 
     } catch (error) {
@@ -385,20 +362,6 @@ export default function EmployeesPage() {
       await getUsers();
 
     setUsers(
-      Array.isArray(data)
-        ? data
-        : []
-    );
-
-  }
-
-
-  async function loadCourses() {
-
-    const data =
-      await getCourses();
-
-    setCourses(
       Array.isArray(data)
         ? data
         : []
@@ -756,88 +719,6 @@ export default function EmployeesPage() {
     } finally {
       setSaving(false);
     }
-  }
-
-
-  // ==========================================================
-  // ASSIGN COURSE
-  // ==========================================================
-
-  async function handleAssignCourse(
-    userId: number
-  ) {
-
-    const courseId =
-      selectedCourse[userId];
-
-
-    if (!courseId) {
-
-      alert(
-        "Please select a course."
-      );
-
-      return;
-
-    }
-
-
-    try {
-
-      setAssigningUserId(userId);
-
-      const response =
-        await assignCourse(
-          userId,
-          courseId
-        );
-
-
-      if (response?.success === false) {
-
-        alert(
-          response?.message ||
-          "Unable to assign course."
-        );
-
-        return;
-
-      }
-
-
-      alert(
-        "Course assigned successfully."
-      );
-
-
-      setSelectedCourse(
-        (current) => ({
-          ...current,
-          [userId]: 0,
-        })
-      );
-
-
-      await loadUsers();
-
-    } catch (error: any) {
-
-      console.error(
-        "Course assignment error:",
-        error
-      );
-
-      alert(
-        error?.message ||
-        "Unable to assign course."
-      );
-
-    } finally {
-
-      setAssigningUserId(null);
-
-    }
-
   }
 
 
@@ -1815,7 +1696,7 @@ export default function EmployeesPage() {
 
             <div className="overflow-x-auto">
 
-              <table className="min-w-[1000px] w-full">
+              <table className="min-w-[760px] w-full">
 
                 <thead>
 
@@ -1831,14 +1712,6 @@ export default function EmployeesPage() {
 
                     <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       Progress
-                    </th>
-
-                    <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Course Assignment
-                    </th>
-
-                    <th className="px-5 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Action
                     </th>
 
                   </tr>
@@ -1962,107 +1835,6 @@ export default function EmployeesPage() {
 
                           </td>
 
-
-                          {/* Course */}
-
-                          <td className="px-5 py-4">
-
-                            <select
-                              value={
-                                selectedCourse[
-                                  user.id
-                                ] || ""
-                              }
-                              onChange={(e) =>
-                                setSelectedCourse(
-                                  (current) => ({
-                                    ...current,
-                                    [user.id]:
-                                      Number(
-                                        e.target.value
-                                      ),
-                                  })
-                                )
-                              }
-                              className="
-                                h-9
-                                w-56
-                                rounded-lg
-                                border
-                                border-slate-200
-                                bg-white
-                                px-3
-                                text-xs
-                                text-slate-600
-                                outline-none
-                                focus:border-amber-400
-                              "
-                            >
-
-                              <option value="">
-                                Select Course
-                              </option>
-
-                              {courses.map(
-                                (course) => (
-
-                                  <option
-                                    key={course.id}
-                                    value={course.id}
-                                  >
-                                    {course.title}
-                                  </option>
-
-                                )
-                              )}
-
-                            </select>
-
-                          </td>
-
-
-                          {/* Action */}
-
-                          <td className="px-5 py-4 text-right">
-
-                            <button
-                              type="button"
-                              disabled={
-                                assigningUserId ===
-                                user.id
-                              }
-                              onClick={() =>
-                                handleAssignCourse(
-                                  user.id
-                                )
-                              }
-                              className="
-                                inline-flex
-                                items-center
-                                justify-center
-                                gap-2
-                                rounded-lg
-                                bg-slate-900
-                                px-3
-                                py-2
-                                text-xs
-                                font-semibold
-                                text-white
-                                transition
-                                hover:bg-slate-800
-                                disabled:cursor-not-allowed
-                                disabled:opacity-50
-                              "
-                            >
-
-                              {assigningUserId ===
-                              user.id
-                                ? "Assigning..."
-                                : "Assign Course"}
-
-                            </button>
-
-                          </td>
 
                         </tr>
 
