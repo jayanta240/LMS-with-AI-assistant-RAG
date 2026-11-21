@@ -381,8 +381,8 @@ async def upload_scorm_package(
     file: UploadFile = File(...),
     current_user=Depends(get_current_user),
 ):
-    if current_user.get("role") not in {"company_admin", "department_head"}:
-        raise HTTPException(status_code=403, detail="Only company admins and department heads can upload SCORM packages.")
+    if current_user.get("role") != "company_admin":
+        raise HTTPException(status_code=403, detail="Only Company Admins can upload SCORM packages.")
     _get_course_for_role(course_id, current_user)
     company_id = _company_id(current_user)
     filename = (file.filename or "").lower()
@@ -1252,8 +1252,8 @@ def scorm_learner_summary(user_id: int, current_user=Depends(get_current_user)):
 
 @router.delete("/packages/{package_id}")
 def delete_scorm_package(package_id: str, current_user=Depends(get_current_user)):
-    if current_user.get("role") not in {"company_admin", "department_head"}:
-        raise HTTPException(status_code=403, detail="Only company admins and department heads can delete SCORM packages.")
+    if current_user.get("role") != "company_admin":
+        raise HTTPException(status_code=403, detail="Only Company Admins can delete SCORM packages.")
     package = _package_row(package_id, current_user)
     storage_path = Path(package[7]).resolve()
     if not storage_path.is_relative_to(STORAGE_ROOT):
