@@ -4037,7 +4037,7 @@ async def list_course_assignment_requests(current_user=Depends(get_current_user)
         with conn.cursor() as cursor:
             cursor.execute(
                 f"""
-                SELECT r.id, r.department_id, d.name, r.course_id, c.title,
+                SELECT r.id, r.department_id, d.department_name, r.course_id, c.title,
                        r.employee_ids, r.status, r.decision_note, r.created_at,
                        r.decided_at, r.department_head_id
                 FROM course_assignment_requests r
@@ -4053,7 +4053,7 @@ async def list_course_assignment_requests(current_user=Depends(get_current_user)
             for row in rows:
                 ids = row[5] if isinstance(row[5], list) else json.loads(row[5] or "[]")
                 cursor.execute(
-                    "SELECT id, COALESCE(first_name || ' ' || last_name, first_name, last_name, email) FROM users WHERE id = ANY(%s) ORDER BY id",
+                    "SELECT id, name FROM users WHERE id = ANY(%s) ORDER BY id",
                     (ids,),
                 )
                 employee_rows = cursor.fetchall()
@@ -4107,7 +4107,7 @@ async def decide_course_assignment_request(
             with get_db_connection() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute(
-                        "SELECT id, role, company_id, department_id, COALESCE(first_name || ' ' || last_name, first_name, last_name, email) FROM users WHERE id = %s",
+                        "SELECT id, role, company_id, department_id, name FROM users WHERE id = %s",
                         (employee_id,),
                     )
                     employee = cursor.fetchone()
