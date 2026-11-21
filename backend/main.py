@@ -1340,19 +1340,9 @@ async def upload(
     from services.video_processor import process_video
     from services.document_processor import process_document
 
-    # Company admins can upload company/department/course knowledge.
-    # Department heads may upload only to their own department.
     role = current_user.get("role")
-    if role not in {"company_admin", "department_head"}:
-        raise HTTPException(status_code=403, detail="Only Company Admins and Department Heads can upload assistant content.")
-
-    if role == "department_head":
-        assigned_department_id = current_user.get("department_id")
-        if assigned_department_id is None:
-            raise HTTPException(status_code=403, detail="Department information is missing.")
-        visibility = "department"
-        department_id = assigned_department_id
-        course_id = None
+    if role != "company_admin":
+        raise HTTPException(status_code=403, detail="Only Company Admins can upload assistant content.")
 
     # =================================================
     # GET COMPANY / USER FROM AUTHENTICATED USER
@@ -2571,10 +2561,7 @@ async def create_lesson_api(
     role = current_user["role"]
     company_id = current_user.get("company_id")
 
-    if role not in [
-        "company_admin",
-        "department_head"
-    ]:
+    if role != "company_admin":
         raise HTTPException(
             status_code=403,
             detail="Permission denied."
@@ -2585,18 +2572,6 @@ async def create_lesson_api(
             status_code=403,
             detail="Company information is missing."
         )
-
-    if role == "department_head":
-        department_id = current_user.get("department_id")
-        if department_id is None:
-            raise HTTPException(status_code=403, detail="Department information is missing.")
-        scoped_course = get_course(
-            data.course_id,
-            company_id=company_id,
-            department_id=department_id,
-        )
-        if not scoped_course:
-            raise HTTPException(status_code=404, detail="Course not found in your department.")
 
     try:
         lesson_id = create_lesson(
@@ -3996,45 +3971,12 @@ async def assign_course_api(
 
         pass
 
-    # ---------------------------------
-    # COMPANY ADMIN
-    # Can assign only inside own company
-    # ---------------------------------
-
-    elif current_user["role"] == "company_admin":
-
-        if user[4] != "employee":
-            raise HTTPException(
-                status_code=400,
-                detail="Courses can only be assigned to employees."
-            )
-
-        if user[5] != current_user["company_id"]:
-
-            raise HTTPException(
-                status_code=403,
-                detail="Cannot assign courses outside your company."
-            )
-
-    # ---------------------------------
-    # DEPARTMENT HEAD
-    # Can assign only inside own department
-    # ---------------------------------
-
-    elif current_user["role"] == "department_head":
-
-        if user[4] != "employee":
-            raise HTTPException(
-                status_code=400,
-                detail="Courses can only be assigned to employees."
-            )
-
-        if user[6] != current_user["department_id"]:
-
-            raise HTTPException(
-                status_code=403,
-                detail="Cannot assign courses outside your department."
-            )
+    # Direct enrollment is reserved for Super Admins.
+    elif current_user["role"] in {"company_admin", "department_head"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Use the department approval workflow to assign courses."
+        )
 
     # ---------------------------------
     # EMPLOYEE
@@ -4218,11 +4160,8 @@ async def update_course_api(
     company_id = current_user.get("company_id")
     department_id = current_user.get("department_id") if role == "department_head" else None
 
-    if role not in ["super_admin", "company_admin", "department_head"]:
-        raise HTTPException(status_code=403, detail="Permission denied.")
-
-    if role == "department_head" and department_id is None:
-        raise HTTPException(status_code=403, detail="Department information is missing.")
+    if role not in ["super_admin", "company_admin"]:
+        raise HTTPException(status_code=403, detail="Only Super Admins and Company Admins can update courses.")
 
     scoped_course = get_course(
         course_id,
@@ -4276,10 +4215,8 @@ async def delete_course_api(
     company_id = current_user.get("company_id")
     department_id = current_user.get("department_id") if role == "department_head" else None
 
-    if role not in ["super_admin", "company_admin", "department_head"]:
-        raise HTTPException(status_code=403, detail="Permission denied.")
-    if role == "department_head" and department_id is None:
-        raise HTTPException(status_code=403, detail="Department information is missing.")
+    if role not in ["super_admin", "company_admin"]:
+        raise HTTPException(status_code=403, detail="Only Super Admins and Company Admins can delete courses.")
 
     course = get_course(
         course_id,
