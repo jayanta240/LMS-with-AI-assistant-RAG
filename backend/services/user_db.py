@@ -340,6 +340,7 @@ def get_employees_with_progress(company_id=None, department_head_id=None):
                     u.created_at,
                     u.department_head_id,
                     u.profile_photo_url,
+                    dh.name AS department_head_name,
                     CASE
                         WHEN COUNT(DISTINCT l.id) = 0 THEN 0
                         ELSE FLOOR(
@@ -354,6 +355,9 @@ def get_employees_with_progress(company_id=None, department_head_id=None):
                     ON u.company_id = c.id
                 LEFT JOIN departments d
                     ON u.department_id = d.id
+                LEFT JOIN users dh
+                    ON u.department_head_id = dh.id
+                   AND dh.role = 'department_head'
                 LEFT JOIN enrollments e
                     ON e.user_id = u.id
                 LEFT JOIN lessons l
@@ -366,7 +370,8 @@ def get_employees_with_progress(company_id=None, department_head_id=None):
                 GROUP BY
                     u.id, u.name, u.email, u.role, u.company_id,
                     c.company_name, u.department_id, d.department_name,
-                    u.created_at, u.department_head_id, u.profile_photo_url
+                    u.created_at, u.department_head_id, u.profile_photo_url,
+                    dh.name
                 ORDER BY u.id DESC
             """, tuple(params))
             return cursor.fetchall()
