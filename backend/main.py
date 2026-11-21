@@ -4103,16 +4103,27 @@ async def decide_course_assignment_request(
         course = get_course(course_id, company_id=company_id)
         if not course:
             raise HTTPException(status_code=404, detail="The requested course is no longer available.")
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, role, company_id, department_id FROM users WHERE id = ANY(%s)",
+                    (employee_ids,),
+                )
+                current_employees = cursor.fetchall()
+                cursor.execute(
+                    "SELECT user_id FROM enrollments WHERE course_id = %s AND user_id = ANY(%s)",
+                    (course_id, employee_ids),
+                )
+                already_enrolled = {row[0] for row in cursor.fetchall()}
+        valid_ids = {
+            row[0] for row in current_employees
+            if row[1] == "employee" and row[2] == company_id and row[3] == department_id
+        }
+        if valid_ids != set(employee_ids):
+            raise HTTPException(status_code=409, detail="An employee no longer belongs to this department. No employees were enrolled.")
+        if already_enrolled:
+            raise HTTPException(status_code=409, detail="At least one selected employee is already enrolled. No employees were enrolled.")
         for employee_id in employee_ids:
-            with get_db_connection() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        "SELECT id, role, company_id, department_id, name FROM users WHERE id = %s",
-                        (employee_id,),
-                    )
-                    employee = cursor.fetchone()
-            if not employee or employee[1] != "employee" or employee[2] != company_id or employee[3] != department_id:
-                raise HTTPException(status_code=409, detail="An employee no longer belongs to this department. No approval was completed.")
             assign_course(user_id=employee_id, course_id=course_id)
             create_notification(
                 user_id=employee_id, company_id=company_id,
