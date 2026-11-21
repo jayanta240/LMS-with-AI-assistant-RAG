@@ -96,6 +96,11 @@ const companyMenu: MenuItem[] = [
     icon: UsersRound,
   },
   {
+    name: "Assign Courses",
+    href: "/dashboard/users",
+    icon: GraduationCap,
+  },
+  {
     name: "Departments",
     href: "/dashboard/departments",
     icon: Briefcase,
