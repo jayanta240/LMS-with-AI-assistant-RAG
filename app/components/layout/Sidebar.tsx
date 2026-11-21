@@ -135,6 +135,11 @@ const departmentMenu: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
+    name: "Assignment Approvals",
+    href: "/dashboard/course-assignment-approvals",
+    icon: ClipboardList,
+  },
+  {
     name: "Audit Logs",
     href: "/dashboard/audit-logs",
     icon: ClipboardList,
