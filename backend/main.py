@@ -3021,8 +3021,8 @@ async def get_users_api(
             "created_at": row[8],
             "department_head_id": row[9],
             "profile_photo_url": row[10] if len(row) > 10 else None,
-            "progress": row[11] or 0,
-            "department_head_name": row[12] if len(row) > 12 else None,
+            "department_head_name": row[11] if len(row) > 11 else None,
+            "progress": row[12] or 0 if len(row) > 12 else 0,
         }
         for row in rows
     ]
