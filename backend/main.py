@@ -4289,6 +4289,40 @@ async def list_certificate_approval_requests(current_user=Depends(get_current_us
         raise HTTPException(status_code=403, detail=str(exc))
 
 
+@app.post("/api/certificate-approval-requests/{course_id}/resubmit")
+async def resubmit_certificate_approval_request(course_id: int, current_user=Depends(get_current_user)):
+    if current_user.get("role") != "employee":
+        raise HTTPException(status_code=403, detail="Only learners can resubmit certificate requests.")
+    user_id = current_user.get("user_id")
+    company_id = current_user.get("company_id")
+    if not company_id:
+        raise HTTPException(status_code=403, detail="Your account is not associated with a company.")
+    course = get_course(course_id, company_id=company_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found.")
+    progress = get_course_progress(user_id, course_id)
+    if progress["total"] <= 0 or progress["completed"] < progress["total"]:
+        raise HTTPException(status_code=400, detail="Complete all course lessons before requesting a certificate.")
+    try:
+        request = submit_certificate_approval_request(user_id, course_id, company_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    if request.get("status") == "pending_department_head" and not request.get("already_exists"):
+        create_notification(
+            user_id=request["department_head_id"], company_id=company_id,
+            title="Certificate approval required",
+            message=f"{current_user.get('name', 'An employee')} resubmitted a certificate request for “{course[1]}”.",
+            notification_type="certificate", link="/dashboard/certificate-approvals",
+        )
+        create_notification(
+            user_id=user_id, company_id=company_id,
+            title="Certificate request resubmitted",
+            message=f"Your certificate request for “{course[1]}” is awaiting Department Head approval.",
+            notification_type="certificate", link="/dashboard/certificate-approvals",
+        )
+    return {"success": True, "request": request}
+
+
 @app.post("/api/certificate-approval-requests/{request_id}/decision")
 async def review_certificate_approval_request(
     request_id: int,
