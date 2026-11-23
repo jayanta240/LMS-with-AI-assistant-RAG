@@ -57,11 +57,6 @@ const superAdminMenu: MenuItem[] = [
     icon: GraduationCap,
   },
   {
-    name: "Surveys",
-    href: "/dashboard/surveys",
-    icon: ClipboardList,
-  },
-  {
     name: "Files & Documents",
     href: "/dashboard/files",
     icon: FolderOpen,
@@ -119,6 +114,11 @@ const companyMenu: MenuItem[] = [
     name: "Department Heads",
     href: "/dashboard/department-heads",
     icon: UserCog,
+  },
+  {
+    name: "Surveys",
+    href: "/dashboard/surveys",
+    icon: ClipboardList,
   },
   {
     name: "Courses",
