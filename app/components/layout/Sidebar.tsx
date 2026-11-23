@@ -116,11 +116,6 @@ const companyMenu: MenuItem[] = [
     icon: UserCog,
   },
   {
-    name: "Surveys",
-    href: "/dashboard/surveys",
-    icon: ClipboardList,
-  },
-  {
     name: "Courses",
     href: "/dashboard/courses",
     icon: GraduationCap,
@@ -191,11 +186,6 @@ const employeeMenu: MenuItem[] = [
   {
     name: "Certificate Requests",
     href: "/dashboard/certificate-approvals",
-    icon: ClipboardList,
-  },
-  {
-    name: "Course Surveys",
-    href: "/dashboard/surveys",
     icon: ClipboardList,
   },
 ];
