@@ -57,6 +57,11 @@ const superAdminMenu: MenuItem[] = [
     icon: GraduationCap,
   },
   {
+    name: "Surveys",
+    href: "/dashboard/surveys",
+    icon: ClipboardList,
+  },
+  {
     name: "Files & Documents",
     href: "/dashboard/files",
     icon: FolderOpen,
@@ -186,6 +191,11 @@ const employeeMenu: MenuItem[] = [
   {
     name: "Certificate Requests",
     href: "/dashboard/certificate-approvals",
+    icon: ClipboardList,
+  },
+  {
+    name: "Course Surveys",
+    href: "/dashboard/surveys",
     icon: ClipboardList,
   },
 ];
