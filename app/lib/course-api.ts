@@ -1651,6 +1651,49 @@ export async function uploadCompanyLogo(
 
 
 // ============================================================
+// CERTIFICATE APPROVAL WORKFLOW
+// ============================================================
+
+export async function getCertificateApprovalRequests() {
+  const res = await fetch(
+    `${BASE}/api/certificate-approval-requests`,
+    { headers: authHeaders() }
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || "Failed to load certificate requests");
+  return data.requests || [];
+}
+
+export async function decideCertificateApprovalRequest(
+  requestId: number,
+  decision: "approve" | "reject",
+  note = ""
+) {
+  const res = await fetch(
+    `${BASE}/api/certificate-approval-requests/${requestId}/decision`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ decision, note }),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || "Failed to submit certificate decision");
+  return data;
+}
+
+export async function resubmitCertificateApprovalRequest(courseId: number) {
+  const res = await fetch(
+    `${BASE}/api/certificate-approval-requests/${courseId}/resubmit`,
+    { method: "POST", headers: authHeaders() }
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || "Failed to resubmit certificate request");
+  return data;
+}
+
+
+// ============================================================
 // LEARNER COURSE BOOKMARKS
 // ============================================================
 
