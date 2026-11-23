@@ -81,6 +81,11 @@ const companyMenu: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
+    name: "Certificate Approvals",
+    href: "/dashboard/certificate-approvals",
+    icon: ClipboardList,
+  },
+  {
     name: "Audit Logs",
     href: "/dashboard/audit-logs",
     icon: ClipboardList,
@@ -140,6 +145,11 @@ const departmentMenu: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
+    name: "Certificate Approvals",
+    href: "/dashboard/certificate-approvals",
+    icon: ClipboardList,
+  },
+  {
     name: "Assignment Approvals",
     href: "/dashboard/course-assignment-approvals",
     icon: ClipboardList,
@@ -168,6 +178,15 @@ const departmentMenu: MenuItem[] = [
     name: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
+  },
+];
+
+
+const employeeMenu: MenuItem[] = [
+  {
+    name: "Certificate Requests",
+    href: "/dashboard/certificate-approvals",
+    icon: ClipboardList,
   },
 ];
 
@@ -221,6 +240,8 @@ export default function Sidebar({
       setMenu(companyMenu);
     } else if (storedRole === "department_head") {
       setMenu(departmentMenu);
+    } else if (storedRole === "employee") {
+      setMenu(employeeMenu);
     } else {
       setMenu([]);
     }
