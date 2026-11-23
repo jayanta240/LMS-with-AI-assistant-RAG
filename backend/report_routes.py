@@ -15,6 +15,10 @@ def download_report(
     company_id: int | None = Query(default=None),
     scope: str = Query(default="company"),
     department_id: int | None = Query(default=None),
+    user_id: int | None = Query(default=None),
+    course_id: int | None = Query(default=None),
+    start_date: str | None = Query(default=None),
+    end_date: str | None = Query(default=None),
     current_user=Depends(get_current_user),
 ):
     """Download a role-scoped employee/course progress report as CSV."""
@@ -25,6 +29,19 @@ def download_report(
     conditions = ["u.role = 'employee'"]
     params = []
     report_scope = "All companies"
+
+    if start_date:
+        try:
+            datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start date. Use YYYY-MM-DD.")
+    if end_date:
+        try:
+            datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end date. Use YYYY-MM-DD.")
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=400, detail="Start date must be before or equal to end date.")
 
     if role == "super_admin":
         # Super admins can export all companies or select one company.
@@ -71,6 +88,33 @@ def download_report(
                 if cursor.fetchone() is None:
                     raise HTTPException(status_code=404, detail="Department not found in your company.")
 
+            if role == "super_admin" and department_id is not None:
+                if company_id is not None:
+                    cursor.execute(
+                        "SELECT id FROM departments WHERE id = %s AND company_id = %s",
+                        (department_id, company_id),
+                    )
+                else:
+                    cursor.execute("SELECT id FROM departments WHERE id = %s", (department_id,))
+                if cursor.fetchone() is None:
+                    raise HTTPException(status_code=404, detail="Department not found.")
+
+            if department_id is not None and role == "super_admin":
+                conditions.append("u.department_id = %s")
+                params.append(department_id)
+            if user_id is not None:
+                conditions.append("u.id = %s")
+                params.append(user_id)
+            if course_id is not None:
+                conditions.append("c.id = %s")
+                params.append(course_id)
+            if start_date:
+                conditions.append("e.assigned_at >= %s")
+                params.append(start_date)
+            if end_date:
+                conditions.append("e.assigned_at < (%s::date + INTERVAL '1 day')")
+                params.append(end_date)
+
             cursor.execute(
                 f"""
                 SELECT
@@ -91,8 +135,8 @@ def download_report(
                 FROM users u
                 LEFT JOIN companies co ON co.id = u.company_id
                 LEFT JOIN departments d ON d.id = u.department_id
-                LEFT JOIN enrollments e ON e.user_id = u.id
-                LEFT JOIN courses c ON c.id = e.course_id
+                INNER JOIN enrollments e ON e.user_id = u.id
+                INNER JOIN courses c ON c.id = e.course_id
                 LEFT JOIN lessons l ON l.course_id = c.id
                 LEFT JOIN lesson_progress lp
                     ON lp.lesson_id = l.id
@@ -110,10 +154,6 @@ def download_report(
 
     output = io.StringIO(newline="")
     writer = csv.writer(output)
-    writer.writerow([
-        "Report scope", report_scope,
-        "Generated at", datetime.now().astimezone().isoformat(timespec="seconds"),
-    ])
     writer.writerow([
         "Company", "Department", "Employee", "Email", "Employee ID",
         "Course", "Assigned At", "Total Lessons", "Completed Lessons",
@@ -141,7 +181,7 @@ def download_report(
     output.seek(0)
     filename = f"lms_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     return StreamingResponse(
-        iter([output.getvalue()]),
+        iter(["\ufeff" + output.getvalue()]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
