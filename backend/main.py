@@ -137,6 +137,9 @@ from services.course_db import (
     delete_lessons_by_content_url,
     get_course_prerequisite_status,
     get_missing_course_prerequisites,
+    submit_certificate_approval_request,
+    get_certificate_approval_requests,
+    decide_certificate_approval_request,
 )
 
 from services.video_generator import generate_video
@@ -4265,6 +4268,142 @@ async def my_certificates(
 
 
 # ============================================================
+# CERTIFICATE APPROVAL WORKFLOW
+# ============================================================
+
+@app.get("/api/certificate-approval-requests")
+async def list_certificate_approval_requests(current_user=Depends(get_current_user)):
+    role = current_user.get("role")
+    if role not in {"employee", "department_head", "company_admin"}:
+        raise HTTPException(status_code=403, detail="Permission denied.")
+    try:
+        return {
+            "success": True,
+            "requests": get_certificate_approval_requests(
+                role,
+                user_id=current_user.get("user_id"),
+                company_id=current_user.get("company_id"),
+            ),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
+
+@app.post("/api/certificate-approval-requests/{request_id}/decision")
+async def review_certificate_approval_request(
+    request_id: int,
+    data: dict,
+    background_tasks: BackgroundTasks,
+    current_user=Depends(get_current_user),
+):
+    role = current_user.get("role")
+    if role not in {"department_head", "company_admin"}:
+        raise HTTPException(status_code=403, detail="Only Department Heads and Company Admins can review certificate requests.")
+    decision = data.get("decision")
+    if decision not in {"approve", "reject"}:
+        raise HTTPException(status_code=400, detail="Decision must be approve or reject.")
+    note = str(data.get("note") or "").strip()[:1000]
+    try:
+        result = decide_certificate_approval_request(
+            request_id, role, current_user.get("user_id") if role == "department_head" else current_user.get("company_id"),
+            decision, note,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
+    employee_id = result["user_id"]
+    company_id = result["company_id"]
+    course_id = result["course_id"]
+    course = get_course(course_id, company_id=company_id)
+    course_title = course[1] if course and len(course) > 1 else "Course"
+
+    if role == "department_head":
+        if decision == "approve":
+            notify_company_admins(
+                company_id,
+                title="Certificate approval required",
+                message=f"A Department Head approved a certificate request for “{course_title}”. Final approval is required.",
+                notification_type="certificate",
+                link="/dashboard/certificate-approvals",
+            )
+            create_notification(
+                user_id=employee_id, company_id=company_id,
+                title="Department Head approved your certificate request",
+                message=f"Your certificate request for “{course_title}” is now awaiting Company Admin approval.",
+                notification_type="certificate", link="/dashboard/certificate-approvals",
+            )
+        else:
+            create_notification(
+                user_id=employee_id, company_id=company_id,
+                title="Certificate request rejected",
+                message=f"Your certificate request for “{course_title}” was rejected by your Department Head. You may submit it again after addressing the feedback.",
+                notification_type="certificate", link="/dashboard/certificate-approvals",
+            )
+    else:
+        if decision == "reject":
+            create_notification(
+                user_id=employee_id, company_id=company_id,
+                title="Certificate request rejected",
+                message=f"Your certificate request for “{course_title}” was rejected by the Company Admin. You may submit it again after addressing the feedback.",
+                notification_type="certificate", link="/dashboard/certificate-approvals",
+            )
+        else:
+            user = get_user_by_id(employee_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="Learner not found.")
+            company = get_company(company_id)
+            company_name = company[1] if company and len(company) > 1 and company[1] else "Company"
+            branding = get_company_branding(company_id)
+            if not isinstance(branding, dict):
+                branding = {}
+            certificate = create_certificate(
+                user_id=employee_id,
+                course_id=course_id,
+                company_id=company_id,
+                user_name=user[1] or "Learner",
+                course_title=course_title,
+                company_name=company_name,
+                logo_url=branding.get("logo_url") or "",
+                primary_color=branding.get("primary_color") or "#FBBF24",
+                secondary_color=branding.get("secondary_color") or "#0F172A",
+                accent_color=branding.get("accent_color") or "#F59E0B",
+            )
+            try:
+                pdf_url = generate_certificate_pdf(certificate={
+                    **certificate,
+                    "user_name": user[1] or "Learner",
+                    "course_title": course_title,
+                    "company_name": company_name,
+                    "logo_url": branding.get("logo_url") or "",
+                    "primary_color": branding.get("primary_color") or "#FBBF24",
+                    "secondary_color": branding.get("secondary_color") or "#0F172A",
+                    "accent_color": branding.get("accent_color") or "#F59E0B",
+                })
+                update_certificate_pdf_url(certificate["id"], pdf_url)
+                notification_settings = get_notification_settings(company_id)
+                if notification_settings["certificate_email"]:
+                    from services.email_service import send_certificate_email
+                    background_tasks.add_task(
+                        send_certificate_email, user[2], user[1] or "Learner",
+                        course_title, pdf_url, certificate.get("certificate_number", ""), company_name,
+                    )
+            except Exception:
+                logging.getLogger(__name__).exception("Certificate PDF generation failed after final approval")
+            create_notification(
+                user_id=employee_id, company_id=company_id,
+                title="Certificate approved and issued",
+                message=f"Your certificate for “{course_title}” has been approved by the Company Admin.",
+                notification_type="certificate", link="/dashboard/certificate-approvals",
+            )
+
+    return {"success": True, "status": result["status"], "message": "Decision recorded."}
+
+
+# ============================================================
 # GET SINGLE CERTIFICATE
 # ============================================================
 
@@ -4597,261 +4736,40 @@ async def complete_lesson(
     )
 
 
-    certificate = None
-
-
-    # ========================================================
-    # CHECK COURSE COMPLETION
-    # ========================================================
+    certificate_request = None
 
     course_completed = (
         progress["total"] > 0
-        and
-        progress["completed"]
-        >= progress["total"]
+        and progress["completed"] >= progress["total"]
     )
 
-
-    if course_completed:
-
-        # ====================================================
-        # GET USER
-        # ====================================================
-
-        user = get_user_by_id(
-            user_id
-        )
-
-        if not user:
-
-            raise HTTPException(
-                status_code=404,
-                detail="User not found."
-            )
-
-
-        user_name = (
-            user[1]
-            if len(user) > 1
-            and user[1]
-            else current_user.get(
-                "name",
-                "Learner"
-            )
-        )
-
-
-        # ====================================================
-        # GET COMPANY
-        # ====================================================
-
-        company = get_company(
-            company_id
-        )
-
-
-        company_name = (
-            company[1]
-            if company
-            and len(company) > 1
-            and company[1]
-            else "Company"
-        )
-
-
-        # ====================================================
-        # GET BRANDING
-        # ====================================================
-
-        branding = get_company_branding(
-            company_id
-        )
-
-
-        if not isinstance(
-            branding,
-            dict
-        ):
-            branding = {}
-
-
-        logo_url = (
-            branding.get(
-                "logo_url"
-            )
-            or ""
-        )
-
-
-        primary_color = (
-            branding.get(
-                "primary_color"
-            )
-            or "#FBBF24"
-        )
-
-
-        secondary_color = (
-            branding.get(
-                "secondary_color"
-            )
-            or "#0F172A"
-        )
-
-
-        accent_color = (
-            branding.get(
-                "accent_color"
-            )
-            or "#F59E0B"
-        )
-
-
-        # ====================================================
-        # CREATE CERTIFICATE RECORD
-        # ====================================================
-
-        certificate = create_certificate(
-
-            user_id=user_id,
-
-            course_id=data.course_id,
-
-            company_id=company_id,
-
-            user_name=user_name,
-
-            course_title=course_title,
-
-            company_name=company_name,
-
-            logo_url=logo_url,
-
-            primary_color=primary_color,
-
-            secondary_color=secondary_color,
-
-            accent_color=accent_color,
-
-        )
-
-
-        # ====================================================
-        # GENERATE PDF
-        # ====================================================
-
+    if course_completed and current_user.get("role") == "employee":
         try:
-
-            pdf_url = generate_certificate_pdf(
-                certificate={
-                    **certificate,
-
-                    "user_name":
-                        user_name,
-
-                    "course_title":
-                        course_title,
-
-                    "company_name":
-                        company_name,
-
-                    "logo_url":
-                        logo_url,
-
-                    "primary_color":
-                        primary_color,
-
-                    "secondary_color":
-                        secondary_color,
-
-                    "accent_color":
-                        accent_color,
-                }
+            certificate_request = submit_certificate_approval_request(
+                user_id=user_id,
+                course_id=data.course_id,
+                company_id=company_id,
             )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
 
-
-            # ==================================================
-            # SAVE PDF URL
-            # ==================================================
-
-            update_certificate_pdf_url(
-                certificate_id=
-                    certificate["id"],
-
-                pdf_url=
-                    pdf_url
+        if certificate_request.get("status") == "pending_department_head" and not certificate_request.get("already_exists"):
+            create_notification(
+                user_id=certificate_request["department_head_id"],
+                company_id=company_id,
+                title="Certificate approval required",
+                message=f"{user_name if 'user_name' in locals() else current_user.get('name', 'An employee')} completed “{course_title}” and is requesting a certificate.",
+                notification_type="certificate",
+                link="/dashboard/certificate-approvals",
             )
-
-
-            # Update response object
-            certificate["pdf_url"] = (
-                pdf_url
+            create_notification(
+                user_id=user_id,
+                company_id=company_id,
+                title="Certificate request submitted",
+                message=f"Your completion of “{course_title}” is awaiting Department Head approval.",
+                notification_type="certificate",
+                link="/dashboard/certificate-approvals",
             )
-
-            # ------------------------------------------------
-            # EMAIL CERTIFICATE TO EMPLOYEE
-            # ------------------------------------------------
-
-            notification_settings = get_notification_settings(
-                company_id
-            )
-
-            if notification_settings["certificate_email"]:
-
-                from services.email_service import (
-                    send_certificate_email
-                )
-
-                email_args = (
-                    user[2],
-                    user_name,
-                    course_title,
-                    pdf_url,
-                    certificate.get("certificate_number", ""),
-                    company_name,
-                )
-
-                if background_tasks is not None:
-                    background_tasks.add_task(
-                        send_certificate_email,
-                        *email_args,
-                    )
-                else:
-                    send_certificate_email(
-                        *email_args
-                    )
-
-
-        except Exception as exc:
-
-            print(
-                "Certificate PDF generation failed:",
-                exc
-            )
-
-            # /*
-            #  * The course is still completed and the
-            #  * certificate database record still exists.
-            #  *
-            #  * PDF generation can be retried later.
-            #  */
-
-
-            certificate["pdf_error"] = (
-                "Certificate record created, "
-                "but PDF generation failed."
-            )
-
-
-    if certificate:
-        create_notification(
-            user_id=user_id,
-            company_id=company_id,
-            title="Certificate issued",
-            message=f"Your certificate for “{course_title}” is ready.",
-            notification_type="certificate",
-            link="/learning/dashboard",
-        )
 
     # ========================================================
     # RESPONSE
@@ -4862,14 +4780,15 @@ async def complete_lesson(
         "success": True,
 
         "message": (
-            "Course completed and certificate issued."
-            if certificate
+            "Course completed. Your certificate request is awaiting Department Head approval."
+            if certificate_request and certificate_request.get("status") == "pending_department_head"
             else "Lesson marked complete."
         ),
 
         "progress": progress,
 
-        "certificate": certificate,
+        "certificate": None,
+        "certificate_request": certificate_request,
 
     }
 @app.get("/api/users/{user_id}/courses/{course_id}/progress")
