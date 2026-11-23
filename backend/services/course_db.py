@@ -180,6 +180,34 @@ def init_course_db():
                 )
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS certificate_approval_requests (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    course_id INTEGER NOT NULL,
+                    company_id INTEGER NOT NULL,
+                    department_id INTEGER,
+                    department_head_id INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending_department_head'
+                        CHECK (status IN ('pending_department_head', 'pending_company_admin', 'rejected_department_head', 'rejected_company_admin', 'approved')),
+                    department_head_note TEXT,
+                    company_admin_note TEXT,
+                    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    department_head_decided_at TIMESTAMP,
+                    company_admin_decided_at TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, course_id)
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_certificate_approval_head_status
+                ON certificate_approval_requests(department_head_id, status, updated_at DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_certificate_approval_company_status
+                ON certificate_approval_requests(company_id, status, updated_at DESC)
+            """)
+
             # Certificate expiry migration. Existing certificates are deliberately
             # left without an expiry date to preserve their current validity.
             cursor.execute("""
@@ -1588,3 +1616,130 @@ def get_admin_analytics(company_id=None):
         })
 
     return result
+
+# ============================================================
+# CERTIFICATE APPROVAL WORKFLOW
+# ============================================================
+
+def submit_certificate_approval_request(user_id, course_id, company_id):
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                SELECT u.department_id, u.department_head_id, h.role
+                FROM users u
+                LEFT JOIN users h ON h.id = u.department_head_id
+                WHERE u.id = %s AND u.company_id = %s AND u.role = 'employee'
+            """, (user_id, company_id))
+            user_row = cursor.fetchone()
+            if not user_row or not user_row[0] or not user_row[1] or user_row[2] != "department_head":
+                raise ValueError("Your account does not have a valid Department Head assigned. Please contact your Company Admin.")
+
+            cursor.execute("""
+                SELECT id FROM certificates
+                WHERE user_id = %s AND course_id = %s
+            """, (user_id, course_id))
+            if cursor.fetchone():
+                return {"status": "approved", "already_issued": True}
+
+            cursor.execute("""
+                SELECT id, status, department_head_id
+                FROM certificate_approval_requests
+                WHERE user_id = %s AND course_id = %s
+            """, (user_id, course_id))
+            existing = cursor.fetchone()
+            if existing:
+                request_id, status, old_head_id = existing
+                if status in ("pending_department_head", "pending_company_admin", "approved"):
+                    return {"id": request_id, "status": status, "already_exists": True, "department_head_id": old_head_id}
+                cursor.execute("""
+                    UPDATE certificate_approval_requests
+                    SET department_id = %s, department_head_id = %s,
+                        status = 'pending_department_head',
+                        department_head_note = NULL, company_admin_note = NULL,
+                        submitted_at = CURRENT_TIMESTAMP,
+                        department_head_decided_at = NULL,
+                        company_admin_decided_at = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                    RETURNING id
+                """, (user_row[0], user_row[1], request_id))
+                request_id = cursor.fetchone()[0]
+            else:
+                cursor.execute("""
+                    INSERT INTO certificate_approval_requests
+                        (user_id, course_id, company_id, department_id, department_head_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (user_id, course_id, company_id, user_row[0], user_row[1]))
+                request_id = cursor.fetchone()[0]
+            return {"id": request_id, "status": "pending_department_head", "already_exists": False, "department_head_id": user_row[1]}
+
+
+def get_certificate_approval_requests(role, user_id=None, company_id=None):
+    if role == "department_head":
+        where, params = "r.department_head_id = %s AND r.status = 'pending_department_head'", (user_id,)
+    elif role == "company_admin":
+        where, params = "r.company_id = %s AND r.status = 'pending_company_admin'", (company_id,)
+    elif role == "employee":
+        where, params = "r.user_id = %s", (user_id,)
+    else:
+        raise ValueError("Unsupported role")
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"""
+                SELECT r.id, r.user_id, u.name, u.email, r.course_id, c.title,
+                       r.company_id, r.department_id, d.department_name,
+                       r.department_head_id, r.status,
+                       r.department_head_note, r.company_admin_note,
+                       r.submitted_at, r.department_head_decided_at,
+                       r.company_admin_decided_at, r.updated_at
+                FROM certificate_approval_requests r
+                JOIN users u ON u.id = r.user_id
+                JOIN courses c ON c.id = r.course_id
+                LEFT JOIN departments d ON d.id = r.department_id
+                WHERE {where}
+                ORDER BY r.updated_at DESC
+            """, params)
+            rows = cursor.fetchall()
+    keys = ("id","user_id","user_name","user_email","course_id","course_title","company_id","department_id","department","department_head_id","status","department_head_note","company_admin_note","submitted_at","department_head_decided_at","company_admin_decided_at","updated_at")
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def decide_certificate_approval_request(request_id, role, actor_id, decision, note=""):
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            if role == "department_head":
+                cursor.execute("""
+                    SELECT id, user_id, course_id, company_id, status
+                    FROM certificate_approval_requests
+                    WHERE id = %s AND department_head_id = %s
+                    FOR UPDATE
+                """, (request_id, actor_id))
+                row = cursor.fetchone()
+                expected, approved_status, rejected_status = "pending_department_head", "pending_company_admin", "rejected_department_head"
+                update_sql = """UPDATE certificate_approval_requests
+                    SET status = %s, department_head_note = %s,
+                        department_head_decided_at = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP WHERE id = %s"""
+            elif role == "company_admin":
+                cursor.execute("""
+                    SELECT id, user_id, course_id, company_id, status
+                    FROM certificate_approval_requests
+                    WHERE id = %s AND company_id = %s
+                    FOR UPDATE
+                """, (request_id, actor_id))
+                row = cursor.fetchone()
+                expected, approved_status, rejected_status = "pending_company_admin", "approved", "rejected_company_admin"
+                update_sql = """UPDATE certificate_approval_requests
+                    SET status = %s, company_admin_note = %s,
+                        company_admin_decided_at = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP WHERE id = %s"""
+            else:
+                raise PermissionError("Only Department Heads and Company Admins can review certificate requests.")
+            if not row:
+                raise LookupError("Certificate approval request not found.")
+            if row[4] != expected:
+                raise RuntimeError("This certificate request has already been reviewed or is at another approval stage.")
+            new_status = approved_status if decision == "approve" else rejected_status
+            cursor.execute(update_sql, (new_status, note or None, request_id))
+            return {"id": row[0], "user_id": row[1], "course_id": row[2], "company_id": row[3], "status": new_status}
