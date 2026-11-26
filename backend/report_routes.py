@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
@@ -112,8 +112,13 @@ def download_report(
                 conditions.append("e.assigned_at >= %s")
                 params.append(start_date)
             if end_date:
-                conditions.append("e.assigned_at < (%s::date + INTERVAL '1 day')")
-                params.append(end_date)
+                # assigned_at is stored as ISO-formatted TEXT in the enrollments table.
+                # Compare against the next day's ISO date boundary to include the full end date.
+                end_exclusive = (
+                    datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+                ).strftime("%Y-%m-%d")
+                conditions.append("e.assigned_at < %s")
+                params.append(end_exclusive)
 
             cursor.execute(
                 f"""
